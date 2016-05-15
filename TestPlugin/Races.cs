@@ -561,10 +561,10 @@ public class RaceManager : MonoBehaviour
 
                 if (GUILayout.Button("New Checkpoint"))
                 {
-                    CheckPoint rwpCol = new GameObject().AddComponent<CheckPoint>();
+                    CheckPoint cp = new GameObject().AddComponent<CheckPoint>();
                     if (loadedTrack.cpList.Count == 1)
                     {
-                        rwpCol.tipoCp = CheckPoint.Types.START;
+                        cp.tipoCp = CheckPoint.Types.START;
                     }
                     else
                     {
@@ -572,9 +572,10 @@ public class RaceManager : MonoBehaviour
                         {
                             loadedTrack.cpList[loadedTrack.cpList.Count - 2].tipoCp = CheckPoint.Types.CHECKPOINT;
                         }
-                        rwpCol.tipoCp = CheckPoint.Types.FINISH;
+                        cp.tipoCp = CheckPoint.Types.FINISH;
                     }
-                    loadedTrack.cpList.Add(rwpCol);
+                    cp.boxCollider.name = "cp" + loadedTrack.cpList.Count;
+                    loadedTrack.cpList.Add(cp);
                     cambiaEditCp(loadedTrack.cpList.Count - 1);
 
                 }
@@ -601,9 +602,12 @@ public class RaceManager : MonoBehaviour
                     newRaceTrack();
                 }
 
-                if (GUILayout.Button("Start Race!"))
+                if (loadedTrack.cpList.Count > 1)
                 {
-                    cambiaEstado(estados.RaceScreen);
+                    if (GUILayout.Button("Start Race!"))
+                    {
+                        cambiaEstado(estados.RaceScreen);
+                    }
                 }
 
                 if (GUILayout.Button("Back"))
@@ -695,7 +699,7 @@ public class RaceManager : MonoBehaviour
                 GUILayout.Label(loadedTrack.name + "\nby " + loadedTrack.author);
                 if (enCarrera)
                 {
-                    GUILayout.Label(tiempoAct.ToString("0.00")); //Esto tiene que ser de tamaño grande.
+                    GUILayout.Label(tiempo((float)tiempoAct)); //Esto tiene que ser de tamaño grande.
                     if (GUILayout.Button("Abort Race!")) //Solo visible durante la carrera
                     {
                         enCarrera = !enCarrera;
@@ -714,7 +718,7 @@ public class RaceManager : MonoBehaviour
                 break;
             case estados.EndScreen:
                 GUILayout.Label(loadedTrack.name + "\nby " + loadedTrack.author);
-                GUILayout.Label("Total time:\n" + tiempoTot.ToString("0.00"));
+                GUILayout.Label("Total time:\n" + tiempo((float)tiempoTot));
                 if (GUILayout.Button("Restart Race"))
                 {
                     cambiaEstado(estados.RaceScreen);
@@ -867,7 +871,7 @@ public class RaceManager : MonoBehaviour
                     loadedTrack.cpList[pActivo].cpColor = CheckPoint.colorPasado;
                     break;
                 case CheckPoint.Types.CHECKPOINT:
-                    ScreenMessages.PostScreenMessage(tiempoAct.ToString("0.00"), 15);
+                    ScreenMessages.PostScreenMessage(tiempo((float)tiempoAct), 15);
                     loadedTrack.cpList[pActivo].boxCollider.enabled = false;
                     loadedTrack.cpList[pActivo].cpColor = CheckPoint.colorPasado;
                     break;
@@ -875,7 +879,7 @@ public class RaceManager : MonoBehaviour
                     loadedTrack.cpList[pActivo].boxCollider.enabled = false;
                     tiempoTot = tiempoAct;
                     enCarrera = false;
-                    ScreenMessages.PostScreenMessage(tiempoTot.ToString("0.00"), 15);
+                    ScreenMessages.PostScreenMessage(tiempo((float)tiempoTot), 15);
                     cambiaEstado(estados.EndScreen);
                     break;
                 default:
@@ -894,7 +898,7 @@ public class RaceManager : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("punto de control incorrecto");
+            //Wrong checkpoint
         }
     }
 
@@ -996,7 +1000,6 @@ public class RaceManager : MonoBehaviour
         return raceClon;
     }
 
-
     /// <summary>
     /// Esta función copiada de aqui: http://stackoverflow.com/questions/1120198/most-efficient-way-to-remove-special-characters-from-string
     /// </summary>
@@ -1013,5 +1016,19 @@ public class RaceManager : MonoBehaviour
             }
         }
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// un float que representa cierta cantidad de segundos, sale en forma de cadena de texto en formato HH:MM:SS.CC
+    /// </summary>
+    /// <param name="num"></param>
+    /// <returns></returns>
+    public string tiempo(float num)
+    {
+        int hor = (int)(num / 3600);
+        int min = (int)((num - (3600 * hor)) / 60);
+        int seg = (int)(num - ((hor * 3600) + (min * 60)));
+
+        return hor.ToString("00") + ":" + min.ToString("00") + ":" + seg.ToString("00") + "." + num.ToString(".00").Split('.')[1];
     }
 }
