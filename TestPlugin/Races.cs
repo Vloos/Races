@@ -109,7 +109,8 @@ namespace Races
                     raceMan.LoadRaceTrack(raceMan.lastLoadedTrack); // Se supone que carga la ultima carrera que ha sido cargada cuando se vuelve a la escena de vuelo
                     raceMan.cambiaEstado(RaceManager.estados.LoadScreen);
                 }
-                else{
+                else
+                {
                     raceMan.newRaceTrack();
                 }
                 GUIon();
@@ -172,7 +173,6 @@ public class CheckPoint : MonoBehaviour
 {
     public enum Types { START, CHECKPOINT, FINISH };
     public Types cpType;
-    private static int maxRaceWaypoints { get; } = 30; //cantidad máxima de puntos de control de una carrera, por si sirve para algo.
     public CelestialBody body;
     public Vector3 pCoords; //posición del marcador en lon lat alt
     public Quaternion rot;  //rotación marcador;
@@ -187,7 +187,8 @@ public class CheckPoint : MonoBehaviour
     public static Color colorPasado = Color.clear;
     public static Color colorEdit = new Color(255, 0, 255);
     private static Vector3 sizePec { get; } = new Vector3(4f, 32f, 18f); //Grosor de la linea, ancho del rectángulo, alto del rectángulo
-    private static Vector3 sizeMed { get; } = new Vector3(8F, 64f, 36f);
+    private static Vector3 sizeMed { get; } = new Vector3(6f, 48f, 27f);
+    private static Vector3 sizeGra { get; } = new Vector3(8F, 64f, 36f);
     public Vector3 size;
     private Color wpColor;
     public LineRenderer marcador;
@@ -345,6 +346,7 @@ public class RaceClon
     public string bodyName;
     public string name;
     public string author;
+    public int laps;
     public CheckPointClon[] cpList;
 }
 
@@ -368,6 +370,8 @@ public class LoadedTrack
     public string bodyName;
     public string name;
     public string author;
+    private static int maxRaceWaypoints { get; } = 30; //cantidad máxima de puntos de control de una carrera, por si sirve para algo.
+    public int laps;
     public List<CheckPoint> cpList = new List<CheckPoint>();
 }
 
@@ -387,6 +391,7 @@ public class RaceManager : MonoBehaviour
     //Carrera
     public bool enCarrera = false;
     public int pActivo;
+    public int curLap;
     public double tiempoIni = 0;
     public double tiempoTot = 0;
     public double tiempoAct = 0;
@@ -415,13 +420,6 @@ public class RaceManager : MonoBehaviour
         {
             Destroy(gameObject);
         }
-
-        estadoAct = estados.LoadScreen;
-        raceList = new List<RaceClon>(); //Lista de carreras disponibles en el directorio
-        loadedTrack = new LoadedTrack();  //Carrera que se va a usar para correr o editar.
-        tiempoIni = 0;
-        tiempoTot = 0;
-        tiempoAct = 0;
     }
 
     void Start() { }
@@ -442,7 +440,7 @@ public class RaceManager : MonoBehaviour
         {
             case estados.LoadScreen:
                 estadoAct = estados.LoadScreen;
-                prepCp(false, false);
+                prepCp(false);
                 enCarrera = false;
                 break;
             case estados.EditScreen:
@@ -452,22 +450,15 @@ public class RaceManager : MonoBehaviour
                 //- Sí, es el primero, pero también es el último. La condición para que sea editable es que sea el último. No "Esclusivamente el ultimo".
                 //- Es un 50% último, 50% primero, así que tampoco...
                 //- En realidad es totalmente último y totalmente primero. Y Tambien es el del medio. Está en un estado cuántico de ordinalidad.
-                prepCp(false, false);
+                prepCp(false);
                 cambiaEditCp(loadedTrack.cpList.Count - 1);
                 break;
             case estados.RaceScreen:
-                prepCp(true, true);
-
-                //Aunque prepCP hace un monton de cosas, no colorea de colorCheckP el siguiente al de inicio, con esto se consigue, a la vez que se evita que se coloree si resulta que es tambien la meta
-                if (loadedTrack.cpList.Count > 0)
-                {
-                    if (loadedTrack.cpList[1].tipoCp != CheckPoint.Types.FINISH)
-                    {
-                        loadedTrack.cpList[1].cpColor = CheckPoint.colorCheckP;
-                    }
-                }
+                prepCp(true);
+                loadedTrack.cpList[0].boxCollider.enabled = true;
                 estadoAct = estados.RaceScreen;
                 pActivo = 0;
+                curLap = 0;
                 break;
             case estados.EndScreen:
                 estadoAct = estados.EndScreen;
@@ -496,11 +487,11 @@ public class RaceManager : MonoBehaviour
                 {
                     if (race.bodyName == FlightGlobals.ActiveVessel.mainBody.name)
                     {
-                        if (GUILayout.Button(race.name + " by " + race.author + "\n" + race.bodyName))
+                        if (GUILayout.Button(race.name + " by " + race.author + "\n" + race.laps +" Laps"))
                         {
                             newRaceTrack();
                             LoadRaceTrack(race);
-                            prepCp(false, false);
+                            prepCp(false);
                         }
                     }
                     else
@@ -557,6 +548,25 @@ public class RaceManager : MonoBehaviour
                 GUILayout.BeginHorizontal();
                 GUILayout.Label("Author", GUILayout.Width(nameLabelWidth));
                 loadedTrack.author = GUILayout.TextField(loadedTrack.author, GUILayout.Width(nameTextWidth));
+                GUILayout.EndHorizontal();
+                GUILayout.Label("Laps");
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("1"))
+                {
+                    loadedTrack.laps = 1;
+                }
+                if (GUILayout.Button("-"))
+                {
+                    if (loadedTrack.laps > 1)
+                    {
+                        loadedTrack.laps--;
+                    }
+                }
+                GUILayout.Label(loadedTrack.laps.ToString());
+                if (GUILayout.Button("+"))
+                {
+                    loadedTrack.laps++;
+                }
                 GUILayout.EndHorizontal();
 
                 if (GUILayout.Button("New Checkpoint"))
@@ -697,8 +707,13 @@ public class RaceManager : MonoBehaviour
                 break;
             case estados.RaceScreen:
                 GUILayout.Label(loadedTrack.name + "\nby " + loadedTrack.author);
+
                 if (enCarrera)
                 {
+                    if (loadedTrack.laps > 0)
+                    {
+                        GUILayout.Label("Lap " + curLap + "/" + loadedTrack.laps);
+                    }
                     GUILayout.Label(tiempo((float)tiempoAct)); //Esto tiene que ser de tamaño grande.
                     if (GUILayout.Button("Abort Race!")) //Solo visible durante la carrera
                     {
@@ -708,6 +723,10 @@ public class RaceManager : MonoBehaviour
                 }
                 else
                 {
+                    if (loadedTrack.laps > 0)
+                    {
+                        GUILayout.Label(loadedTrack.laps + " Laps");
+                    }
                     GUILayout.Label("Cross first checkpoint (white) to start race!");
                     if (GUILayout.Button("Back")) //Solo visible mientras no empieza la carrera
                     {
@@ -762,6 +781,7 @@ public class RaceManager : MonoBehaviour
         loadedTrack.name = "New Race Track";
         loadedTrack.author = "Anonimous";
         loadedTrack.bodyName = FlightGlobals.ActiveVessel.mainBody.name;
+        loadedTrack.laps = 1;
         editionCp = 0;
     }
 
@@ -790,6 +810,7 @@ public class RaceManager : MonoBehaviour
         raceClon.name = loadedTrack.name;
         raceClon.author = loadedTrack.author;
         raceClon.bodyName = loadedTrack.bodyName;
+        raceClon.laps = loadedTrack.laps;
 
         //Guardar la carrera guardable
         if (!Directory.Exists(Races.Races.RaceTrackFolder))
@@ -815,6 +836,7 @@ public class RaceManager : MonoBehaviour
         loadedTrack.name = raceClon.name;
         loadedTrack.author = raceClon.author;
         loadedTrack.bodyName = raceClon.bodyName;
+        loadedTrack.laps = raceClon.laps;
 
         //Extraer cpList de raceclon y meterlos en loadedTrack
         for (int i = 0; i < raceClon.cpList.Length; i++)
@@ -866,35 +888,52 @@ public class RaceManager : MonoBehaviour
             {
                 case CheckPoint.Types.START:
                     enCarrera = true;
-                    tiempoIni = Planetarium.GetUniversalTime();
-                    loadedTrack.cpList[pActivo].boxCollider.enabled = false;
+                    if (curLap == 0)
+                    {
+                        tiempoIni = Planetarium.GetUniversalTime();
+                    }
                     loadedTrack.cpList[pActivo].cpColor = CheckPoint.colorPasado;
+                    curLap++;
                     break;
                 case CheckPoint.Types.CHECKPOINT:
                     ScreenMessages.PostScreenMessage(tiempo((float)tiempoAct), 15);
-                    loadedTrack.cpList[pActivo].boxCollider.enabled = false;
                     loadedTrack.cpList[pActivo].cpColor = CheckPoint.colorPasado;
                     break;
                 case CheckPoint.Types.FINISH:
-                    loadedTrack.cpList[pActivo].boxCollider.enabled = false;
-                    tiempoTot = tiempoAct;
-                    enCarrera = false;
-                    ScreenMessages.PostScreenMessage(tiempo((float)tiempoTot), 15);
-                    cambiaEstado(estados.EndScreen);
-                    break;
+                    ScreenMessages.PostScreenMessage(tiempo((float)tiempoAct), 15);
+                    if (curLap == loadedTrack.laps)
+                    {
+                        tiempoTot = tiempoAct;
+                        enCarrera = false;
+                        cambiaEstado(estados.EndScreen);
+                    }
+
+                    return;
                 default:
                     break;
             }
-            pActivo++;
-            if (pActivo < loadedTrack.cpList.Count - 1)
-            {
-                loadedTrack.cpList[pActivo].cpColor = CheckPoint.colorStart;
 
-                if (pActivo + 1 < loadedTrack.cpList.Count - 1)
+            pActivo++;
+
+            if (pActivo > loadedTrack.cpList.Count - 1)
+            {
+                if (curLap < loadedTrack.laps)
                 {
-                    loadedTrack.cpList[pActivo + 1].cpColor = CheckPoint.colorCheckP;
+                    pActivo = 0;
+                }
+                else
+                {
+                    pActivo = 0;
+                    loadedTrack.cpList[0].tipoCp = CheckPoint.Types.FINISH;
                 }
             }
+
+            if (loadedTrack.cpList[pActivo].tipoCp != CheckPoint.Types.FINISH)
+            {
+                loadedTrack.cpList[pActivo].cpColor = CheckPoint.colorStart;
+            }
+
+
         }
         else
         {
@@ -907,17 +946,22 @@ public class RaceManager : MonoBehaviour
     /// </summary>
     /// <param name="collision">Activa la detección de colisiones en los checkpoints</param>
     /// <param name="correr">Colorear los checkpoints de una forma especial, para empezar a competir</param>
-    public void prepCp(bool collision, bool correr)
+    public void prepCp(bool correr)
     {
         if (loadedTrack.cpList.Count > 0)
         {
             for (int i = 0; i < loadedTrack.cpList.Count; i++)
             {
-                loadedTrack.cpList[i].boxCollider.enabled = collision;
+                loadedTrack.cpList[i].boxCollider.enabled = correr;
                 loadedTrack.cpList[i].cpType = CheckPoint.Types.CHECKPOINT;
                 loadedTrack.cpList[i].cpColor = (correr) ? CheckPoint.colorPasado : CheckPoint.colorCheckP;
             }
-            loadedTrack.cpList[loadedTrack.cpList.Count - 1].tipoCp = CheckPoint.Types.FINISH;
+
+            if (loadedTrack.laps == 1)
+            {
+                loadedTrack.cpList[loadedTrack.cpList.Count - 1].tipoCp = CheckPoint.Types.FINISH;
+            }
+
             loadedTrack.cpList[0].tipoCp = CheckPoint.Types.START;
             editionCp = loadedTrack.cpList.Count - 1;
         }
@@ -972,7 +1016,7 @@ public class RaceManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Debuelve un clon del circuito que puede ser serializado
+    /// Debuelve un clon serializable de un circuito
     /// </summary>
     /// <param name="track"></param>
     /// <returns></returns>
@@ -997,6 +1041,7 @@ public class RaceManager : MonoBehaviour
         raceClon.name = loadedTrack.name;
         raceClon.author = loadedTrack.author;
         raceClon.bodyName = loadedTrack.bodyName;
+        raceClon.laps = loadedTrack.laps;
         return raceClon;
     }
 
