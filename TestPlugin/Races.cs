@@ -26,7 +26,6 @@ namespace Races
         private bool appAct;
         public Texture appTexture = null;
 
-
         public static string RaceTrackFolder
         {
             get
@@ -175,10 +174,8 @@ public class CheckPoint : MonoBehaviour
     public Types cpType;
     public CelestialBody body;
     public Vector3 pCoords; //posición del marcador en lon lat alt
-    public Quaternion rot;  //rotación marcador;
-
-    //Intentando hacer un colisionador
-    public BoxCollider boxCollider;
+    public Quaternion rot;  //rotación marcador
+    public BoxCollider boxCollider = new GameObject().AddComponent<BoxCollider>(); //colisionador
 
     //lineas del marcador
     public static Color colorStart = Color.white;
@@ -186,12 +183,16 @@ public class CheckPoint : MonoBehaviour
     public static Color colorFinish = Color.red;
     public static Color colorPasado = Color.clear;
     public static Color colorEdit = new Color(255, 0, 255);
-    private static Vector3 sizePec { get; } = new Vector3(4f, 32f, 18f); //Grosor de la linea, ancho del rectángulo, alto del rectángulo
-    private static Vector3 sizeMed { get; } = new Vector3(6f, 48f, 27f);
-    private static Vector3 sizeGra { get; } = new Vector3(8F, 64f, 36f);
-    public Vector3 size;
+    public static Dictionary<int, Vector3> sizes = new Dictionary<int, Vector3>() {
+        {0, new Vector3(4f, 32f, 18f)}, //Grosor de la linea, ancho del rectángulo, alto del rectángulo
+        {1, new Vector3(6f, 48f, 27f)},
+        {2, new Vector3(8F, 64f, 36f)},
+        {3, new Vector3(10F, 80f, 45f)}
+    };
+
+    private int size;
     private Color wpColor;
-    public LineRenderer marcador;
+    public LineRenderer marcador = new GameObject().AddComponent<LineRenderer>();
 
     /// <summary>
     /// Da color a las lineas del punto de control
@@ -240,6 +241,22 @@ public class CheckPoint : MonoBehaviour
             }
         }
     }
+
+    public int Size
+    {
+        get
+        {
+            return size;
+        }
+
+        set
+        {
+            size = value;
+            marcador.SetWidth(sizes[Size].x, sizes[Size].x);
+            boxCollider.transform.localScale = new Vector3(sizes[Size].y, 1, sizes[Size].z);
+        }
+    }
+
     public class colision : MonoBehaviour
     {
         void Start() { }
@@ -258,22 +275,18 @@ public class CheckPoint : MonoBehaviour
         //Donde está el buque en el momento de crear el punto de control
         pCoords = new Vector3((float)FlightGlobals.ActiveVessel.latitude, (float)FlightGlobals.ActiveVessel.longitude, (float)FlightGlobals.ActiveVessel.altitude);
         body = FlightGlobals.ActiveVessel.mainBody;
-
         rot = FlightGlobals.ActiveVessel.transform.rotation;
-        size = sizeMed;
-        marcador = new GameObject().AddComponent<LineRenderer>();
+        Size = 0;
         marcador.useWorldSpace = false;
         marcador.material = new Material(Shader.Find("KSP/Emissive/Diffuse"));
         marcador.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        marcador.SetWidth(size.x, size.x);
+        marcador.SetWidth(sizes[Size].x, sizes[Size].x);
         marcador.SetVertexCount(5);
         marcador.enabled = true;
 
         //colisionador
-        boxCollider = new GameObject().AddComponent<BoxCollider>();
         boxCollider.gameObject.AddComponent<colision>();
         boxCollider.isTrigger = true;
-        boxCollider.transform.localScale = new Vector3(size.y, size.x, size.z);
         boxCollider.enabled = false;
     }
 
@@ -286,10 +299,10 @@ public class CheckPoint : MonoBehaviour
         Vector3 coords = body.GetWorldSurfacePosition(pCoords.x, pCoords.y, pCoords.z);
 
         //Coloca los vertices del rectángulo
-        Vector3 si = new Vector3(-(size.y / 2), 0, size.z / 2);
-        Vector3 sd = new Vector3(size.y / 2, 0, size.z / 2);
-        Vector3 id = new Vector3(size.y / 2, 0, -(size.z / 2));
-        Vector3 ii = new Vector3(-(size.y / 2), 0, -(size.z / 2));
+        Vector3 si = new Vector3(-(sizes[Size].y / 2), 0, sizes[Size].z / 2);
+        Vector3 sd = new Vector3(sizes[Size].y / 2, 0, sizes[Size].z / 2);
+        Vector3 id = new Vector3(sizes[Size].y / 2, 0, -(sizes[Size].z / 2));
+        Vector3 ii = new Vector3(-(sizes[Size].y / 2), 0, -(sizes[Size].z / 2));
 
         marcador.transform.position = coords;
         marcador.transform.rotation = rot; //Esto es lo mismo que multiplicar cada vector por rot
@@ -354,6 +367,7 @@ public class RaceClon
 public class CheckPointClon
 {
     public string body;  //¿Conmo convertir un string a un celestialbody?
+    public int size;
     //posición del marcador lon lat alt
     public float pCoordsX;
     public float pCoordsY;
@@ -400,8 +414,9 @@ public class RaceManager : MonoBehaviour
     public Rect guiWindow = new Rect();
     public string guiRaceName, guiRaceAuth;
     public Vector2 scrollRaceList = new Vector2(0, 0);
-    ////rotación y translación para los puntos de control
+    ////tamaño, rotación y translación para los puntos de control
     public float rotx, roty, rotz, trax, tray, traz = 0;
+    public int size = 0;
     ////Styles
     public float rotLabelWidth = 35f;
     public float editSliderWidth = 100f;
@@ -487,7 +502,7 @@ public class RaceManager : MonoBehaviour
                 {
                     if (race.bodyName == FlightGlobals.ActiveVessel.mainBody.name)
                     {
-                        if (GUILayout.Button(race.name + " by " + race.author + "\n" + race.laps +" Laps"))
+                        if (GUILayout.Button(race.name + " by " + race.author + "\n" + race.laps + " Laps"))
                         {
                             newRaceTrack();
                             LoadRaceTrack(race);
@@ -652,6 +667,27 @@ public class RaceManager : MonoBehaviour
                     }
                     GUILayout.EndHorizontal();
 
+                    GUILayout.Label("Size");
+                    GUILayout.BeginHorizontal();
+                    if (GUILayout.Button("-"))
+                    {
+                        if (size > 0)
+                        {
+                            size--;
+                            loadedTrack.cpList[editionCp].Size = size;
+                        }
+                    }
+                    GUILayout.Label(size.ToString());
+                    if (GUILayout.Button("+"))
+                    {
+                        if (size < 3)
+                        {
+                            size++;
+                            loadedTrack.cpList[editionCp].Size = size;
+                        }
+                    }
+                    GUILayout.EndHorizontal();
+
                     GUILayout.Label("Rotate");
 
                     GUILayout.BeginHorizontal();
@@ -791,28 +827,7 @@ public class RaceManager : MonoBehaviour
     public void SaveRaceTrack()
     {
         //Tomar los datos de la carrera cargada (no guardable) y transferirlos a la carrera guardable
-        RaceClon raceClon = new RaceClon();
-        raceClon.cpList = new CheckPointClon[loadedTrack.cpList.Count];
-        for (int i = 0; i < loadedTrack.cpList.Count; i++)
-        {
-            CheckPointClon rwpClon = new CheckPointClon();
-            rwpClon.body = loadedTrack.cpList[i].body.name;
-            rwpClon.pCoordsX = loadedTrack.cpList[i].pCoords.x;
-            rwpClon.pCoordsY = loadedTrack.cpList[i].pCoords.y;
-            rwpClon.pCoordsZ = loadedTrack.cpList[i].pCoords.z;
-            rwpClon.rotX = loadedTrack.cpList[i].rot.x;
-            rwpClon.rotY = loadedTrack.cpList[i].rot.y;
-            rwpClon.rotZ = loadedTrack.cpList[i].rot.z;
-            rwpClon.rotW = loadedTrack.cpList[i].rot.w;
-            raceClon.cpList[i] = rwpClon;
-        }
-
-        raceClon.name = loadedTrack.name;
-        raceClon.author = loadedTrack.author;
-        raceClon.bodyName = loadedTrack.bodyName;
-        raceClon.laps = loadedTrack.laps;
-
-        //Guardar la carrera guardable
+        RaceClon raceClon = trackToclone(loadedTrack);
         if (!Directory.Exists(Races.Races.RaceTrackFolder))
         {
             Directory.CreateDirectory(Races.Races.RaceTrackFolder);
@@ -830,7 +845,6 @@ public class RaceManager : MonoBehaviour
     /// </summary>
     public void LoadRaceTrack(RaceClon raceClon)
     {
-
         loadedTrack = new LoadedTrack();
         lastLoadedTrack = raceClon;         //Esto supongo que valdrá para volver a cargar el circuito cuando se revierte el vuelo
         loadedTrack.name = raceClon.name;
@@ -847,6 +861,7 @@ public class RaceManager : MonoBehaviour
 
             //asumimos que el buque está en el mismo body que el circuito y más tarde se filtran los circuitos
             checkPoint.body = FlightGlobals.ActiveVessel.mainBody;
+            checkPoint.Size = cpClon.size;
             checkPoint.pCoords = new Vector3(cpClon.pCoordsX, cpClon.pCoordsY, cpClon.pCoordsZ);
             checkPoint.rot = new Quaternion(cpClon.rotX, cpClon.rotY, cpClon.rotZ, cpClon.rotW);
             checkPoint.boxCollider.name = "cp" + i; //Poner nombre a los colisionadores, para saber contra cual se colisiona
@@ -906,13 +921,12 @@ public class RaceManager : MonoBehaviour
                         tiempoTot = tiempoAct;
                         enCarrera = false;
                         cambiaEstado(estados.EndScreen);
+                        loadedTrack.cpList[pActivo].cpColor = CheckPoint.colorPasado;
                     }
-
                     return;
                 default:
                     break;
             }
-
             pActivo++;
 
             if (pActivo > loadedTrack.cpList.Count - 1)
@@ -932,8 +946,6 @@ public class RaceManager : MonoBehaviour
             {
                 loadedTrack.cpList[pActivo].cpColor = CheckPoint.colorStart;
             }
-
-
         }
         else
         {
@@ -979,9 +991,6 @@ public class RaceManager : MonoBehaviour
     {
         if (loadedTrack.cpList.Count > 0)
         {
-            {
-
-            }
             if (editionCp <= 0)
             {
                 loadedTrack.cpList[0].cpColor = CheckPoint.colorStart;
@@ -1008,6 +1017,7 @@ public class RaceManager : MonoBehaviour
             editionCp = num;
 
             loadedTrack.cpList[editionCp].cpColor = CheckPoint.colorEdit;
+            size = loadedTrack.cpList[editionCp].Size;
         }
         else
         {
@@ -1026,16 +1036,17 @@ public class RaceManager : MonoBehaviour
         raceClon.cpList = new CheckPointClon[loadedTrack.cpList.Count];
         for (int i = 0; i < loadedTrack.cpList.Count; i++)
         {
-            CheckPointClon rwpClon = new CheckPointClon();
-            rwpClon.body = loadedTrack.cpList[i].body.name;
-            rwpClon.pCoordsX = loadedTrack.cpList[i].pCoords.x;
-            rwpClon.pCoordsY = loadedTrack.cpList[i].pCoords.y;
-            rwpClon.pCoordsZ = loadedTrack.cpList[i].pCoords.z;
-            rwpClon.rotX = loadedTrack.cpList[i].rot.x;
-            rwpClon.rotY = loadedTrack.cpList[i].rot.y;
-            rwpClon.rotZ = loadedTrack.cpList[i].rot.z;
-            rwpClon.rotW = loadedTrack.cpList[i].rot.w;
-            raceClon.cpList[i] = rwpClon;
+            CheckPointClon cpClon = new CheckPointClon();
+            cpClon.body = loadedTrack.cpList[i].body.name;
+            cpClon.size = loadedTrack.cpList[i].Size;
+            cpClon.pCoordsX = loadedTrack.cpList[i].pCoords.x;
+            cpClon.pCoordsY = loadedTrack.cpList[i].pCoords.y;
+            cpClon.pCoordsZ = loadedTrack.cpList[i].pCoords.z;
+            cpClon.rotX = loadedTrack.cpList[i].rot.x;
+            cpClon.rotY = loadedTrack.cpList[i].rot.y;
+            cpClon.rotZ = loadedTrack.cpList[i].rot.z;
+            cpClon.rotW = loadedTrack.cpList[i].rot.w;
+            raceClon.cpList[i] = cpClon;
         }
 
         raceClon.name = loadedTrack.name;
