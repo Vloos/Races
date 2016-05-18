@@ -134,7 +134,7 @@ namespace Races
         {
             if (guiAct && appAct)
             {
-                guiBox = GUILayout.Window(1, guiBox, raceMan.windowFuction, "Races!", GUILayout.MinWidth(250));
+                guiBox = GUILayout.Window(1, guiBox, raceMan.windowFuction, "Races!", GUILayout.Width(0), GUILayout.Height(0));
             }
         }
 
@@ -176,6 +176,7 @@ public class CheckPoint : MonoBehaviour
     public Vector3 pCoords; //posición del marcador en lon lat alt
     private Vector3 coords;
     public Quaternion rot;  //rotación marcador
+    public static int maxAlt = 50000;
     public BoxCollider boxCollider = new GameObject().AddComponent<BoxCollider>(); //colisionador
 
     //lineas del marcador
@@ -311,6 +312,11 @@ public class CheckPoint : MonoBehaviour
             pCoords.z = (float)body.TerrainAltitude(pCoords.x, pCoords.y);
         }
 
+        if (pCoords.z > maxAlt)
+        {
+            pCoords.z = maxAlt;
+        }
+
         //Como el origen del mundo se mueve con el buque, esto mantiene el punto de control en una posicion fija respecto al planeta.
         coords = body.GetWorldSurfacePosition(pCoords.x, pCoords.y, pCoords.z);
 
@@ -369,33 +375,6 @@ public class CheckPoint : MonoBehaviour
     }
 }
 
-[Serializable]
-public class RaceClon
-{
-    public string bodyName;
-    public string name;
-    public string author;
-    public int laps;
-    public float lenght;
-    public CheckPointClon[] cpList;
-}
-
-[Serializable]
-public class CheckPointClon
-{
-    public string body;  //¿Conmo convertir un string a un celestialbody?
-    public int size;
-    //posición del marcador lon lat alt
-    public float pCoordsX;
-    public float pCoordsY;
-    public float pCoordsZ;
-    //rotación del marcador pitch roll yaw ¿w?
-    public float rotX;
-    public float rotY;
-    public float rotZ;
-    public float rotW;
-}
-
 public class LoadedTrack
 {
     public string bodyName;
@@ -440,6 +419,33 @@ public class LoadedTrack
     }
 }
 
+[Serializable]
+public class CheckPointClon
+{
+    public string body;  //¿Conmo convertir un string a un celestialbody?
+    public int size;
+    //posición del marcador lon lat alt
+    public float pCoordsX;
+    public float pCoordsY;
+    public float pCoordsZ;
+    //rotación del marcador pitch roll yaw ¿w?
+    public float rotX;
+    public float rotY;
+    public float rotZ;
+    public float rotW;
+}
+
+[Serializable]
+public class RaceClon
+{
+    public string bodyName;
+    public string name;
+    public string author;
+    public int laps;
+    public float lenght;
+    public CheckPointClon[] cpList;
+}
+
 /// <summary>
 /// Clase que administra las carreras
 /// </summary>
@@ -464,7 +470,7 @@ public class RaceManager : MonoBehaviour
     //GUI
     public Rect guiWindow = new Rect();
     public string guiRaceName, guiRaceAuth;
-    public Vector2 scrollRaceList = new Vector2(0, 0);
+    public Vector2 scrollRaceList = Vector2.zero;
     public float trackLength;
     ////tamaño, rotación y translación para los puntos de control
     public float rotx, roty, rotz, trax, tray, traz = 0;
@@ -474,7 +480,7 @@ public class RaceManager : MonoBehaviour
     public float editSliderWidth = 100f;
     public float nameLabelWidth = 38f;
     public float nameTextWidth = 150f;
-    public float cardLabelWidth = 55f;
+    public float cardLabelWidth = 35f;
 
     void Awake()
     {
@@ -550,13 +556,14 @@ public class RaceManager : MonoBehaviour
                 GUILayout.BeginHorizontal();
                 GUILayout.BeginVertical();
                 GUILayout.Label(raceList.Count.ToString() + " Race Tracks Loaded");
-                GUILayout.BeginScrollView(scrollRaceList, GUILayout.Height(250), GUILayout.Width(150));
+
+                scrollRaceList = GUILayout.BeginScrollView(scrollRaceList,GUILayout.Height(250), GUILayout.Width(180));
 
                 foreach (RaceClon race in raceList)
                 {
                     if (race.bodyName == FlightGlobals.ActiveVessel.mainBody.name)
                     {
-                        if (GUILayout.Button(race.name + " by " + race.author + "\n" + race.laps + " Laps, " + race.lenght.ToString("0.00") + " meters"))
+                        if (GUILayout.Button(race.name + " by " + race.author + "\n" + race.laps + " Laps, " + race.lenght.ToString("0.00") + " meters",GUILayout.MaxWidth(170)))
                         {
                             newRaceTrack();
                             LoadRaceTrack(race);
@@ -572,20 +579,17 @@ public class RaceManager : MonoBehaviour
                 }
 
                 GUILayout.EndScrollView();
-                GUILayout.EndVertical();
-
-                GUILayout.BeginVertical();
                 if (GUILayout.Button("New Race Track"))
                 {
                     newRaceTrack();
                     cambiaEstado(estados.EditScreen);
                 }
+                GUILayout.EndVertical();
 
+                GUILayout.BeginVertical();
                 if (loadedTrack.cpList.Count > 0)
                 {
-                    GUILayout.Label(loadedTrack.name + " by " + loadedTrack.author);
-                    GUILayout.Label(loadedTrack.cpList.Count + " Checkpoints," + loadedTrack.laps + " Laps");
-                    GUILayout.Label(trackLength.ToString("0.00") + " Meters");
+                    GUILayout.Label(loadedTrack.name + " by " + loadedTrack.author + "\n" + loadedTrack.cpList.Count + " Checkpoints\n" + loadedTrack.laps + " Laps\n"+ trackLength.ToString("0.00") + " Meters");
 
                     if (loadedTrack.cpList.Count > 1)
                     {
@@ -668,7 +672,6 @@ public class RaceManager : MonoBehaviour
                     cp.boxCollider.name = "cp" + loadedTrack.cpList.Count;
                     loadedTrack.cpList.Add(cp);
                     cambiaEditCp(loadedTrack.cpList.Count - 1);
-
                 }
 
                 if (GUILayout.Button("Remove Checkpoint"))
@@ -734,9 +737,9 @@ public class RaceManager : MonoBehaviour
                         cambiaEditCp(loadedTrack.cpList.Count - 1);
                     }
                     GUILayout.EndHorizontal();
-
-                    GUILayout.Label("Size");
+                    
                     GUILayout.BeginHorizontal();
+                    GUILayout.Label("Size");
                     if (GUILayout.Button("-"))
                     {
                         if (size > 0)
@@ -774,33 +777,33 @@ public class RaceManager : MonoBehaviour
                     GUILayout.Label("Translate");
 
                     GUILayout.BeginHorizontal();
-                    GUILayout.Label("Latitude", GUILayout.Width(cardLabelWidth));
+                    GUILayout.Label("Latitude");
                     GUILayout.Label(loadedTrack.cpList[editionCp].pCoords.x.ToString());
                     GUILayout.EndHorizontal();
                     GUILayout.BeginHorizontal();
-                    GUILayout.Label("South");
+                    GUILayout.Label("South",GUILayout.Width(cardLabelWidth));
                     trax = GUILayout.HorizontalSlider(trax, -0.0001f, 0.0001f, GUILayout.Width(editSliderWidth));
-                    GUILayout.Label("North");
+                    GUILayout.Label("North", GUILayout.Width(cardLabelWidth));
                     GUILayout.EndHorizontal();
 
                     GUILayout.BeginHorizontal();
-                    GUILayout.Label("Longitude", GUILayout.Width(cardLabelWidth));
+                    GUILayout.Label("Longitude");
                     GUILayout.Label(loadedTrack.cpList[editionCp].pCoords.y.ToString());
                     GUILayout.EndHorizontal();
                     GUILayout.BeginHorizontal();
-                    GUILayout.Label("West");
+                    GUILayout.Label("West", GUILayout.Width(cardLabelWidth));
                     tray = GUILayout.HorizontalSlider(tray, -0.0001f, 0.0001f, GUILayout.Width(editSliderWidth));
-                    GUILayout.Label("East");
+                    GUILayout.Label("East", GUILayout.Width(cardLabelWidth));
                     GUILayout.EndHorizontal();
 
                     GUILayout.BeginHorizontal();
-                    GUILayout.Label("Altitude", GUILayout.Width(cardLabelWidth));
+                    GUILayout.Label("Altitude");
                     GUILayout.Label(loadedTrack.cpList[editionCp].pCoords.z.ToString());
                     GUILayout.EndHorizontal();
                     GUILayout.BeginHorizontal();
-                    GUILayout.Label("Down");
+                    GUILayout.Label("Down", GUILayout.Width(cardLabelWidth));
                     traz = GUILayout.HorizontalSlider(traz, -0.3f, 0.3f, GUILayout.Width(editSliderWidth));
-                    GUILayout.Label("Up");
+                    GUILayout.Label("Up", GUILayout.Width(cardLabelWidth));
                     GUILayout.EndHorizontal();
 
                     GUILayout.EndVertical();
@@ -827,7 +830,7 @@ public class RaceManager : MonoBehaviour
                 GUILayout.EndHorizontal();
                 break;
             case estados.RaceScreen:
-                GUILayout.Label(loadedTrack.name + "\nby " + loadedTrack.author);
+                GUILayout.Label(loadedTrack.name + " by " + loadedTrack.author);
 
                 if (enCarrera)
                 {
