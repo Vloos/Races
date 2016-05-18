@@ -271,11 +271,11 @@ public class CheckPoint : MonoBehaviour
     {
         void Start() { }
 
-        void OnTriggerEnter()
+        void OnTriggerEnter(Collider thing)
         {
-            if (Races.Races.raceMan.estadoAct == RaceManager.estados.RaceScreen)
+            if (Races.Races.raceMan.estadoAct == RaceManager.estados.RaceScreen && thing == FlightGlobals.ActiveVessel.rootPart.collider)
             {
-                Races.Races.raceMan.cpSuperado(this.name);
+                Races.Races.raceMan.cpSuperado(this.name);   
             }
         }
     }
@@ -393,7 +393,7 @@ public class LoadedTrack
     public float trackLength
     {
         get
-            {
+        {
             CelestialBody body = FlightGlobals.ActiveVessel.mainBody;
             float length = 0;
             if (cpList.Count > 1)
@@ -557,13 +557,13 @@ public class RaceManager : MonoBehaviour
                 GUILayout.BeginVertical();
                 GUILayout.Label(raceList.Count.ToString() + " Race Tracks Loaded");
 
-                scrollRaceList = GUILayout.BeginScrollView(scrollRaceList,GUILayout.Height(250), GUILayout.Width(180));
+                scrollRaceList = GUILayout.BeginScrollView(scrollRaceList, GUILayout.Height(250), GUILayout.Width(180));
 
                 foreach (RaceClon race in raceList)
                 {
                     if (race.bodyName == FlightGlobals.ActiveVessel.mainBody.name)
                     {
-                        if (GUILayout.Button(race.name + " by " + race.author + "\n" + race.laps + " Laps, " + race.lenght.ToString("0.00") + " meters",GUILayout.MaxWidth(170)))
+                        if (GUILayout.Button(race.name + " by " + race.author + "\n" + race.laps + " Laps, " + race.lenght.ToString("0.00") + " meters", GUILayout.MaxWidth(170)))
                         {
                             newRaceTrack();
                             LoadRaceTrack(race);
@@ -585,12 +585,11 @@ public class RaceManager : MonoBehaviour
                     cambiaEstado(estados.EditScreen);
                 }
                 GUILayout.EndVertical();
-
                 GUILayout.BeginVertical();
                 if (loadedTrack.cpList.Count > 0)
                 {
-                    GUILayout.Label(loadedTrack.name + " by " + loadedTrack.author + "\n" + loadedTrack.cpList.Count + " Checkpoints\n" + loadedTrack.laps + " Laps\n"+ trackLength.ToString("0.00") + " Meters");
-
+                    GUILayout.Label(loadedTrack.name + " by " + loadedTrack.author + "\n" + loadedTrack.cpList.Count + " Checkpoints\n" + loadedTrack.laps + " Laps\n" + trackLength.ToString("0.00") + " Meters");
+                    GUILayout.Label("Starting point:\n"+"Latitude: "+loadedTrack.cpList[0].pCoords.x+"\nLongitude: "+loadedTrack.cpList[0].pCoords.y+"\nAltitude: "+loadedTrack.cpList[0].pCoords.z+"\nDistance: "+Vector3.Distance(loadedTrack.cpList[0].Coords, FlightGlobals.ActiveVessel.CoM).ToString("0.00"));
                     if (loadedTrack.cpList.Count > 1)
                     {
                         if (GUILayout.Button("Start Race"))
@@ -598,18 +597,15 @@ public class RaceManager : MonoBehaviour
                             cambiaEstado(estados.RaceScreen);
                         }
                     }
-
                     if (GUILayout.Button("Edit Race Track"))
                     {
                         cambiaEstado(estados.EditScreen);
                     }
-
                     if (GUILayout.Button("Clear Race Track"))
                     {
                         newRaceTrack();
                     }
                 }
-
                 GUILayout.EndVertical();
                 GUILayout.EndHorizontal();
                 break;
@@ -737,7 +733,7 @@ public class RaceManager : MonoBehaviour
                         cambiaEditCp(loadedTrack.cpList.Count - 1);
                     }
                     GUILayout.EndHorizontal();
-                    
+
                     GUILayout.BeginHorizontal();
                     GUILayout.Label("Size");
                     if (GUILayout.Button("-"))
@@ -781,7 +777,7 @@ public class RaceManager : MonoBehaviour
                     GUILayout.Label(loadedTrack.cpList[editionCp].pCoords.x.ToString());
                     GUILayout.EndHorizontal();
                     GUILayout.BeginHorizontal();
-                    GUILayout.Label("South",GUILayout.Width(cardLabelWidth));
+                    GUILayout.Label("South", GUILayout.Width(cardLabelWidth));
                     trax = GUILayout.HorizontalSlider(trax, -0.0001f, 0.0001f, GUILayout.Width(editSliderWidth));
                     GUILayout.Label("North", GUILayout.Width(cardLabelWidth));
                     GUILayout.EndHorizontal();
@@ -997,14 +993,18 @@ public class RaceManager : MonoBehaviour
                         tiempoIni = Planetarium.GetUniversalTime();
                     }
                     loadedTrack.cpList[pActivo].cpColor = CheckPoint.colorPasado;
+                    if (loadedTrack.laps > 1 && curLap != 0)
+                    {
+                        ScreenMessages.PostScreenMessage("Lap " + curLap + " Checkpoint " + pActivo + "\n" + tiempo((float)tiempoAct), 15);
+                    }
                     curLap++;
                     break;
                 case CheckPoint.Types.CHECKPOINT:
-                    ScreenMessages.PostScreenMessage(tiempo((float)tiempoAct), 15);
+                    ScreenMessages.PostScreenMessage(" Lap " + curLap + " Checkpoint " + pActivo + "\n" + tiempo((float)tiempoAct), 15);
                     loadedTrack.cpList[pActivo].cpColor = CheckPoint.colorPasado;
                     break;
                 case CheckPoint.Types.FINISH:
-                    ScreenMessages.PostScreenMessage(tiempo((float)tiempoAct), 15);
+                    ScreenMessages.PostScreenMessage("Total time " + tiempo((float)tiempoAct), 15);
                     if (curLap == loadedTrack.laps)
                     {
                         tiempoTot = tiempoAct;
