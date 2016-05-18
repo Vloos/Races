@@ -10,7 +10,7 @@ using System.Text;
 namespace Races
 {
     /// <summary>
-    /// Esta clase debería servir para comunicar el mod con el juego, como que no casque el mod al cambiar de escena, poner la compativilidad con cKan, barras de botones...
+    /// Esta clase debería servir para comunicar el mod con el juego, como que no casque el mod al cambiar de escena, poner la compativilidad con cKan (no parece que esto se haga aquí), barras de botones...
     /// </summary>
     [KSPAddon(KSPAddon.Startup.Flight, true)]
     public class Races : MonoBehaviour
@@ -174,6 +174,7 @@ public class CheckPoint : MonoBehaviour
     public Types cpType;
     public CelestialBody body;
     public Vector3 pCoords; //posición del marcador en lon lat alt
+    private Vector3 coords;
     public Quaternion rot;  //rotación marcador
     public BoxCollider boxCollider = new GameObject().AddComponent<BoxCollider>(); //colisionador
 
@@ -257,6 +258,14 @@ public class CheckPoint : MonoBehaviour
         }
     }
 
+    public Vector3 Coords
+    {
+        get
+        {
+            return coords;
+        }
+    }
+
     public class colision : MonoBehaviour
     {
         void Start() { }
@@ -287,6 +296,7 @@ public class CheckPoint : MonoBehaviour
         //colisionador
         boxCollider.gameObject.AddComponent<colision>();
         boxCollider.isTrigger = true;
+        boxCollider.transform.localScale = new Vector3(sizes[Size].y, 0, sizes[Size].z);
         boxCollider.enabled = false;
     }
 
@@ -295,8 +305,14 @@ public class CheckPoint : MonoBehaviour
     /// </summary>
     void Update()
     {
+        //que el punto de control no se meta por debajo del suelo
+        if (pCoords.z - body.TerrainAltitude(pCoords.x, pCoords.y) <= 0)
+        {
+            pCoords.z = (float)body.TerrainAltitude(pCoords.x, pCoords.y);
+        }
+
         //Como el origen del mundo se mueve con el buque, esto mantiene el punto de control en una posicion fija respecto al planeta.
-        Vector3 coords = body.GetWorldSurfacePosition(pCoords.x, pCoords.y, pCoords.z);
+        coords = body.GetWorldSurfacePosition(pCoords.x, pCoords.y, pCoords.z);
 
         //Coloca los vertices del rectángulo
         Vector3 si = new Vector3(-(sizes[Size].y / 2), 0, sizes[Size].z / 2);
@@ -360,6 +376,7 @@ public class RaceClon
     public string name;
     public string author;
     public int laps;
+    public float lenght;
     public CheckPointClon[] cpList;
 }
 
@@ -384,9 +401,43 @@ public class LoadedTrack
     public string bodyName;
     public string name;
     public string author;
+
     private static int maxRaceWaypoints { get; } = 30; //cantidad máxima de puntos de control de una carrera, por si sirve para algo.
     public int laps;
     public List<CheckPoint> cpList = new List<CheckPoint>();
+
+
+    /// <summary>
+    /// Calcula la longitud del circuito. La distancia entre puntos de control se calcula en linea recta (supongo)
+    /// </summary>
+    /// <returns></returns>
+    public float trackLength
+    {
+        get
+            {
+            CelestialBody body = FlightGlobals.ActiveVessel.mainBody;
+            float length = 0;
+            if (cpList.Count > 1)
+            {
+                for (int i = 1; i < cpList.Count; i++)
+                {
+                    length += Vector3.Distance(cpList[i - 1].Coords, cpList[i].Coords);
+                }
+
+                if (laps > 1)
+                {
+                    length += Vector3.Distance(cpList[0].Coords, cpList[cpList.Count - 1].Coords);
+                    length *= laps;
+                }
+                return length;
+            }
+            else
+            {
+                return 0;
+            }
+        }
+
+    }
 }
 
 /// <summary>
@@ -414,14 +465,16 @@ public class RaceManager : MonoBehaviour
     public Rect guiWindow = new Rect();
     public string guiRaceName, guiRaceAuth;
     public Vector2 scrollRaceList = new Vector2(0, 0);
+    public float trackLength;
     ////tamaño, rotación y translación para los puntos de control
     public float rotx, roty, rotz, trax, tray, traz = 0;
     public int size = 0;
     ////Styles
-    public float rotLabelWidth = 35f;
+    public float rotLabelWidth = 38f;
     public float editSliderWidth = 100f;
     public float nameLabelWidth = 38f;
     public float nameTextWidth = 150f;
+    public float cardLabelWidth = 55f;
 
     void Awake()
     {
@@ -467,6 +520,7 @@ public class RaceManager : MonoBehaviour
                 //- En realidad es totalmente último y totalmente primero. Y Tambien es el del medio. Está en un estado cuántico de ordinalidad.
                 prepCp(false);
                 cambiaEditCp(loadedTrack.cpList.Count - 1);
+                trackLength = loadedTrack.trackLength;
                 break;
             case estados.RaceScreen:
                 prepCp(true);
@@ -502,11 +556,13 @@ public class RaceManager : MonoBehaviour
                 {
                     if (race.bodyName == FlightGlobals.ActiveVessel.mainBody.name)
                     {
-                        if (GUILayout.Button(race.name + " by " + race.author + "\n" + race.laps + " Laps"))
+                        if (GUILayout.Button(race.name + " by " + race.author + "\n" + race.laps + " Laps, " + race.lenght.ToString("0.00") + " meters"))
                         {
                             newRaceTrack();
                             LoadRaceTrack(race);
                             prepCp(false);
+                            //trackLength = loadedTrack.trackLength; //Esto no va...
+                            trackLength = race.lenght;
                         }
                     }
                     else
@@ -527,6 +583,10 @@ public class RaceManager : MonoBehaviour
 
                 if (loadedTrack.cpList.Count > 0)
                 {
+                    GUILayout.Label(loadedTrack.name + " by " + loadedTrack.author);
+                    GUILayout.Label(loadedTrack.cpList.Count + " Checkpoints," + loadedTrack.laps + " Laps");
+                    GUILayout.Label(trackLength.ToString("0.00") + " Meters");
+
                     if (loadedTrack.cpList.Count > 1)
                     {
                         if (GUILayout.Button("Start Race"))
@@ -584,12 +644,18 @@ public class RaceManager : MonoBehaviour
                 }
                 GUILayout.EndHorizontal();
 
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("Length");
+                GUILayout.Label(trackLength.ToString());
+                GUILayout.EndHorizontal();
+
                 if (GUILayout.Button("New Checkpoint"))
                 {
                     CheckPoint cp = new GameObject().AddComponent<CheckPoint>();
                     if (loadedTrack.cpList.Count == 1)
                     {
                         cp.tipoCp = CheckPoint.Types.START;
+                        trackLength = loadedTrack.trackLength;
                     }
                     else
                     {
@@ -655,11 +721,13 @@ public class RaceManager : MonoBehaviour
                     if (GUILayout.Button("<")) //previous
                     {
                         cambiaEditCp(editionCp - 1);
+                        trackLength = loadedTrack.trackLength;
                     }
                     GUILayout.Label(editionCp.ToString());
                     if (GUILayout.Button(">"))  //next
                     {
                         cambiaEditCp(editionCp + 1);
+                        trackLength = loadedTrack.trackLength;
                     }
                     if (GUILayout.Button(">|")) //last
                     {
@@ -680,7 +748,7 @@ public class RaceManager : MonoBehaviour
                     GUILayout.Label(size.ToString());
                     if (GUILayout.Button("+"))
                     {
-                        if (size < 3)
+                        if (size < CheckPoint.sizes.Count - 1)
                         {
                             size++;
                             loadedTrack.cpList[editionCp].Size = size;
@@ -706,18 +774,33 @@ public class RaceManager : MonoBehaviour
                     GUILayout.Label("Translate");
 
                     GUILayout.BeginHorizontal();
-                    GUILayout.Label("Lat", GUILayout.Width(rotLabelWidth));
+                    GUILayout.Label("Latitude", GUILayout.Width(cardLabelWidth));
+                    GUILayout.Label(loadedTrack.cpList[editionCp].pCoords.x.ToString());
+                    GUILayout.EndHorizontal();
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label("South");
                     trax = GUILayout.HorizontalSlider(trax, -0.0001f, 0.0001f, GUILayout.Width(editSliderWidth));
+                    GUILayout.Label("North");
                     GUILayout.EndHorizontal();
 
                     GUILayout.BeginHorizontal();
-                    GUILayout.Label("Lon", GUILayout.Width(rotLabelWidth));
+                    GUILayout.Label("Longitude", GUILayout.Width(cardLabelWidth));
+                    GUILayout.Label(loadedTrack.cpList[editionCp].pCoords.y.ToString());
+                    GUILayout.EndHorizontal();
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label("West");
                     tray = GUILayout.HorizontalSlider(tray, -0.0001f, 0.0001f, GUILayout.Width(editSliderWidth));
+                    GUILayout.Label("East");
                     GUILayout.EndHorizontal();
 
                     GUILayout.BeginHorizontal();
-                    GUILayout.Label("Alt", GUILayout.Width(rotLabelWidth));
+                    GUILayout.Label("Altitude", GUILayout.Width(cardLabelWidth));
+                    GUILayout.Label(loadedTrack.cpList[editionCp].pCoords.z.ToString());
+                    GUILayout.EndHorizontal();
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label("Down");
                     traz = GUILayout.HorizontalSlider(traz, -0.3f, 0.3f, GUILayout.Width(editSliderWidth));
+                    GUILayout.Label("Up");
                     GUILayout.EndHorizontal();
 
                     GUILayout.EndVertical();
@@ -726,6 +809,7 @@ public class RaceManager : MonoBehaviour
                     {
                         loadedTrack.cpList[editionCp].rotateRwp(rotx, roty, rotz);
                         loadedTrack.cpList[editionCp].moveRwp(trax, tray, traz);
+                        trackLength = loadedTrack.trackLength;
                     }
 
                     if (Input.GetMouseButtonUp(0))
@@ -736,6 +820,7 @@ public class RaceManager : MonoBehaviour
                         trax = 0;
                         tray = 0;
                         traz = 0;
+                        trackLength = loadedTrack.trackLength;
                     }
                 }
 
@@ -819,6 +904,7 @@ public class RaceManager : MonoBehaviour
         loadedTrack.bodyName = FlightGlobals.ActiveVessel.mainBody.name;
         loadedTrack.laps = 1;
         editionCp = 0;
+        trackLength = 0;
     }
 
     /// <summary>
@@ -1049,10 +1135,11 @@ public class RaceManager : MonoBehaviour
             raceClon.cpList[i] = cpClon;
         }
 
-        raceClon.name = loadedTrack.name;
-        raceClon.author = loadedTrack.author;
-        raceClon.bodyName = loadedTrack.bodyName;
-        raceClon.laps = loadedTrack.laps;
+        raceClon.name = track.name;
+        raceClon.author = track.author;
+        raceClon.bodyName = track.bodyName;
+        raceClon.laps = track.laps;
+        trackLength = track.trackLength;
         return raceClon;
     }
 
