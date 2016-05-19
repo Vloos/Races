@@ -6,6 +6,7 @@ using System.IO;
 using System.Reflection;
 using KSP.UI.Screens;
 using System.Text;
+using System.Security.Cryptography;
 
 namespace Races
 {
@@ -275,7 +276,7 @@ public class CheckPoint : MonoBehaviour
         {
             if (Races.Races.raceMan.estadoAct == RaceManager.estados.RaceScreen && thing == FlightGlobals.ActiveVessel.rootPart.collider)
             {
-                Races.Races.raceMan.cpSuperado(this.name);   
+                Races.Races.raceMan.cpSuperado(this.name);
             }
         }
     }
@@ -380,6 +381,8 @@ public class LoadedTrack
     public string bodyName;
     public string name;
     public string author;
+    public string trackKey;
+    public float trackTime;
 
     private static int maxRaceWaypoints { get; } = 30; //cantidad máxima de puntos de control de una carrera, por si sirve para algo.
     public int laps;
@@ -443,8 +446,26 @@ public class RaceClon
     public string author;
     public int laps;
     public float lenght;
+    public string key;
+    public float bestTime;
+    public string bestTimeOuner;
     public CheckPointClon[] cpList;
 }
+
+[Serializable]
+public class Records
+{
+    public string[] key;
+    public float[] value;
+}
+
+[Serializable]
+public class keyGenData
+{
+    public CheckPointClon[] cpList;
+    public int laps;
+}
+
 
 /// <summary>
 /// Clase que administra las carreras
@@ -458,6 +479,7 @@ public class RaceManager : MonoBehaviour
     public LoadedTrack loadedTrack = new LoadedTrack();  //Carrera que se va a usar para correr o editar.
     private int editionCp = 0;
     public RaceClon lastLoadedTrack = new RaceClon(); //Esto valdrá (supongo) para cargar de nuevo un circuito al volver a la escena de vuelo
+    public Dictionary<string, float> records = new Dictionary<string, float>() { { "0", 0 } };
 
     //Carrera
     public bool enCarrera = false;
@@ -516,6 +538,14 @@ public class RaceManager : MonoBehaviour
                 estadoAct = estados.LoadScreen;
                 prepCp(false);
                 enCarrera = false;
+                if (records.ContainsKey(loadedTrack.trackKey))
+                {
+                    loadedTrack.trackTime = records[loadedTrack.trackKey];
+                }
+                else
+                {
+                    loadedTrack.trackTime = 0;
+                }
                 break;
             case estados.EditScreen:
                 estadoAct = estados.EditScreen;
@@ -538,6 +568,9 @@ public class RaceManager : MonoBehaviour
             case estados.EndScreen:
                 estadoAct = estados.EndScreen;
                 tiempoTot = tiempoAct;
+                recordRecord();
+                saveRecordFile();
+                prepCp(false);
                 break;
             case estados.Test:
                 //estado para quitar esos molestos bichos y probar cosas
@@ -550,6 +583,7 @@ public class RaceManager : MonoBehaviour
 
     public void windowFuction(int id)
     {
+        GUILayout.Label(loadedTrack.trackKey);
         switch (estadoAct)
         {
             case estados.LoadScreen:
@@ -570,6 +604,15 @@ public class RaceManager : MonoBehaviour
                             prepCp(false);
                             //trackLength = loadedTrack.trackLength; //Esto no va...
                             trackLength = race.lenght;
+                            if (records.ContainsKey(loadedTrack.trackKey))
+                            {
+                                loadedTrack.trackTime = records[loadedTrack.trackKey];
+                            }
+                            else
+                            {
+                                loadedTrack.trackTime = 0;
+                            }
+
                         }
                     }
                     else
@@ -588,8 +631,8 @@ public class RaceManager : MonoBehaviour
                 GUILayout.BeginVertical();
                 if (loadedTrack.cpList.Count > 0)
                 {
-                    GUILayout.Label(loadedTrack.name + " by " + loadedTrack.author + "\n" + loadedTrack.cpList.Count + " Checkpoints\n" + loadedTrack.laps + " Laps\n" + trackLength.ToString("0.00") + " Meters");
-                    GUILayout.Label("Starting point:\n"+"Latitude: "+loadedTrack.cpList[0].pCoords.x+"\nLongitude: "+loadedTrack.cpList[0].pCoords.y+"\nAltitude: "+loadedTrack.cpList[0].pCoords.z+"\nDistance: "+Vector3.Distance(loadedTrack.cpList[0].Coords, FlightGlobals.ActiveVessel.CoM).ToString("0.00"));
+                    GUILayout.Label(loadedTrack.name + " by " + loadedTrack.author + "\n" + loadedTrack.cpList.Count + " Checkpoints\n" + loadedTrack.laps + " Laps\n" + trackLength.ToString("0.00") + " Meters\nBest time: " + tiempo(loadedTrack.trackTime));
+                    GUILayout.Label("Starting point:\n" + "Latitude: " + loadedTrack.cpList[0].pCoords.x + "\nLongitude: " + loadedTrack.cpList[0].pCoords.y + "\nAltitude: " + loadedTrack.cpList[0].pCoords.z + "\nDistance: " + Vector3.Distance(loadedTrack.cpList[0].Coords, FlightGlobals.ActiveVessel.CoM).ToString("0.00"));
                     if (loadedTrack.cpList.Count > 1)
                     {
                         if (GUILayout.Button("Start Race"))
@@ -696,6 +739,7 @@ public class RaceManager : MonoBehaviour
                 {
                     if (GUILayout.Button("Start Race!"))
                     {
+                        loadedTrack.trackKey = genTrackKey();
                         cambiaEstado(estados.RaceScreen);
                     }
                 }
@@ -902,8 +946,11 @@ public class RaceManager : MonoBehaviour
         loadedTrack.author = "Anonimous";
         loadedTrack.bodyName = FlightGlobals.ActiveVessel.mainBody.name;
         loadedTrack.laps = 1;
+        loadedTrack.trackTime = 0;
+        loadedTrack.trackKey = "";
         editionCp = 0;
         trackLength = 0;
+
     }
 
     /// <summary>
@@ -936,6 +983,7 @@ public class RaceManager : MonoBehaviour
         loadedTrack.author = raceClon.author;
         loadedTrack.bodyName = raceClon.bodyName;
         loadedTrack.laps = raceClon.laps;
+        loadedTrack.trackKey = raceClon.key;
 
         //Extraer cpList de raceclon y meterlos en loadedTrack
         for (int i = 0; i < raceClon.cpList.Length; i++)
@@ -965,7 +1013,7 @@ public class RaceManager : MonoBehaviour
             Directory.CreateDirectory(Races.Races.RaceTrackFolder);
         }
         var info = new DirectoryInfo(Races.Races.RaceTrackFolder);
-        var fileInfo = info.GetFiles("*.krt", SearchOption.TopDirectoryOnly);
+        var fileInfo = info.GetFiles("*" + Races.Races.RaceTrackFileExtension, SearchOption.TopDirectoryOnly);
         Debug.Log(fileInfo.Length + " Race Tracks found");
         foreach (var file in fileInfo)
         {
@@ -973,7 +1021,10 @@ public class RaceManager : MonoBehaviour
             FileStream fileStream = File.Open(file.FullName, FileMode.Open);
             RaceClon race = (RaceClon)bf.Deserialize(fileStream);
             raceList.Add(race);
+            fileStream.Close();
         }
+        //y tambien se carga el archivo de tiempos
+        loadRecordFile();
     }
 
     /// <summary>
@@ -1137,12 +1188,16 @@ public class RaceManager : MonoBehaviour
             cpClon.rotW = loadedTrack.cpList[i].rot.w;
             raceClon.cpList[i] = cpClon;
         }
-
         raceClon.name = track.name;
         raceClon.author = track.author;
         raceClon.bodyName = track.bodyName;
         raceClon.laps = track.laps;
-        trackLength = track.trackLength;
+        raceClon.lenght = track.trackLength;
+        //Genera una clave unica partiendo de los puntos de control del circuito
+        keyGenData data = new keyGenData();
+        data.laps = raceClon.laps;
+        data.cpList = raceClon.cpList;
+        raceClon.key = MD5Hash(data);
         return raceClon;
     }
 
@@ -1176,5 +1231,155 @@ public class RaceManager : MonoBehaviour
         int seg = (int)(num - ((hor * 3600) + (min * 60)));
 
         return hor.ToString("00") + ":" + min.ToString("00") + ":" + seg.ToString("00") + "." + num.ToString(".00").Split('.')[1];
+    }
+
+    /// <summary>
+    /// calcula md5 del circuito actual
+    /// </summary>
+    /// <returns></returns>
+    public string MD5Hash(object obj)
+    {
+        byte[] hash = MD5.Create().ComputeHash(bArray.ObjectToByteArray(obj));
+        return BitConverter.ToString(hash).Replace("-", "");
+    }
+
+    /// <summary>
+    /// carga el archivo records.dat, si no lo hay, lo crea
+    /// </summary>
+    public void loadRecordFile()
+    {
+        if (!Directory.Exists(Races.Races.RaceTrackFolder))
+        {
+            Directory.CreateDirectory(Races.Races.RaceTrackFolder);
+        }
+        try
+        {
+            BinaryFormatter bf = new BinaryFormatter();
+            FileStream fileStream = File.Open(Races.Races.RaceTrackFolder + "records.dat", FileMode.Open);
+            Records cosa = (Records)bf.Deserialize(fileStream);
+            fileStream.Close();
+            records.Clear();
+            for (int i = 0; i < cosa.key.Length; i++)
+            {
+                records.Add(cosa.key[i], cosa.value[i]);
+            }
+        }
+        catch (Exception)
+        {
+            saveRecordFile();
+        }
+    }
+
+    /// <summary>
+    /// guarda en el archivo records.dat los records de tiempo de los circuitos
+    /// </summary>
+    public void saveRecordFile()
+    {
+        if (!Directory.Exists(Races.Races.RaceTrackFolder))
+        {
+            Directory.CreateDirectory(Races.Races.RaceTrackFolder);
+        }
+
+        //parece que no soy capaz de serializar un diccionario, asi que esto hace una copia que se puede serializar
+        Records saveThis = new Records();
+        saveThis.key = new string[records.Count];
+        saveThis.value = new float[records.Count];
+        List<string> keyList = new List<string>(this.records.Keys);
+        List<float> valueList = new List<float>(this.records.Values);
+
+        for (int i = 0; i < records.Count; i++)
+        {
+            saveThis.key[i] = keyList[i];
+            saveThis.value[i] = valueList[i];
+        }
+
+        BinaryFormatter bf = new BinaryFormatter();
+        FileStream file = File.Create(Races.Races.RaceTrackFolder + "records.dat");
+        Debug.Log("Saving best times");
+        bf.Serialize(file, saveThis);
+        file.Close();
+    }
+
+    /// <summary>
+    /// Registra un record personal en la lista de records
+    /// </summary>
+    public void recordRecord()
+    {
+        if (records.ContainsKey(loadedTrack.trackKey))
+        {
+            if (records[loadedTrack.trackKey] > (float)tiempoTot)
+            {
+                Debug.Log("Nuevo Record");
+                ScreenMessages.PostScreenMessage("New Record!" + tiempo((float)tiempoTot));
+                records[loadedTrack.trackKey] = (float)tiempoTot;
+                loadedTrack.trackTime = (float)tiempoTot;
+            }
+
+        }
+        else
+        {
+            Debug.Log("Nuevo circuito " + loadedTrack.trackKey + "|" + (float)tiempoTot);
+            records.Add(loadedTrack.trackKey, (float)tiempoTot);
+            loadedTrack.trackTime = (float)tiempoTot;
+        }
+    }
+
+    /// <summary>
+    /// genera una clave cara el circuito
+    /// </summary>
+    /// <param name="track"></param>
+    /// <returns></returns>
+    public string genTrackKey()
+    {
+        keyGenData data = new keyGenData();
+        data.cpList = new CheckPointClon[loadedTrack.cpList.Count];
+        for (int i = 0; i < loadedTrack.cpList.Count; i++)
+        {
+            CheckPointClon cpClon = new CheckPointClon();
+            cpClon.body = loadedTrack.cpList[i].body.name;
+            cpClon.size = loadedTrack.cpList[i].Size;
+            cpClon.pCoordsX = loadedTrack.cpList[i].pCoords.x;
+            cpClon.pCoordsY = loadedTrack.cpList[i].pCoords.y;
+            cpClon.pCoordsZ = loadedTrack.cpList[i].pCoords.z;
+            cpClon.rotX = loadedTrack.cpList[i].rot.x;
+            cpClon.rotY = loadedTrack.cpList[i].rot.y;
+            cpClon.rotZ = loadedTrack.cpList[i].rot.z;
+            cpClon.rotW = loadedTrack.cpList[i].rot.w;
+            data.cpList[i] = cpClon;
+        }
+        data.laps = loadedTrack.laps;
+        return MD5Hash(data);
+    }
+}
+
+/// <summary>
+/// Convierte un objeto serializable en una matriz de bytes y al reves
+/// http://stackoverflow.com/questions/4865104/convert-any-object-to-a-byte
+/// </summary>
+public class bArray
+{
+    // Convert an object to a byte array
+    public static byte[] ObjectToByteArray(System.Object obj)
+    {
+        if (obj == null)
+            return null;
+
+        BinaryFormatter bf = new BinaryFormatter();
+        MemoryStream ms = new MemoryStream();
+        bf.Serialize(ms, obj);
+
+        return ms.ToArray();
+    }
+
+    // Convert a byte array to an Object
+    public static System.Object ByteArrayToObject(byte[] arrBytes)
+    {
+        MemoryStream memStream = new MemoryStream();
+        BinaryFormatter binForm = new BinaryFormatter();
+        memStream.Write(arrBytes, 0, arrBytes.Length);
+        memStream.Seek(0, SeekOrigin.Begin);
+        System.Object obj = (System.Object)binForm.Deserialize(memStream);
+
+        return obj;
     }
 }
