@@ -25,7 +25,7 @@ namespace Races
         public ApplicationLauncher apl;
         public bool guiAct;
         private bool appAct;
-        public Texture appTexture = null;
+        public Texture appTexture = GameDatabase.Instance.GetTexture("Races!/Textures/icon", false);
 
         public static string RaceTrackFolder
         {
@@ -494,6 +494,7 @@ public class RaceManager : MonoBehaviour
     public string guiRaceName, guiRaceAuth;
     public Vector2 scrollRaceList = Vector2.zero;
     public float trackLength;
+    bool trackExist, saving = false;
     ////tamaño, rotación y translación para los puntos de control
     public float rotx, roty, rotz, trax, tray, traz = 0;
     public int size = 0;
@@ -538,14 +539,8 @@ public class RaceManager : MonoBehaviour
                 estadoAct = estados.LoadScreen;
                 prepCp(false);
                 enCarrera = false;
-                if (records.ContainsKey(loadedTrack.trackKey))
-                {
-                    loadedTrack.trackTime = records[loadedTrack.trackKey];
-                }
-                else
-                {
-                    loadedTrack.trackTime = 0;
-                }
+                loadedTrack.trackKey = genTrackKey();
+                loadedTrack.trackTime = (records.ContainsKey(loadedTrack.trackKey)) ? records[loadedTrack.trackKey] : 0;
                 break;
             case estados.EditScreen:
                 estadoAct = estados.EditScreen;
@@ -583,7 +578,7 @@ public class RaceManager : MonoBehaviour
 
     public void windowFuction(int id)
     {
-        GUILayout.Label(loadedTrack.trackKey);
+        //GUILayout.Label(loadedTrack.trackKey);
         switch (estadoAct)
         {
             case estados.LoadScreen:
@@ -604,15 +599,7 @@ public class RaceManager : MonoBehaviour
                             prepCp(false);
                             //trackLength = loadedTrack.trackLength; //Esto no va...
                             trackLength = race.lenght;
-                            if (records.ContainsKey(loadedTrack.trackKey))
-                            {
-                                loadedTrack.trackTime = records[loadedTrack.trackKey];
-                            }
-                            else
-                            {
-                                loadedTrack.trackTime = 0;
-                            }
-
+                            loadedTrack.trackTime = (records.ContainsKey(loadedTrack.trackKey)) ? records[loadedTrack.trackKey] : 0;
                         }
                     }
                     else
@@ -713,21 +700,54 @@ public class RaceManager : MonoBehaviour
                     cambiaEditCp(loadedTrack.cpList.Count - 1);
                 }
 
-                if (GUILayout.Button("Remove Checkpoint"))
+                if (loadedTrack.cpList.Count > 0)
                 {
-                    loadedTrack.cpList[editionCp].destroy();
-                    loadedTrack.cpList.RemoveAt(editionCp);
-                    cambiaEditCp(editionCp);
+                    if (GUILayout.Button("Remove Checkpoint"))
+                    {
+                        loadedTrack.cpList[editionCp].destroy();
+                        loadedTrack.cpList.RemoveAt(editionCp);
+                        cambiaEditCp(editionCp);
+                    }
                 }
 
                 if (GUILayout.Button("Save Race Track"))
                 {
                     if (loadedTrack.cpList.Count > 0)
                     {
+                        trackExist = (raceList.FindAll(x => x.name == loadedTrack.name).Count != 0);
+
+                        if (!trackExist)
+                        {
+                            SaveRaceTrack();
+                            raceList.Clear();
+                            GetRacetrackList();
+                            trackExist = false;
+                            saving = false;
+                        }
+                        else
+                        {
+                            saving = true;
+                        }
+                    }
+                }
+                if (saving)
+                {
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label("Already exist");
+                    if (GUILayout.Button("Overwrite"))
+                    {
                         SaveRaceTrack();
                         raceList.Clear();
                         GetRacetrackList();
+                        trackExist = false;
+                        saving = false;
                     }
+                    if (GUILayout.Button("Cancel"))
+                    {
+                        trackExist = false;
+                        saving = false;
+                    }
+                    GUILayout.EndHorizontal();
                 }
 
                 if (GUILayout.Button("New Race Track"))
@@ -1198,6 +1218,7 @@ public class RaceManager : MonoBehaviour
         data.laps = raceClon.laps;
         data.cpList = raceClon.cpList;
         raceClon.key = MD5Hash(data);
+        track.trackKey = raceClon.key;
         return raceClon;
     }
 
