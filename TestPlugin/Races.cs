@@ -19,12 +19,8 @@ namespace Races
         public static Races raceMod;
         private static string raceTrackFolder = "./GameData/RaceTracks/";
         private static string raceTrackFileExtension = ".krt";
-
         public static RaceManager raceMan;
-        public Rect guiBox = new Rect();
         public ApplicationLauncher apl;
-        public bool guiAct;
-        private bool appAct;
         public Texture appTexture = GameDatabase.Instance.GetTexture("Races!/Textures/icon", false);
 
         public static string RaceTrackFolder
@@ -62,15 +58,14 @@ namespace Races
             Version ver = assName.Version;
             Debug.LogWarning("Races! " + ver.ToString());
 
+            raceMan = new GameObject().AddComponent<RaceManager>();
+
             GameEvents.onHideUI.Add(GUIoff);
             GameEvents.onShowUI.Add(GUIon);
             GameEvents.onLevelWasLoaded.Add(whatTheScene);
             GameEvents.onGameSceneSwitchRequested.Add(changeScene);
             GameEvents.onVesselSOIChanged.Add(byeSoi);
             GUIon();
-
-            raceMan = new GameObject().AddComponent<RaceManager>();
-            raceMan.GetRacetrackList();
         }
 
         // Called next.
@@ -123,37 +118,23 @@ namespace Races
 
         private void appOff()
         {
-            appAct = false;
+            raceMan.appAct = false;
         }
 
         private void appOn()
         {
-            appAct = true;
-        }
-
-        public void OnGUI()
-        {
-            if (guiAct && appAct)
-            {
-                guiBox = GUILayout.Window(1, guiBox, raceMan.windowFuction, "Races!", GUILayout.Width(0), GUILayout.Height(0));
-            }
+            raceMan.appAct = true;
         }
 
         public void GUIon()
         {
-            guiAct = true;
+            raceMan.guiAct = true;
         }
 
         public void GUIoff()
         {
-            guiAct = false;
+            raceMan.guiAct = false;
         }
-
-        // Called every frame  
-        void Update() { }
-
-        // Called at a fixed time interval determined by the physics time step.
-        void FixedUpdate() { }
 
         //Called when the game is leaving the scene (or exiting). Perform any clean up work here.
         void OnDestroy()
@@ -270,15 +251,23 @@ public class CheckPoint : MonoBehaviour
 
     public class colision : MonoBehaviour
     {
-        void Start() { }
+        public int count = 0;
 
         void OnTriggerEnter(Collider thing)
         {
-            if (Races.Races.raceMan.estadoAct == RaceManager.estados.RaceScreen && thing == FlightGlobals.ActiveVessel.rootPart.collider)
+            //Cuando el numero de partes +1 que han pasado por el punto de control son más de la mitad de las partes del buque, el punto de control se considera "pasado"
+            if (Races.Races.raceMan.estadoAct == RaceManager.estados.RaceScreen && this.name == Races.Races.raceMan.loadedTrack.cpList[Races.Races.raceMan.pActivo].boxCollider.name)
             {
-                Races.Races.raceMan.cpSuperado(this.name);
+                count++;
+                if (count + 1 >= FlightGlobals.ActiveVessel.parts.Count / 2)
+                {
+                    Races.Races.raceMan.cpSuperado(this.name);
+                    count = 0;
+                }
             }
         }
+
+
     }
 
     void Awake()
@@ -298,7 +287,7 @@ public class CheckPoint : MonoBehaviour
         //colisionador
         boxCollider.gameObject.AddComponent<colision>();
         boxCollider.isTrigger = true;
-        boxCollider.transform.localScale = new Vector3(sizes[Size].y, 0, sizes[Size].z);
+        boxCollider.transform.localScale = new Vector3(sizes[Size].y, 1, sizes[Size].z);
         boxCollider.enabled = false;
     }
 
@@ -447,8 +436,6 @@ public class RaceClon
     public int laps;
     public float lenght;
     public string key;
-    public float bestTime;
-    public string bestTimeOuner;
     public CheckPointClon[] cpList;
 }
 
@@ -465,7 +452,6 @@ public class keyGenData
     public CheckPointClon[] cpList;
     public int laps;
 }
-
 
 /// <summary>
 /// Clase que administra las carreras
@@ -490,7 +476,9 @@ public class RaceManager : MonoBehaviour
     public double tiempoAct = 0;
 
     //GUI
-    public Rect guiWindow = new Rect();
+    public bool guiAct;
+    public bool appAct;
+    public Rect guiBox = new Rect();
     public string guiRaceName, guiRaceAuth;
     public Vector2 scrollRaceList = Vector2.zero;
     public float trackLength;
@@ -519,7 +507,10 @@ public class RaceManager : MonoBehaviour
         }
     }
 
-    void Start() { }
+    void Start()
+    {
+        GetRacetrackList();
+    }
 
     void onDestroy() { }
 
@@ -576,9 +567,16 @@ public class RaceManager : MonoBehaviour
         }
     }
 
+    public void OnGUI()
+    {
+        if (guiAct && appAct)
+        {
+            guiBox = GUILayout.Window(1, guiBox, windowFuction, "Races!", GUILayout.Width(0), GUILayout.Height(0));
+        }
+    }
+
     public void windowFuction(int id)
     {
-        //GUILayout.Label(loadedTrack.trackKey);
         switch (estadoAct)
         {
             case estados.LoadScreen:
@@ -618,6 +616,7 @@ public class RaceManager : MonoBehaviour
                 GUILayout.BeginVertical();
                 if (loadedTrack.cpList.Count > 0)
                 {
+                    // Información del circuito cargado. No se asusten.
                     GUILayout.Label(loadedTrack.name + " by " + loadedTrack.author + "\n" + loadedTrack.cpList.Count + " Checkpoints\n" + loadedTrack.laps + " Laps\n" + trackLength.ToString("0.00") + " Meters\nBest time: " + tiempo(loadedTrack.trackTime));
                     GUILayout.Label("Starting point:\n" + "Latitude: " + loadedTrack.cpList[0].pCoords.x + "\nLongitude: " + loadedTrack.cpList[0].pCoords.y + "\nAltitude: " + loadedTrack.cpList[0].pCoords.z + "\nDistance: " + Vector3.Distance(loadedTrack.cpList[0].Coords, FlightGlobals.ActiveVessel.CoM).ToString("0.00"));
                     if (loadedTrack.cpList.Count > 1)
@@ -748,6 +747,17 @@ public class RaceManager : MonoBehaviour
                         saving = false;
                     }
                     GUILayout.EndHorizontal();
+
+                    /* este es el tema: quiero que cuando esté activa esta confirmación, si hay algun cambio en el circuito la confirmación desaparezca sin guardar
+                     * lo que pasa es que si lo hago con esto aquí mismo:
+                     * 
+                     * if (GUI.changed)
+                     * {
+                     *  Debug.Log("GUI changed, y trackExist = false, saving = false");
+                     * }
+                     * 
+                     * detecta el cambio en el mismo momento en que se pulsa en el botón de guardar, y tiene en cuenta esa pulsación para el cambio
+                     */
                 }
 
                 if (GUILayout.Button("New Race Track"))
@@ -894,7 +904,7 @@ public class RaceManager : MonoBehaviour
 
                 if (enCarrera)
                 {
-                    if (loadedTrack.laps > 0)
+                    if (loadedTrack.laps > 1)
                     {
                         GUILayout.Label("Lap " + curLap + "/" + loadedTrack.laps);
                     }
@@ -912,7 +922,11 @@ public class RaceManager : MonoBehaviour
                         GUILayout.Label(loadedTrack.laps + " Laps");
                     }
                     GUILayout.Label("Cross first checkpoint (white) to start race!");
-                    if (GUILayout.Button("Back")) //Solo visible mientras no empieza la carrera
+                    if (GUILayout.Button("Edit Track"))
+                    {
+                        cambiaEstado(estados.EditScreen);
+                    }
+                    if (GUILayout.Button("Load Track"))
                     {
                         cambiaEstado(estados.LoadScreen);
                     }
@@ -922,6 +936,7 @@ public class RaceManager : MonoBehaviour
             case estados.EndScreen:
                 GUILayout.Label(loadedTrack.name + "\nby " + loadedTrack.author);
                 GUILayout.Label("Total time:\n" + tiempo((float)tiempoTot));
+                GUILayout.Label("Best Tyme: " + loadedTrack.trackTime);
                 if (GUILayout.Button("Restart Race"))
                 {
                     cambiaEstado(estados.RaceScreen);
@@ -931,7 +946,7 @@ public class RaceManager : MonoBehaviour
                     cambiaEstado(estados.EditScreen);
                 }
 
-                if (GUILayout.Button("Back")) //Solo visible mientras no empieza la carrera
+                if (GUILayout.Button("Load Track"))
                 {
                     cambiaEstado(estados.LoadScreen);
                 }
@@ -942,7 +957,7 @@ public class RaceManager : MonoBehaviour
             default:
                 break;
         }
-        GUI.DragWindow();
+        GUI.DragWindow(new Rect(0, 0, guiBox.width, 10));
     }
 
     /// <summary>
@@ -970,7 +985,6 @@ public class RaceManager : MonoBehaviour
         loadedTrack.trackKey = "";
         editionCp = 0;
         trackLength = 0;
-
     }
 
     /// <summary>
@@ -1037,11 +1051,18 @@ public class RaceManager : MonoBehaviour
         Debug.Log(fileInfo.Length + " Race Tracks found");
         foreach (var file in fileInfo)
         {
-            BinaryFormatter bf = new BinaryFormatter();
-            FileStream fileStream = File.Open(file.FullName, FileMode.Open);
-            RaceClon race = (RaceClon)bf.Deserialize(fileStream);
-            raceList.Add(race);
-            fileStream.Close();
+            try
+            {
+                BinaryFormatter bf = new BinaryFormatter();
+                FileStream fileStream = File.Open(file.FullName, FileMode.Open);
+                RaceClon race = (RaceClon)bf.Deserialize(fileStream);
+                raceList.Add(race);
+                fileStream.Close();
+            }
+            catch (Exception)
+            {
+                Debug.LogError("Wrong file format");
+            }
         }
         //y tambien se carga el archivo de tiempos
         loadRecordFile();
@@ -1088,7 +1109,6 @@ public class RaceManager : MonoBehaviour
                     break;
             }
             pActivo++;
-
             if (pActivo > loadedTrack.cpList.Count - 1)
             {
                 if (curLap < loadedTrack.laps)
@@ -1101,7 +1121,6 @@ public class RaceManager : MonoBehaviour
                     loadedTrack.cpList[0].tipoCp = CheckPoint.Types.FINISH;
                 }
             }
-
             if (loadedTrack.cpList[pActivo].tipoCp != CheckPoint.Types.FINISH)
             {
                 loadedTrack.cpList[pActivo].cpColor = CheckPoint.colorStart;
@@ -1127,6 +1146,7 @@ public class RaceManager : MonoBehaviour
                 loadedTrack.cpList[i].boxCollider.enabled = correr;
                 loadedTrack.cpList[i].cpType = CheckPoint.Types.CHECKPOINT;
                 loadedTrack.cpList[i].cpColor = (correr) ? CheckPoint.colorPasado : CheckPoint.colorCheckP;
+                loadedTrack.cpList[i].boxCollider.GetComponent<CheckPoint.colision>().count = 0;
             }
 
             if (loadedTrack.laps == 1)
@@ -1219,6 +1239,7 @@ public class RaceManager : MonoBehaviour
         data.cpList = raceClon.cpList;
         raceClon.key = MD5Hash(data);
         track.trackKey = raceClon.key;
+
         return raceClon;
     }
 
@@ -1330,16 +1351,13 @@ public class RaceManager : MonoBehaviour
         {
             if (records[loadedTrack.trackKey] > (float)tiempoTot)
             {
-                Debug.Log("Nuevo Record");
                 ScreenMessages.PostScreenMessage("New Record!" + tiempo((float)tiempoTot));
                 records[loadedTrack.trackKey] = (float)tiempoTot;
                 loadedTrack.trackTime = (float)tiempoTot;
             }
-
         }
         else
         {
-            Debug.Log("Nuevo circuito " + loadedTrack.trackKey + "|" + (float)tiempoTot);
             records.Add(loadedTrack.trackKey, (float)tiempoTot);
             loadedTrack.trackTime = (float)tiempoTot;
         }
