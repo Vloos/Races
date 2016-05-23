@@ -42,7 +42,6 @@ namespace Races
         // Called after the scene is loaded.
         void Awake()
         {
-            Debug.LogWarning("Awake Races");
             if (raceMod == null)
             {
                 DontDestroyOnLoad(gameObject);
@@ -79,6 +78,7 @@ namespace Races
         {
             raceMan.newRaceTrack();
             raceMan.cambiaEditCp(0);
+            raceMan.raceList.Clear();
             raceMan.GetRacetrackList();
         }
 
@@ -495,7 +495,6 @@ public class RaceManager : MonoBehaviour
 
     void Awake()
     {
-        Debug.LogWarning("RaceManager Awake");
         if (raceManager == null)
         {
             DontDestroyOnLoad(gameObject);
@@ -511,8 +510,6 @@ public class RaceManager : MonoBehaviour
     {
         GetRacetrackList();
     }
-
-    void onDestroy() { }
 
     void Update()
     {
@@ -550,6 +547,10 @@ public class RaceManager : MonoBehaviour
                 estadoAct = estados.RaceScreen;
                 pActivo = 0;
                 curLap = 0;
+                if (loadedTrack.cpList[1].tipoCp != CheckPoint.Types.FINISH)
+                {
+                    loadedTrack.cpList[1].cpColor = CheckPoint.colorCheckP;
+                }
                 break;
             case estados.EndScreen:
                 estadoAct = estados.EndScreen;
@@ -936,7 +937,7 @@ public class RaceManager : MonoBehaviour
             case estados.EndScreen:
                 GUILayout.Label(loadedTrack.name + "\nby " + loadedTrack.author);
                 GUILayout.Label("Total time:\n" + tiempo((float)tiempoTot));
-                GUILayout.Label("Best Tyme: " + loadedTrack.trackTime);
+                GUILayout.Label("Best Time: " + tiempo(loadedTrack.trackTime));
                 if (GUILayout.Button("Restart Race"))
                 {
                     cambiaEstado(estados.RaceScreen);
@@ -1090,6 +1091,10 @@ public class RaceManager : MonoBehaviour
                         ScreenMessages.PostScreenMessage("Lap " + curLap + " Checkpoint " + pActivo + "\n" + tiempo((float)tiempoAct), 15);
                     }
                     curLap++;
+                    if (loadedTrack.laps > 1 && curLap == loadedTrack.laps)
+                    {
+                        loadedTrack.cpList[0].tipoCp = CheckPoint.Types.FINISH;
+                    }
                     break;
                 case CheckPoint.Types.CHECKPOINT:
                     ScreenMessages.PostScreenMessage(" Lap " + curLap + " Checkpoint " + pActivo + "\n" + tiempo((float)tiempoAct), 15);
@@ -1102,28 +1107,30 @@ public class RaceManager : MonoBehaviour
                         tiempoTot = tiempoAct;
                         enCarrera = false;
                         cambiaEstado(estados.EndScreen);
-                        loadedTrack.cpList[pActivo].cpColor = CheckPoint.colorPasado;
                     }
                     return;
                 default:
                     break;
             }
+            //indicar el punto de control inmediato
             pActivo++;
             if (pActivo > loadedTrack.cpList.Count - 1)
             {
-                if (curLap < loadedTrack.laps)
-                {
-                    pActivo = 0;
-                }
-                else
-                {
-                    pActivo = 0;
-                    loadedTrack.cpList[0].tipoCp = CheckPoint.Types.FINISH;
-                }
+                pActivo = 0;
             }
             if (loadedTrack.cpList[pActivo].tipoCp != CheckPoint.Types.FINISH)
             {
                 loadedTrack.cpList[pActivo].cpColor = CheckPoint.colorStart;
+            }
+            //colorear el siguiente punto de control
+            int next = pActivo + 1;
+            if (next > loadedTrack.cpList.Count - 1)
+            {
+                next = 0;
+            }
+            if (loadedTrack.cpList[pActivo].tipoCp != CheckPoint.Types.FINISH && loadedTrack.cpList[next].tipoCp != CheckPoint.Types.FINISH)
+            {
+                loadedTrack.cpList[next].cpColor = CheckPoint.colorCheckP;
             }
         }
         else
@@ -1337,7 +1344,6 @@ public class RaceManager : MonoBehaviour
 
         BinaryFormatter bf = new BinaryFormatter();
         FileStream file = File.Create(Races.Races.RaceTrackFolder + "records.dat");
-        Debug.Log("Saving best times");
         bf.Serialize(file, saveThis);
         file.Close();
     }
