@@ -8,6 +8,7 @@ using KSP.UI.Screens;
 using System.Text;
 using System.Security.Cryptography;
 
+
 namespace Races
 {
     /// <summary>
@@ -150,6 +151,9 @@ namespace Races
     }
 }
 
+/// <summary>
+/// Punto de control con primitivos
+/// </summary>
 public class CheckPoint : MonoBehaviour
 {
     public enum Types { START, CHECKPOINT, FINISH };
@@ -160,23 +164,27 @@ public class CheckPoint : MonoBehaviour
     public Quaternion rot;  //rotación marcador
     public static int maxAlt = 50000;
     public BoxCollider boxCollider = new GameObject().AddComponent<BoxCollider>(); //colisionador
+    private bool solid;
 
     //lineas del marcador
+
     public static Color colorStart = Color.white;
     public static Color colorCheckP = Color.yellow;
     public static Color colorFinish = Color.red;
     public static Color colorPasado = Color.clear;
     public static Color colorEdit = new Color(255, 0, 255);
     public static Dictionary<int, Vector3> sizes = new Dictionary<int, Vector3>() {
-        {0, new Vector3(4f, 32f, 18f)}, //Grosor de la linea, ancho del rectángulo, alto del rectángulo
-        {1, new Vector3(6f, 48f, 27f)},
-        {2, new Vector3(8F, 64f, 36f)},
-        {3, new Vector3(10F, 80f, 45f)}
+        {0, new Vector3(2f, 32f, 18f)}, //Grosor de la linea, ancho del rectángulo, alto del rectángulo
+        {1, new Vector3(3f, 48f, 27f)},
+        {2, new Vector3(4F, 64f, 36f)},
+        {3, new Vector3(5F, 80f, 45f)}
     };
 
     private int size;
     private Color wpColor;
-    public LineRenderer marcador = new GameObject().AddComponent<LineRenderer>();
+
+    //intentado con primitivos
+    public Qub cuUp, cuDown, cuLe, cuRi;
 
     /// <summary>
     /// Da color a las lineas del punto de control
@@ -187,16 +195,18 @@ public class CheckPoint : MonoBehaviour
         {
             return wpColor;
         }
-
         set
         {
             wpColor = value;
-            marcador.material.SetColor("_EmissiveColor", wpColor);
+            cuUp.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", wpColor);
+            cuDown.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", wpColor);
+            cuRi.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", wpColor);
+            cuLe.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", wpColor);
         }
     }
 
     /// <summary>
-    /// Al establecer el tipo de punto de control (Start, Checkpoint, Finish), da a las lineas el color adecuado.
+    /// Al establecer el tipo de punto de control (Start, Checkpoint, Finish), da al marcador el color adecuado.
     /// </summary>
     public Types tipoCp
     {
@@ -211,16 +221,28 @@ public class CheckPoint : MonoBehaviour
             switch (value)
             {
                 case Types.START:
-                    marcador.material.SetColor("_EmissiveColor", colorStart);
+                    cuUp.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", colorStart);
+                    cuDown.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", colorStart);
+                    cuRi.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", colorStart);
+                    cuLe.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", colorStart);
                     break;
                 case Types.CHECKPOINT:
-                    marcador.material.SetColor("_EmissiveColor", colorCheckP);
+                    cuUp.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", colorCheckP);
+                    cuDown.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", colorCheckP);
+                    cuRi.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", colorCheckP);
+                    cuLe.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", colorCheckP);
                     break;
                 case Types.FINISH:
-                    marcador.material.SetColor("_EmissiveColor", colorFinish);
+                    cuUp.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", colorFinish);
+                    cuDown.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", colorFinish);
+                    cuRi.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", colorFinish);
+                    cuLe.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", colorFinish);
                     break;
                 default:
-                    marcador.material.SetColor("_EmissiveColor", Color.white);
+                    cuUp.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", Color.white);
+                    cuDown.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", Color.white);
+                    cuRi.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", Color.white);
+                    cuLe.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", Color.white);
                     break;
             }
         }
@@ -236,8 +258,16 @@ public class CheckPoint : MonoBehaviour
         set
         {
             size = value;
-            marcador.SetWidth(sizes[Size].x, sizes[Size].x);
             boxCollider.transform.localScale = new Vector3(sizes[Size].y, 1, sizes[Size].z);
+            cuUp.transform.localPosition = new Vector3(0, 0, sizes[Size].z / 2);
+            cuDown.transform.localPosition = new Vector3(0, 0, -sizes[Size].z / 2);
+            cuLe.transform.localPosition = new Vector3(-sizes[Size].y / 2, 0, 0);
+            cuRi.transform.localPosition = new Vector3(sizes[Size].y / 2, 0, 0);
+
+            cuUp.transform.localScale = new Vector3(sizes[Size].y + sizes[Size].x, sizes[Size].x, sizes[Size].x);
+            cuDown.transform.localScale = new Vector3(sizes[Size].y + sizes[Size].x, sizes[Size].x, sizes[Size].x);
+            cuRi.transform.localScale = new Vector3(sizes[Size].x, sizes[Size].x, sizes[Size].z - sizes[Size].x);
+            cuLe.transform.localScale = new Vector3(sizes[Size].x, sizes[Size].x, sizes[Size].z - sizes[Size].x);
         }
     }
 
@@ -246,6 +276,23 @@ public class CheckPoint : MonoBehaviour
         get
         {
             return coords;
+        }
+    }
+
+    public bool Solid
+    {
+        get
+        {
+            return solid;
+        }
+
+        set
+        {
+            solid = value;
+            cuUp.cubo.gameObject.GetComponent<BoxCollider>().enabled = solid;
+            cuDown.cubo.gameObject.GetComponent<BoxCollider>().enabled = solid;
+            cuLe.cubo.gameObject.GetComponent<BoxCollider>().enabled = solid;
+            cuRi.cubo.gameObject.GetComponent<BoxCollider>().enabled = solid;
         }
     }
 
@@ -270,25 +317,61 @@ public class CheckPoint : MonoBehaviour
 
     }
 
+    public class Qub : MonoBehaviour
+    {
+        public GameObject cubo = GameObject.CreatePrimitive(PrimitiveType.Cube);
+
+        void Awake()
+        {
+            cubo.transform.parent = this.transform;
+            cubo.GetComponent<MeshRenderer>().material = new Material(Shader.Find("KSP/Emissive/Diffuse"));
+            cubo.GetComponent<BoxCollider>().enabled = false;
+        }
+
+        void OnDestroy()
+        {
+            Destroy(cubo);
+            Destroy(this);
+        }
+    }
+
     void Awake()
     {
         //Donde está el buque en el momento de crear el punto de control
         pCoords = new Vector3((float)FlightGlobals.ActiveVessel.latitude, (float)FlightGlobals.ActiveVessel.longitude, (float)FlightGlobals.ActiveVessel.altitude);
         body = FlightGlobals.ActiveVessel.mainBody;
         rot = FlightGlobals.ActiveVessel.transform.rotation;
-        Size = 0;
-        marcador.useWorldSpace = false;
-        marcador.material = new Material(Shader.Find("KSP/Emissive/Diffuse"));
-        marcador.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        marcador.SetWidth(sizes[Size].x, sizes[Size].x);
-        marcador.SetVertexCount(5);
-        marcador.enabled = true;
+        size = 0;
+        wpColor = colorCheckP;
 
         //colisionador
         boxCollider.gameObject.AddComponent<colision>();
+        boxCollider.transform.parent = this.transform;
         boxCollider.isTrigger = true;
-        boxCollider.transform.localScale = new Vector3(sizes[Size].y, 1, sizes[Size].z);
+        boxCollider.transform.localScale = new Vector3(sizes[Size].y, 5, sizes[Size].z);
         boxCollider.enabled = false;
+
+        //cubos
+        cuUp = new GameObject().AddComponent<Qub>();
+        cuDown = new GameObject().AddComponent<Qub>();
+        cuLe = new GameObject().AddComponent<Qub>();
+        cuRi = new GameObject().AddComponent<Qub>();
+
+        cuUp.transform.parent = this.transform;
+        cuDown.transform.parent = this.transform;
+        cuLe.transform.parent = this.transform;
+        cuRi.transform.parent = this.transform;
+
+        cuUp.transform.localPosition = new Vector3(0, 0, sizes[Size].z / 2);
+        cuDown.transform.localPosition = new Vector3(0, 0, -sizes[Size].z / 2);
+        cuLe.transform.localPosition = new Vector3(-sizes[Size].y / 2, 0, 0);
+        cuRi.transform.localPosition = new Vector3(sizes[Size].y / 2, 0, 0);
+
+        cuUp.transform.localScale = new Vector3(sizes[Size].y + sizes[Size].x, sizes[Size].x, sizes[Size].x);
+        cuDown.transform.localScale = new Vector3(sizes[Size].y + sizes[Size].x, sizes[Size].x, sizes[Size].x);
+        cuRi.transform.localScale = new Vector3(sizes[Size].x, sizes[Size].x, sizes[Size].z - sizes[Size].x);
+        cuLe.transform.localScale = new Vector3(sizes[Size].x, sizes[Size].x, sizes[Size].z - sizes[Size].x);
+
     }
 
     /// <summary>
@@ -310,34 +393,19 @@ public class CheckPoint : MonoBehaviour
         //Como el origen del mundo se mueve con el buque, esto mantiene el punto de control en una posicion fija respecto al planeta.
         coords = body.GetWorldSurfacePosition(pCoords.x, pCoords.y, pCoords.z);
 
-        //Coloca los vertices del rectángulo
-        Vector3 si = new Vector3(-(sizes[Size].y / 2), 0, sizes[Size].z / 2);
-        Vector3 sd = new Vector3(sizes[Size].y / 2, 0, sizes[Size].z / 2);
-        Vector3 id = new Vector3(sizes[Size].y / 2, 0, -(sizes[Size].z / 2));
-        Vector3 ii = new Vector3(-(sizes[Size].y / 2), 0, -(sizes[Size].z / 2));
-
-        marcador.transform.position = coords;
-        marcador.transform.rotation = rot; //Esto es lo mismo que multiplicar cada vector por rot
-
-        //dibuja los vertices del rectángulo
-        marcador.SetPosition(0, si);
-        marcador.SetPosition(1, sd);
-        marcador.SetPosition(2, id);
-        marcador.SetPosition(3, ii);
-        marcador.SetPosition(4, si);
-
-        //El colisionador va en el mismo sitio que el rectángulo
-        boxCollider.transform.position = coords;
-        boxCollider.transform.rotation = rot;
+        this.transform.position = coords;
+        this.transform.rotation = rot;
     }
 
     public void destroy()
     {
-        Destroy(this);
-        Destroy(marcador);
-        marcador = null;
+        Destroy(cuUp);
+        Destroy(cuDown);
+        Destroy(cuLe);
+        Destroy(cuRi);
         Destroy(boxCollider);
         boxCollider = null;
+        Destroy(this);
     }
 
     /// <summary>
