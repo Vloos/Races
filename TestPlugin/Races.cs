@@ -339,14 +339,12 @@ public class CheckPoint : MonoBehaviour
         {
             if (enabled)
             {
+                Debug.Log(enabled);
                 Races.Races.raceMan.penTime += 10;
-                ScreenMessages.PostScreenMessage("+10 sec Penalization " + Races.Races.raceMan.penTime, 5);
-                enabled = false;
-                Debug.Log("Enter the Trigger");
+                ScreenMessages.PostScreenMessage("+10 sec penalty", 5);
+                Races.Races.raceMan.loadedTrack.cpList[Races.Races.raceMan.pActivo].Penalization = false;
             }
-            
         }
-
     }
 
     public class Qub : MonoBehaviour
@@ -620,6 +618,10 @@ public class RaceManager : MonoBehaviour
         if (enCarrera)
         {
             tiempoAct = Planetarium.GetUniversalTime() - tiempoIni;
+            if (Vector3.Distance(FlightGlobals.ActiveVessel.CoM, loadedTrack.cpList[pActivo].Coords) > CheckPoint.sizes[loadedTrack.cpList[pActivo].Size].y * 1.5 && !loadedTrack.cpList[pActivo].Penalization)
+            {
+                loadedTrack.cpList[pActivo].Penalization = true;
+            }
         }
     }
 
@@ -1013,7 +1015,8 @@ public class RaceManager : MonoBehaviour
                     {
                         GUILayout.Label("Lap " + curLap + "/" + loadedTrack.laps);
                     }
-                    GUILayout.Label(tiempo((float)tiempoAct)); //Esto tiene que ser de tamaño grande.
+                    GUILayout.Label("Time: " + tiempo((float)tiempoAct)); //Esto tiene que ser de tamaño grande.
+                    GUILayout.Label("Time penalty: " + tiempo((float)penTime));
                     if (GUILayout.Button("Abort Race!")) //Solo visible durante la carrera
                     {
                         enCarrera = !enCarrera;
@@ -1040,6 +1043,8 @@ public class RaceManager : MonoBehaviour
                 break;
             case estados.EndScreen:
                 GUILayout.Label(loadedTrack.name + " by " + loadedTrack.author);
+                GUILayout.Label("Time: " + tiempo((float)tiempoAct));
+                GUILayout.Label("Time penalty: " + tiempo((float)penTime));
                 GUILayout.Label("Total time: " + tiempo((float)tiempoTot));
                 GUILayout.Label("Best Time: " + tiempo(loadedTrack.trackTime));
                 if (GUILayout.Button("Restart Race"))
