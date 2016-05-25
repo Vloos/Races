@@ -165,6 +165,7 @@ public class CheckPoint : MonoBehaviour
     public static int maxAlt = 50000;
     public BoxCollider boxCollider = new GameObject().AddComponent<BoxCollider>(); //colisionador
     private bool solid;
+    private bool penalization;
 
     //lineas del marcador
 
@@ -289,10 +290,27 @@ public class CheckPoint : MonoBehaviour
         set
         {
             solid = value;
-            cuUp.cubo.gameObject.GetComponent<BoxCollider>().enabled = solid;
-            cuDown.cubo.gameObject.GetComponent<BoxCollider>().enabled = solid;
-            cuLe.cubo.gameObject.GetComponent<BoxCollider>().enabled = solid;
-            cuRi.cubo.gameObject.GetComponent<BoxCollider>().enabled = solid;
+            cuUp.cubo.gameObject.GetComponent<BoxCollider>().isTrigger = !solid;
+            cuDown.cubo.gameObject.GetComponent<BoxCollider>().isTrigger = !solid;
+            cuLe.cubo.gameObject.GetComponent<BoxCollider>().isTrigger = !solid;
+            cuRi.cubo.gameObject.GetComponent<BoxCollider>().isTrigger = !solid;
+        }
+    }
+
+    public bool Penalization
+    {
+        get
+        {
+            return penalization;
+        }
+
+        set
+        {
+            penalization = value;
+            cuUp.cubo.GetComponent<timePenalization>().enabled = penalization;
+            cuDown.cubo.GetComponent<timePenalization>().enabled = penalization;
+            cuLe.cubo.GetComponent<timePenalization>().enabled = penalization;
+            cuRi.cubo.GetComponent<timePenalization>().enabled = penalization;
         }
     }
 
@@ -303,17 +321,31 @@ public class CheckPoint : MonoBehaviour
         void OnTriggerEnter(Collider thing)
         {
             //Cuando el numero de partes +1 que han pasado por el punto de control son más de la mitad de las partes del buque, el punto de control se considera "pasado"
-            if (Races.Races.raceMan.estadoAct == RaceManager.estados.RaceScreen && this.name == Races.Races.raceMan.loadedTrack.cpList[Races.Races.raceMan.pActivo].boxCollider.name)
+            if (Races.Races.raceMan.estadoAct == RaceManager.estados.RaceScreen && name == Races.Races.raceMan.loadedTrack.cpList[Races.Races.raceMan.pActivo].boxCollider.name)
             {
                 count++;
                 if (count + 1 >= FlightGlobals.ActiveVessel.parts.Count / 2)
                 {
-                    Races.Races.raceMan.cpSuperado(this.name);
+                    Races.Races.raceMan.cpSuperado(name);
                     count = 0;
                 }
             }
         }
+    }
 
+    public class timePenalization : MonoBehaviour
+    {
+        void OnTriggerEnter()
+        {
+            if (enabled)
+            {
+                Races.Races.raceMan.penTime += 10;
+                ScreenMessages.PostScreenMessage("+10 sec Penalization " + Races.Races.raceMan.penTime, 5);
+                enabled = false;
+                Debug.Log("Enter the Trigger");
+            }
+            
+        }
 
     }
 
@@ -323,9 +355,12 @@ public class CheckPoint : MonoBehaviour
 
         void Awake()
         {
-            cubo.transform.parent = this.transform;
+            cubo.AddComponent<timePenalization>();
+            cubo.gameObject.GetComponent<timePenalization>().enabled = false;
+            cubo.transform.parent = transform;
             cubo.GetComponent<MeshRenderer>().material = new Material(Shader.Find("KSP/Emissive/Diffuse"));
-            cubo.GetComponent<BoxCollider>().enabled = false;
+            cubo.GetComponent<BoxCollider>().isTrigger = true;
+            cubo.GetComponent<BoxCollider>().enabled = true;
         }
 
         void OnDestroy()
@@ -539,9 +574,10 @@ public class RaceManager : MonoBehaviour
     public bool enCarrera = false;
     public int pActivo;
     public int curLap;
-    public double tiempoIni = 0;
-    public double tiempoTot = 0;
-    public double tiempoAct = 0;
+    public double tiempoIni = 0d;
+    public double tiempoTot = 0d;
+    public double tiempoAct = 0d;
+    public double penTime = 0d;
 
     //GUI
     public bool guiAct;
@@ -615,6 +651,7 @@ public class RaceManager : MonoBehaviour
                 estadoAct = estados.RaceScreen;
                 pActivo = 0;
                 curLap = 0;
+                penTime = 0;
                 if (loadedTrack.cpList[1].tipoCp != CheckPoint.Types.FINISH)
                 {
                     loadedTrack.cpList[1].cpColor = CheckPoint.colorCheckP;
@@ -622,7 +659,6 @@ public class RaceManager : MonoBehaviour
                 break;
             case estados.EndScreen:
                 estadoAct = estados.EndScreen;
-                tiempoTot = tiempoAct;
                 recordRecord();
                 saveRecordFile();
                 prepCp(false);
@@ -1003,8 +1039,8 @@ public class RaceManager : MonoBehaviour
 
                 break;
             case estados.EndScreen:
-                GUILayout.Label(loadedTrack.name + "\nby " + loadedTrack.author);
-                GUILayout.Label("Total time:\n" + tiempo((float)tiempoTot));
+                GUILayout.Label(loadedTrack.name + " by " + loadedTrack.author);
+                GUILayout.Label("Total time: " + tiempo((float)tiempoTot));
                 GUILayout.Label("Best Time: " + tiempo(loadedTrack.trackTime));
                 if (GUILayout.Button("Restart Race"))
                 {
@@ -1019,14 +1055,13 @@ public class RaceManager : MonoBehaviour
                 {
                     cambiaEstado(estados.LoadScreen);
                 }
-
                 break;
             case estados.Test:
                 break;
             default:
                 break;
         }
-        GUI.DragWindow(new Rect(0, 0, guiBox.width, 10));
+        GUI.DragWindow();
     }
 
     /// <summary>
@@ -1172,7 +1207,7 @@ public class RaceManager : MonoBehaviour
                     ScreenMessages.PostScreenMessage("Total time " + tiempo((float)tiempoAct), 15);
                     if (curLap == loadedTrack.laps)
                     {
-                        tiempoTot = tiempoAct;
+                        tiempoTot = tiempoAct + penTime;
                         enCarrera = false;
                         cambiaEstado(estados.EndScreen);
                     }
@@ -1180,12 +1215,14 @@ public class RaceManager : MonoBehaviour
                 default:
                     break;
             }
+            loadedTrack.cpList[pActivo].Penalization = false; //Una vez superado el punto de control, ya no puede penalizar
             //indicar el punto de control inmediato
             pActivo++;
             if (pActivo > loadedTrack.cpList.Count - 1)
             {
                 pActivo = 0;
             }
+            loadedTrack.cpList[pActivo].Penalization = true; //Despues de cambiar el punto de control activo, se reinicia la deteccion de penalizacion de tiempo
             if (loadedTrack.cpList[pActivo].tipoCp != CheckPoint.Types.FINISH)
             {
                 loadedTrack.cpList[pActivo].cpColor = CheckPoint.colorStart;
@@ -1230,6 +1267,7 @@ public class RaceManager : MonoBehaviour
             }
 
             loadedTrack.cpList[0].tipoCp = CheckPoint.Types.START;
+            loadedTrack.cpList[0].Penalization = correr;
             editionCp = loadedTrack.cpList.Count - 1;
         }
         else
