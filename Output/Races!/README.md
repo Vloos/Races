@@ -3,7 +3,10 @@ Pequeño mod para Kerbal Space Program en el que se pueden crear circuitos, colo
 
 ## Historial de cambios
 
-* 0.0.5
+* 0.0.6-alpha
+ * Se pueden poner obstaculos simples y estáticos, formados por aburridos cubos grises reescalables.
+
+* 0.0.5-alpha
  * Puntos de control un poco menos feos
  * Penalización de 10 segundos al tocar los bordes del punto de control activo (blanco) durante la carrera
 

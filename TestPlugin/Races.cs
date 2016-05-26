@@ -533,6 +533,7 @@ public class RaceClon
     public float lenght;
     public string key;
     public CheckPointClon[] cpList;
+    public Obstacle.ObsClon[] obList;
 }
 
 [Serializable]
@@ -555,7 +556,7 @@ public class keyGenData
 public class RaceManager : MonoBehaviour
 {
     public static RaceManager raceManager;
-    public enum estados { LoadScreen, EditScreen, RaceScreen, EndScreen, Test };
+    public enum estados { LoadScreen, EditScreen, RaceScreen, EndScreen, ObsScreen, Test };
     public estados estadoAct = estados.LoadScreen;
     public List<RaceClon> raceList = new List<RaceClon>(); //Lista de carreras disponibles en el directorio
     public LoadedTrack loadedTrack = new LoadedTrack();  //Carrera que se va a usar para correr o editar.
@@ -615,7 +616,7 @@ public class RaceManager : MonoBehaviour
         if (enCarrera)
         {
             tiempoAct = Planetarium.GetUniversalTime() - tiempoIni;
-            if (Vector3.Distance(FlightGlobals.ActiveVessel.CoM, loadedTrack.cpList[pActivo].Coords) > CheckPoint.sizes[loadedTrack.cpList[pActivo].Size].y * 1.5 && !loadedTrack.cpList[pActivo].Penalization)
+            if (Vector3.Distance(FlightGlobals.ActiveVessel.CoM, loadedTrack.cpList[pActivo].Coords) > CheckPoint.sizes[loadedTrack.cpList[pActivo].Size].y && !loadedTrack.cpList[pActivo].Penalization)
             {
                 loadedTrack.cpList[pActivo].Penalization = true;
             }
@@ -643,6 +644,11 @@ public class RaceManager : MonoBehaviour
                 prepCp(false);
                 cambiaEditCp(loadedTrack.cpList.Count - 1);
                 trackLength = loadedTrack.trackLength;
+                if (loadedTrack.obList.Count > 0)
+                {
+                    loadedTrack.obList[editionOb].ObColor = Obstacle.colorNormal;
+                }
+                editionOb = 0;
                 break;
             case estados.RaceScreen:
                 prepCp(true);
@@ -662,9 +668,16 @@ public class RaceManager : MonoBehaviour
                 saveRecordFile();
                 prepCp(false);
                 break;
+            case estados.ObsScreen:
+                estadoAct = estados.Test;
+                prepCp(false);
+                if (loadedTrack.obList.Count > 0)
+                {
+                    cambiaEditOb(loadedTrack.obList.Count - 1);
+                }
+                break;
             case estados.Test:
                 //estado para quitar esos molestos bichos y probar cosas
-                estadoAct = estados.Test;
                 break;
             default:
                 break;
@@ -715,10 +728,6 @@ public class RaceManager : MonoBehaviour
                 {
                     newRaceTrack();
                     cambiaEstado(estados.EditScreen);
-                }
-                if (GUILayout.Button("Test"))
-                {
-                    cambiaEstado(estados.Test);
                 }
                 GUILayout.EndVertical();
                 GUILayout.BeginVertical();
@@ -815,6 +824,11 @@ public class RaceManager : MonoBehaviour
                         loadedTrack.cpList.RemoveAt(editionCp);
                         cambiaEditCp(editionCp);
                     }
+                }
+
+                if (GUILayout.Button("Edit Obstacles"))
+                {
+                    cambiaEstado(estados.ObsScreen);
                 }
 
                 if (GUILayout.Button("Save Race Track"))
@@ -1085,14 +1099,9 @@ public class RaceManager : MonoBehaviour
                     }
                 }
 
-                if (GUILayout.Button("New Obstacle Course"))
+                if (GUILayout.Button("Edit checkpoints"))
                 {
-                    //newRaceTrack();
-                }
-
-                if (GUILayout.Button("Back"))
-                {
-                    cambiaEstado(estados.LoadScreen);
+                    cambiaEstado(estados.EditScreen);
                 }
 
                 GUILayout.EndVertical();
@@ -1122,11 +1131,7 @@ public class RaceManager : MonoBehaviour
                     }
                     GUILayout.EndHorizontal();
 
-                    loadedTrack.obList[editionOb].Solid = GUILayout.Toggle(loadedTrack.obList[editionOb].Solid,"Solid thing");
-
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("Size");
-                    GUILayout.EndHorizontal();
+                    loadedTrack.obList[editionOb].Solid = GUILayout.Toggle(loadedTrack.obList[editionOb].Solid, "Solid thing");
 
                     GUILayout.Label("Rotate");
 
@@ -1269,7 +1274,6 @@ public class RaceManager : MonoBehaviour
                     }
                     GUILayout.EndHorizontal();
 
-
                     GUILayout.Label("Translate");
 
                     GUILayout.BeginHorizontal();
@@ -1343,6 +1347,15 @@ public class RaceManager : MonoBehaviour
                 }
                 loadedTrack.cpList.Clear();
             }
+
+            if (loadedTrack.obList.Count > 0)
+            {
+                foreach (Obstacle obs in loadedTrack.obList)
+                {
+                    obs.destroy();
+                }
+                loadedTrack.obList.Clear();
+            }
         }
         loadedTrack = new LoadedTrack();
         loadedTrack.name = "New Race Track";
@@ -1400,6 +1413,19 @@ public class RaceManager : MonoBehaviour
             checkPoint.pCoords = new Vector3(cpClon.pCoordsX, cpClon.pCoordsY, cpClon.pCoordsZ);
             checkPoint.rot = new Quaternion(cpClon.rotX, cpClon.rotY, cpClon.rotZ, cpClon.rotW);
             checkPoint.cpBoxTrigger.GetComponent<BoxCollider>().name = "cp" + i; //Poner nombre a los colisionadores, para saber contra cual se colisiona
+        }
+
+        if (raceClon.obList.Length > 0)
+        {
+            foreach (Obstacle.ObsClon obClon in raceClon.obList)
+            {
+                Obstacle obs = new GameObject().AddComponent<Obstacle>();
+                obs.pCoords = new Vector3(obClon.pCoordsx, obClon.pCoordsy, obClon.pCoordsz);
+                obs.rot = new Quaternion(obClon.rotx, obClon.roty, obClon.rotz, obClon.rotw);
+                obs.cube.transform.localScale = new Vector3(obClon.scalex, obClon.scaley, obClon.scalez);
+                obs.Solid = obClon.solid;
+                loadedTrack.obList.Add(obs);
+            }
         }
         Debug.Log("Race track loaded: " + loadedTrack.name + " by " + loadedTrack.author);
     }
@@ -1525,6 +1551,11 @@ public class RaceManager : MonoBehaviour
                 loadedTrack.cpList[i].cpBoxTrigger.GetComponent<BoxCollider>().GetComponent<CheckPoint.colision>().count = 0;
             }
 
+            foreach (Obstacle obs in loadedTrack.obList)
+            {
+                obs.ObColor = Obstacle.colorNormal;
+            }
+
             if (loadedTrack.laps == 1)
             {
                 loadedTrack.cpList[loadedTrack.cpList.Count - 1].tipoCp = CheckPoint.Types.FINISH;
@@ -1598,7 +1629,10 @@ public class RaceManager : MonoBehaviour
             {
                 num = loadedTrack.obList.Count - 1;
             }
-            loadedTrack.obList[editionOb].ObColor = Obstacle.colorNormal;
+            if (editionOb <= loadedTrack.obList.Count-1)
+            {
+                loadedTrack.obList[editionOb].ObColor = Obstacle.colorNormal;
+            }
             editionOb = num;
             loadedTrack.obList[editionOb].ObColor = Obstacle.colorEdit;
         }
@@ -1631,6 +1665,14 @@ public class RaceManager : MonoBehaviour
             cpClon.rotW = loadedTrack.cpList[i].rot.w;
             raceClon.cpList[i] = cpClon;
         }
+
+        //Guarda los obstáculos
+        raceClon.obList = new Obstacle.ObsClon[loadedTrack.obList.Count];
+        for (int i = 0; i < loadedTrack.obList.Count; i++)
+        {
+            raceClon.obList[i] = loadedTrack.obList[i].toClon();
+        }
+
         raceClon.name = track.name;
         raceClon.author = track.author;
         raceClon.bodyName = track.bodyName;
@@ -1791,6 +1833,28 @@ public class RaceManager : MonoBehaviour
         data.laps = loadedTrack.laps;
         return MD5Hash(data);
     }
+
+    //public ObsClon[] toObsClon(List<Obstacle> obCourse)
+    //{
+    //    ObsClon[] clones = new ObsClon[obCourse.Count];
+
+    //    for (int i = 0; i < obCourse.Count; i++)
+    //    {
+    //        clones[i].body = obCourse[i].body.name;
+    //        clones[i].pCoordsx = obCourse[i].pCoords.x;
+    //        clones[i].pCoordsy = obCourse[i].pCoords.y;
+    //        clones[i].pCoordsz = obCourse[i].pCoords.z;
+    //        clones[i].rotx = obCourse[i].rot.x;
+    //        clones[i].roty = obCourse[i].rot.y;
+    //        clones[i].rotz = obCourse[i].rot.z;
+    //        clones[i].rotw = obCourse[i].rot.w;
+    //        clones[i].scalex = obCourse[i].transform.localScale.x;
+    //        clones[i].scaley = obCourse[i].transform.localScale.y;
+    //        clones[i].scalez = obCourse[i].transform.localScale.z;
+    //        clones[i].solid = obCourse[i].Solid;
+    //    }
+    //    return clones;
+    //}
 }
 
 /// <summary>
@@ -1977,6 +2041,43 @@ public class Obstacle : MonoBehaviour
             sz = maxScale;
         }
 
-        cube.transform.localScale = new Vector3((float)Math.Round(sx,2), (float)Math.Round(sy, 2), (float)Math.Round(sz, 2));
+        cube.transform.localScale = new Vector3((float)Math.Round(sx, 2), (float)Math.Round(sy, 2), (float)Math.Round(sz, 2));
+    }
+
+    //convertiría esto en una clase serializable
+    [Serializable]
+    public class ObsClon
+    {
+        public string body;
+        public float pCoordsx;
+        public float pCoordsy;
+        public float pCoordsz;
+        public float rotx;
+        public float roty;
+        public float rotz;
+        public float rotw;
+        public float scalex;
+        public float scaley;
+        public float scalez;
+        public bool solid;
+    }
+
+    public ObsClon toClon()
+    {
+        ObsClon clon = new ObsClon();
+        clon.body = body.name;
+        clon.pCoordsx = pCoords.x;
+        clon.pCoordsy = pCoords.y;
+        clon.pCoordsz = pCoords.z;
+        clon.rotx = rot.x;
+        clon.roty = rot.y;
+        clon.rotz = rot.z;
+        clon.rotw = rot.w;
+        clon.scalex = cube.transform.localScale.x;
+        clon.scaley = cube.transform.localScale.y;
+        clon.scalez = cube.transform.localScale.z;        
+        clon.solid = Solid;
+        return clon;
     }
 }
+
