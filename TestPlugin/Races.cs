@@ -163,11 +163,12 @@ public class CheckPoint : MonoBehaviour
     private Vector3 coords;
     public Quaternion rot;  //rotación marcador
     public static int maxAlt = 50000;
-    public BoxCollider boxCollider = new GameObject().AddComponent<BoxCollider>(); //colisionador
+    public GameObject cpBoxTrigger = GameObject.CreatePrimitive(PrimitiveType.Cube); //Esto detecta el buque pasar, para validar el punto de control
     private bool solid;
     private bool penalization;
-
-    //lineas del marcador
+    private int size;
+    private Color wpColor;
+    public Qub cuUp, cuDown, cuLe, cuRi;
 
     public static Color colorStart = Color.white;
     public static Color colorCheckP = Color.yellow;
@@ -180,12 +181,6 @@ public class CheckPoint : MonoBehaviour
         {2, new Vector3(4F, 64f, 36f)},
         {3, new Vector3(5F, 80f, 45f)}
     };
-
-    private int size;
-    private Color wpColor;
-
-    //intentado con primitivos
-    public Qub cuUp, cuDown, cuLe, cuRi;
 
     /// <summary>
     /// Da color a las lineas del punto de control
@@ -259,7 +254,7 @@ public class CheckPoint : MonoBehaviour
         set
         {
             size = value;
-            boxCollider.transform.localScale = new Vector3(sizes[Size].y, 1, sizes[Size].z);
+            cpBoxTrigger.transform.localScale = new Vector3(sizes[Size].y, sizes[Size].x + 0.2f, sizes[Size].z);
             cuUp.transform.localPosition = new Vector3(0, 0, sizes[Size].z / 2);
             cuDown.transform.localPosition = new Vector3(0, 0, -sizes[Size].z / 2);
             cuLe.transform.localPosition = new Vector3(-sizes[Size].y / 2, 0, 0);
@@ -321,7 +316,7 @@ public class CheckPoint : MonoBehaviour
         void OnTriggerEnter(Collider thing)
         {
             //Cuando el numero de partes +1 que han pasado por el punto de control son más de la mitad de las partes del buque, el punto de control se considera "pasado"
-            if (Races.Races.raceMan.estadoAct == RaceManager.estados.RaceScreen && name == Races.Races.raceMan.loadedTrack.cpList[Races.Races.raceMan.pActivo].boxCollider.name)
+            if (Races.Races.raceMan.estadoAct == RaceManager.estados.RaceScreen && name == Races.Races.raceMan.loadedTrack.cpList[Races.Races.raceMan.pActivo].cpBoxTrigger.name)
             {
                 count++;
                 if (count + 1 >= FlightGlobals.ActiveVessel.parts.Count / 2)
@@ -339,7 +334,6 @@ public class CheckPoint : MonoBehaviour
         {
             if (enabled)
             {
-                Debug.Log(enabled);
                 Races.Races.raceMan.penTime += 10;
                 ScreenMessages.PostScreenMessage("+10 sec penalty", 5);
                 Races.Races.raceMan.loadedTrack.cpList[Races.Races.raceMan.pActivo].Penalization = false;
@@ -378,11 +372,12 @@ public class CheckPoint : MonoBehaviour
         wpColor = colorCheckP;
 
         //colisionador
-        boxCollider.gameObject.AddComponent<colision>();
-        boxCollider.transform.parent = this.transform;
-        boxCollider.isTrigger = true;
-        boxCollider.transform.localScale = new Vector3(sizes[Size].y, 5, sizes[Size].z);
-        boxCollider.enabled = false;
+        cpBoxTrigger.GetComponent<BoxCollider>().gameObject.AddComponent<colision>();
+        cpBoxTrigger.transform.parent = this.transform;
+        cpBoxTrigger.GetComponent<BoxCollider>().isTrigger = true;
+        cpBoxTrigger.transform.localScale = new Vector3(sizes[Size].y, sizes[Size].x + 0.2f, sizes[Size].z);
+        cpBoxTrigger.GetComponent<BoxCollider>().enabled = false;
+        cpBoxTrigger.GetComponent<Renderer>().enabled = false;
 
         //cubos
         cuUp = new GameObject().AddComponent<Qub>();
@@ -390,10 +385,10 @@ public class CheckPoint : MonoBehaviour
         cuLe = new GameObject().AddComponent<Qub>();
         cuRi = new GameObject().AddComponent<Qub>();
 
-        cuUp.transform.parent = this.transform;
-        cuDown.transform.parent = this.transform;
-        cuLe.transform.parent = this.transform;
-        cuRi.transform.parent = this.transform;
+        cuUp.transform.parent = transform;
+        cuDown.transform.parent = transform;
+        cuLe.transform.parent = transform;
+        cuRi.transform.parent = transform;
 
         cuUp.transform.localPosition = new Vector3(0, 0, sizes[Size].z / 2);
         cuDown.transform.localPosition = new Vector3(0, 0, -sizes[Size].z / 2);
@@ -408,7 +403,7 @@ public class CheckPoint : MonoBehaviour
     }
 
     /// <summary>
-    /// Coloca el colisionador y dibuja las lineas del punto de control
+    /// Coloca el punto de control. Todo el rato.
     /// </summary>
     void Update()
     {
@@ -436,13 +431,13 @@ public class CheckPoint : MonoBehaviour
         Destroy(cuDown);
         Destroy(cuLe);
         Destroy(cuRi);
-        Destroy(boxCollider);
-        boxCollider = null;
+        Destroy(cpBoxTrigger);
+        cpBoxTrigger = null;
         Destroy(this);
     }
 
     /// <summary>
-    /// Rota el colisionador y las lineas del punto de control, alrededor de los ejes y en la cantidad de grados especificados, cada vez que se llama.
+    /// Rota el punto de cotrol alrededor de los ejes y en la cantidad de grados especificados, cada vez que se llama.
     /// </summary>
     /// <param name="xAngle"></param>
     /// <param name="yAngle"></param>
@@ -453,7 +448,7 @@ public class CheckPoint : MonoBehaviour
     }
 
     /// <summary>
-    /// Translada el colisionador y las lineas del punto de control, a lo largo del eje y en la distancia especificada, cada vez que se llama
+    /// Translada el punto de control, a lo largo del eje y en la distancia especificada, cada vez que se llama
     /// </summary>
     /// <param name="lat"></param>
     /// <param name="lon"></param>
@@ -477,7 +472,7 @@ public class LoadedTrack
     private static int maxRaceWaypoints { get; } = 30; //cantidad máxima de puntos de control de una carrera, por si sirve para algo.
     public int laps;
     public List<CheckPoint> cpList = new List<CheckPoint>();
-
+    public List<Obstacle> obList = new List<Obstacle>();
 
     /// <summary>
     /// Calcula la longitud del circuito. La distancia entre puntos de control se calcula en linea recta (supongo)
@@ -565,6 +560,7 @@ public class RaceManager : MonoBehaviour
     public List<RaceClon> raceList = new List<RaceClon>(); //Lista de carreras disponibles en el directorio
     public LoadedTrack loadedTrack = new LoadedTrack();  //Carrera que se va a usar para correr o editar.
     private int editionCp = 0;
+    private int editionOb = 0;
     public RaceClon lastLoadedTrack = new RaceClon(); //Esto valdrá (supongo) para cargar de nuevo un circuito al volver a la escena de vuelo
     public Dictionary<string, float> records = new Dictionary<string, float>() { { "0", 0 } };
 
@@ -585,9 +581,10 @@ public class RaceManager : MonoBehaviour
     public Vector2 scrollRaceList = Vector2.zero;
     public float trackLength;
     bool trackExist, saving = false;
-    ////tamaño, rotación y translación para los puntos de control
+    ////tamaño, rotación y translación para los puntos de control, y para obstáculos
     public float rotx, roty, rotz, trax, tray, traz = 0;
     public int size = 0;
+    public float obrotx, obroty, obrotz, obtrax, obtray, obtraz, obscalex, obscaley, obscalez;
     ////Styles
     public float rotLabelWidth = 38f;
     public float editSliderWidth = 100f;
@@ -649,7 +646,7 @@ public class RaceManager : MonoBehaviour
                 break;
             case estados.RaceScreen:
                 prepCp(true);
-                loadedTrack.cpList[0].boxCollider.enabled = true;
+                loadedTrack.cpList[0].cpBoxTrigger.GetComponent<BoxCollider>().enabled = true;
                 estadoAct = estados.RaceScreen;
                 pActivo = 0;
                 curLap = 0;
@@ -718,6 +715,10 @@ public class RaceManager : MonoBehaviour
                 {
                     newRaceTrack();
                     cambiaEstado(estados.EditScreen);
+                }
+                if (GUILayout.Button("Test"))
+                {
+                    cambiaEstado(estados.Test);
                 }
                 GUILayout.EndVertical();
                 GUILayout.BeginVertical();
@@ -801,7 +802,7 @@ public class RaceManager : MonoBehaviour
                         }
                         cp.tipoCp = CheckPoint.Types.FINISH;
                     }
-                    cp.boxCollider.name = "cp" + loadedTrack.cpList.Count;
+                    cp.cpBoxTrigger.GetComponent<BoxCollider>().name = "cp" + loadedTrack.cpList.Count;
                     loadedTrack.cpList.Add(cp);
                     cambiaEditCp(loadedTrack.cpList.Count - 1);
                 }
@@ -1062,6 +1063,264 @@ public class RaceManager : MonoBehaviour
                 }
                 break;
             case estados.Test:
+                GUILayout.Label("Obstacle Editor");
+
+                GUILayout.BeginHorizontal();
+
+                GUILayout.BeginVertical();
+                if (GUILayout.Button("Spawn Obstacle"))
+                {
+                    Obstacle obs = new GameObject().AddComponent<Obstacle>();
+                    loadedTrack.obList.Add(obs);
+                    cambiaEditOb(loadedTrack.obList.Count - 1);
+                }
+
+                if (loadedTrack.obList.Count > 0)
+                {
+                    if (GUILayout.Button("Remove Obstacle"))
+                    {
+                        loadedTrack.obList[editionOb].destroy();
+                        loadedTrack.obList.RemoveAt(editionOb);
+                        cambiaEditOb(editionOb);
+                    }
+                }
+
+                if (GUILayout.Button("New Obstacle Course"))
+                {
+                    //newRaceTrack();
+                }
+
+                if (GUILayout.Button("Back"))
+                {
+                    cambiaEstado(estados.LoadScreen);
+                }
+
+                GUILayout.EndVertical();
+
+                if (loadedTrack.obList.Count > 0)
+                {
+                    GUILayout.BeginVertical();
+
+                    GUILayout.Label("Edit Checkpoint");
+                    GUILayout.BeginHorizontal();
+                    if (GUILayout.Button("|<")) //First
+                    {
+                        cambiaEditOb(0);
+                    }
+                    if (GUILayout.Button("<")) //previous
+                    {
+                        cambiaEditOb(editionOb - 1);
+                    }
+                    GUILayout.Label(editionOb.ToString());
+                    if (GUILayout.Button(">"))  //next
+                    {
+                        cambiaEditOb(editionOb + 1);
+                    }
+                    if (GUILayout.Button(">|")) //last
+                    {
+                        cambiaEditOb(loadedTrack.obList.Count - 1);
+                    }
+                    GUILayout.EndHorizontal();
+
+                    loadedTrack.obList[editionOb].Solid = GUILayout.Toggle(loadedTrack.obList[editionOb].Solid,"Solid thing");
+
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label("Size");
+                    GUILayout.EndHorizontal();
+
+                    GUILayout.Label("Rotate");
+
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label("Pitch", GUILayout.Width(rotLabelWidth));
+                    obrotx = GUILayout.HorizontalSlider(obrotx, -0.75f, 0.75f, GUILayout.Width(editSliderWidth));
+                    GUILayout.EndHorizontal();
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label("Roll", GUILayout.Width(rotLabelWidth));
+                    obroty = GUILayout.HorizontalSlider(obroty, -0.75f, 0.75f, GUILayout.Width(editSliderWidth));
+                    GUILayout.EndHorizontal();
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label("Yaw", GUILayout.Width(rotLabelWidth));
+                    obrotz = GUILayout.HorizontalSlider(obrotz, -0.75f, 0.75f, GUILayout.Width(editSliderWidth));
+                    GUILayout.EndHorizontal();
+
+                    GUILayout.Label("Scale");
+
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label("X", GUILayout.Width(15));
+
+                    if (GUILayout.Button("|-"))
+                    {
+                        obscalex = -Obstacle.maxScale;
+                        obscaley = 0;
+                        obscalez = 0;
+                        loadedTrack.obList[editionOb].scaleOb(obscalex, obscaley, obscalez);
+                    }
+                    //if (GUILayout.RepeatButton("--") || GUILayout.Button("-")) //Esto hace cosas raras...
+                    if (GUILayout.RepeatButton("--"))
+                    {
+                        obscalex = -0.1f;
+                        obscaley = 0;
+                        obscalez = 0;
+                        loadedTrack.obList[editionOb].scaleOb(obscalex, obscaley, obscalez);
+                    }
+                    if (GUILayout.Button("-"))
+                    {
+                        obscalex = -0.1f;
+                        obscaley = 0;
+                        obscalez = 0;
+                        loadedTrack.obList[editionOb].scaleOb(obscalex, obscaley, obscalez);
+                    }
+                    GUILayout.Label(loadedTrack.obList[editionOb].cube.transform.localScale.x.ToString());
+                    if (GUILayout.Button("+") || GUILayout.RepeatButton("++")) //...Pero esto va bien
+                    {
+                        obscalex = 0.1f;
+                        obscaley = 0;
+                        obscalez = 0;
+                        loadedTrack.obList[editionOb].scaleOb(obscalex, obscaley, obscalez);
+                    }
+                    if (GUILayout.Button("+|"))
+                    {
+                        obscalex = Obstacle.maxScale;
+                        obscaley = 0;
+                        obscalez = 0;
+                        loadedTrack.obList[editionOb].scaleOb(obscalex, obscaley, obscalez);
+                    }
+                    GUILayout.EndHorizontal();
+
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label("Y", GUILayout.Width(15));
+
+                    if (GUILayout.Button("|-"))
+                    {
+                        obscaley = -Obstacle.maxScale;
+                        obscalex = 0;
+                        obscalez = 0;
+                        loadedTrack.obList[editionOb].scaleOb(obscalex, obscaley, obscalez);
+                    }
+                    if (GUILayout.RepeatButton("--"))
+                    {
+                        obscaley = -0.1f;
+                        obscalex = 0;
+                        obscalez = 0;
+                        loadedTrack.obList[editionOb].scaleOb(obscalex, obscaley, obscalez);
+                    }
+                    if (GUILayout.Button("-"))
+                    {
+                        obscaley = -0.1f;
+                        obscalex = 0;
+                        obscalez = 0;
+                        loadedTrack.obList[editionOb].scaleOb(obscalex, obscaley, obscalez);
+                    }
+                    GUILayout.Label(loadedTrack.obList[editionOb].cube.transform.localScale.y.ToString());
+                    if (GUILayout.Button("+") || GUILayout.RepeatButton("++"))
+                    {
+                        obscaley = 0.1f;
+                        obscalex = 0;
+                        obscalez = 0;
+                        loadedTrack.obList[editionOb].scaleOb(obscalex, obscaley, obscalez);
+                    }
+                    if (GUILayout.Button("+|"))
+                    {
+                        obscaley = Obstacle.maxScale;
+                        obscalex = 0;
+                        obscalez = 0;
+                        loadedTrack.obList[editionOb].scaleOb(obscalex, obscaley, obscalez);
+                    }
+                    GUILayout.EndHorizontal();
+
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label("Z", GUILayout.Width(15));
+
+                    if (GUILayout.Button("|-"))
+                    {
+                        obscalez = -Obstacle.maxScale;
+                        obscalex = 0;
+                        obscaley = 0;
+                        loadedTrack.obList[editionOb].scaleOb(obscalex, obscaley, obscalez);
+                    }
+                    if (GUILayout.RepeatButton("--"))
+                    {
+                        obscalez = -0.1f;
+                        obscalex = 0;
+                        obscaley = 0;
+                        loadedTrack.obList[editionOb].scaleOb(obscalex, obscaley, obscalez);
+                    }
+                    if (GUILayout.Button("-"))
+                    {
+                        obscalez = -0.1f;
+                        obscalex = 0;
+                        obscaley = 0;
+                        loadedTrack.obList[editionOb].scaleOb(obscalex, obscaley, obscalez);
+                    }
+                    GUILayout.Label(loadedTrack.obList[editionOb].cube.transform.localScale.z.ToString());
+                    if (GUILayout.Button("+") || GUILayout.RepeatButton("++"))
+                    {
+                        obscalez = 0.1f;
+                        obscalex = 0;
+                        obscaley = 0;
+                        loadedTrack.obList[editionOb].scaleOb(obscalex, obscaley, obscalez);
+                    }
+                    if (GUILayout.Button("+|"))
+                    {
+                        obscalez = Obstacle.maxScale;
+                        obscalex = 0;
+                        obscaley = 0;
+                        loadedTrack.obList[editionOb].scaleOb(obscalex, obscaley, obscalez);
+                    }
+                    GUILayout.EndHorizontal();
+
+
+                    GUILayout.Label("Translate");
+
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label("Latitude");
+                    GUILayout.Label(loadedTrack.obList[editionOb].pCoords.x.ToString());
+                    GUILayout.EndHorizontal();
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label("South", GUILayout.Width(cardLabelWidth));
+                    obtrax = GUILayout.HorizontalSlider(obtrax, -0.0001f, 0.0001f, GUILayout.Width(editSliderWidth));
+                    GUILayout.Label("North", GUILayout.Width(cardLabelWidth));
+                    GUILayout.EndHorizontal();
+
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label("Longitude");
+                    GUILayout.Label(loadedTrack.obList[editionOb].pCoords.y.ToString());
+                    GUILayout.EndHorizontal();
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label("West", GUILayout.Width(cardLabelWidth));
+                    obtray = GUILayout.HorizontalSlider(obtray, -0.0001f, 0.0001f, GUILayout.Width(editSliderWidth));
+                    GUILayout.Label("East", GUILayout.Width(cardLabelWidth));
+                    GUILayout.EndHorizontal();
+
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label("Altitude");
+                    GUILayout.Label(loadedTrack.obList[editionOb].pCoords.z.ToString());
+                    GUILayout.EndHorizontal();
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label("Down", GUILayout.Width(cardLabelWidth));
+                    obtraz = GUILayout.HorizontalSlider(obtraz, -0.3f, 0.3f, GUILayout.Width(editSliderWidth));
+                    GUILayout.Label("Up", GUILayout.Width(cardLabelWidth));
+                    GUILayout.EndHorizontal();
+
+                    GUILayout.EndVertical();
+
+                    if (Input.GetMouseButton(0))
+                    {
+                        loadedTrack.obList[editionOb].rotateOb(obrotx, obroty, obrotz);
+                        loadedTrack.obList[editionOb].moveOb(obtrax, obtray, obtraz);
+                    }
+
+                    if (Input.GetMouseButtonUp(0))
+                    {
+                        obrotx = 0;
+                        obroty = 0;
+                        obrotz = 0;
+                        obtrax = 0;
+                        obtray = 0;
+                        obtraz = 0;
+                    }
+                }
+                GUILayout.EndHorizontal();
                 break;
             default:
                 break;
@@ -1140,7 +1399,7 @@ public class RaceManager : MonoBehaviour
             checkPoint.Size = cpClon.size;
             checkPoint.pCoords = new Vector3(cpClon.pCoordsX, cpClon.pCoordsY, cpClon.pCoordsZ);
             checkPoint.rot = new Quaternion(cpClon.rotX, cpClon.rotY, cpClon.rotZ, cpClon.rotW);
-            checkPoint.boxCollider.name = "cp" + i; //Poner nombre a los colisionadores, para saber contra cual se colisiona
+            checkPoint.cpBoxTrigger.GetComponent<BoxCollider>().name = "cp" + i; //Poner nombre a los colisionadores, para saber contra cual se colisiona
         }
         Debug.Log("Race track loaded: " + loadedTrack.name + " by " + loadedTrack.author);
     }
@@ -1183,7 +1442,7 @@ public class RaceManager : MonoBehaviour
     /// <param name="cpCollider">El checkpoint que ha sido atravesado (es importante poner un nombre distinto en cada colisionador)</param>
     public void cpSuperado(string cpCollider)
     {
-        if (cpCollider == loadedTrack.cpList[pActivo].boxCollider.name)
+        if (cpCollider == loadedTrack.cpList[pActivo].cpBoxTrigger.GetComponent<BoxCollider>().name)
         {
             switch (loadedTrack.cpList[pActivo].tipoCp)
             {
@@ -1260,10 +1519,10 @@ public class RaceManager : MonoBehaviour
         {
             for (int i = 0; i < loadedTrack.cpList.Count; i++)
             {
-                loadedTrack.cpList[i].boxCollider.enabled = correr;
+                loadedTrack.cpList[i].cpBoxTrigger.GetComponent<BoxCollider>().enabled = correr;
                 loadedTrack.cpList[i].cpType = CheckPoint.Types.CHECKPOINT;
                 loadedTrack.cpList[i].cpColor = (correr) ? CheckPoint.colorPasado : CheckPoint.colorCheckP;
-                loadedTrack.cpList[i].boxCollider.GetComponent<CheckPoint.colision>().count = 0;
+                loadedTrack.cpList[i].cpBoxTrigger.GetComponent<BoxCollider>().GetComponent<CheckPoint.colision>().count = 0;
             }
 
             if (loadedTrack.laps == 1)
@@ -1320,6 +1579,32 @@ public class RaceManager : MonoBehaviour
         else
         {
             editionCp = 0;
+        }
+    }
+
+    /// <summary>
+    /// Cambia el color de los obstaculos para indicar el que se está editando
+    /// </summary>
+    /// <param name="num"></param>
+    public void cambiaEditOb(int num)
+    {
+        if (loadedTrack.obList.Count > 0)
+        {
+            if (num < 0)
+            {
+                num = 0;
+            }
+            else if (num > loadedTrack.obList.Count - 1)
+            {
+                num = loadedTrack.obList.Count - 1;
+            }
+            loadedTrack.obList[editionOb].ObColor = Obstacle.colorNormal;
+            editionOb = num;
+            loadedTrack.obList[editionOb].ObColor = Obstacle.colorEdit;
+        }
+        else
+        {
+            editionOb = 0;
         }
     }
 
@@ -1537,5 +1822,161 @@ public class bArray
         System.Object obj = (System.Object)binForm.Deserialize(memStream);
 
         return obj;
+    }
+}
+
+public class Obstacle : MonoBehaviour
+{
+    public CelestialBody body;
+    public Vector3 pCoords; //posición del marcador en lon lat alt
+    private Vector3 coords;
+    public Quaternion rot;  //rotación marcador
+    public static int maxAlt = 50000;
+    public static int maxScale = 100;
+    public static int minScale = 1;
+    public GameObject cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+    public BoxCollider cubeCol;
+    private bool solid;
+    public static Color colorNormal = new Color(0.75f, 0.75f, 0.75f);
+    public static Color colorEdit = new Color(1f, 0f, 1f);
+    private Color obColor;
+
+    public Vector3 Coords
+    {
+        get
+        {
+            return coords;
+        }
+    }
+
+    public bool Solid
+    {
+        get
+        {
+            return solid;
+        }
+
+        set
+        {
+            solid = value;
+            cubeCol.enabled = solid;
+            ObColor = obColor;
+        }
+    }
+
+    public Color ObColor
+    {
+        get
+        {
+            return obColor;
+        }
+
+        set
+        {
+            obColor = value;
+            cube.GetComponent<Renderer>().material.color = new Color(obColor.r, obColor.g, obColor.b, (solid) ? 1 : 0.5f);
+        }
+    }
+
+    void Awake()
+    {
+        //Donde está el buque en el momento de crear el punto de control
+        cube.transform.parent = transform;
+        cubeCol = cube.gameObject.GetComponent<BoxCollider>();
+        ObColor = colorEdit;
+        cubeCol.enabled = false;
+        cube.GetComponent<Renderer>().material = new Material(Shader.Find("Transparent/Diffuse"));
+        Solid = false;
+        pCoords = new Vector3((float)FlightGlobals.ActiveVessel.latitude, (float)FlightGlobals.ActiveVessel.longitude, (float)FlightGlobals.ActiveVessel.altitude);
+        body = FlightGlobals.ActiveVessel.mainBody;
+        rot = FlightGlobals.ActiveVessel.transform.rotation;
+    }
+
+    /// <summary>
+    /// Coloca el obstáculo
+    /// </summary>
+    void Update()
+    {
+        //que el punto de control no se meta por debajo del suelo
+        if (pCoords.z - body.TerrainAltitude(pCoords.x, pCoords.y) <= 0)
+        {
+            pCoords.z = (float)body.TerrainAltitude(pCoords.x, pCoords.y);
+        }
+
+        if (pCoords.z > maxAlt)
+        {
+            pCoords.z = maxAlt;
+        }
+
+        //Como el origen del mundo se mueve con el buque, esto mantiene el punto de control en una posicion fija respecto al planeta.
+        coords = body.GetWorldSurfacePosition(pCoords.x, pCoords.y, pCoords.z);
+
+        this.transform.position = coords;
+        this.transform.rotation = rot;
+    }
+
+    public void destroy()
+    {
+        Destroy(cube);
+        Destroy(this);
+    }
+
+    /// <summary>
+    /// Rota el obstáculo alrededor de los ejes y en la cantidad de grados especificados, cada vez que se llama.
+    /// </summary>
+    /// <param name="xAngle"></param>
+    /// <param name="yAngle"></param>
+    /// <param name="zAngle"></param>
+    public void rotateOb(float xAngle, float yAngle, float zAngle)
+    {
+        rot *= Quaternion.Euler(xAngle, yAngle, zAngle);
+    }
+
+    /// <summary>
+    /// Translada el obstaculo a lo largo del eje y en la distancia especificada, cada vez que se llama
+    /// </summary>
+    /// <param name="lat"></param>
+    /// <param name="lon"></param>
+    /// <param name="alt"></param>
+    public void moveOb(float lat, float lon, float alt)
+    {
+        pCoords.x += lat;
+        pCoords.y += lon;
+        pCoords.z += alt;
+    }
+
+    public void scaleOb(float x, float y, float z)
+    {
+        float sx = cube.transform.localScale.x + x;
+        float sy = cube.transform.localScale.y + y;
+        float sz = cube.transform.localScale.z + z;
+
+        if (sx < minScale)
+        {
+            sx = minScale;
+        }
+        else if (sx > maxScale)
+        {
+            sx = maxScale;
+        }
+
+        if (sy < minScale)
+        {
+            sy = minScale;
+        }
+        else if (sy > maxScale)
+        {
+            sy = maxScale;
+        }
+        if (sz < minScale)
+        {
+            sz = minScale;
+        }
+        else if (sz > maxScale)
+        {
+            sz = maxScale;
+        }
+
+        cube.transform.localScale = new Vector3((float)Math.Round(sx,2), (float)Math.Round(sy, 2), (float)Math.Round(sz, 2));
     }
 }
