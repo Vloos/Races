@@ -453,11 +453,19 @@ public class CheckPoint : MonoBehaviour
     /// <param name="lat"></param>
     /// <param name="lon"></param>
     /// <param name="alt"></param>
-    public void moveRwp(float lat, float lon, float alt)
+    public void moveCp(float lat, float lon, float alt)
     {
         pCoords.x += lat;
         pCoords.y += lon;
         pCoords.z += alt;
+    }
+
+    internal void resetRot()
+    {
+        //http://answers.unity3d.com/questions/254130/how-do-i-rotate-an-object-towards-a-vector3-point.html
+        Vector3 _direction = (body.position - transform.position).normalized;
+        Quaternion _lookRotation = Quaternion.LookRotation(_direction);
+        rot = _lookRotation;
     }
 }
 
@@ -583,15 +591,19 @@ public class RaceManager : MonoBehaviour
     public float trackLength;
     bool trackExist, saving = false;
     ////tamaño, rotación y translación para los puntos de control, y para obstáculos
-    public float rotx, roty, rotz, trax, tray, traz = 0;
+    public bool likeVesselRot = true;
+    public float trax, tray, traz = 0;
     public int size = 0;
-    public float obrotx, obroty, obrotz, obtrax, obtray, obtraz, obscalex, obscaley, obscalez;
+    public float obtrax, obtray, obtraz;
+    public float obScaleMinRatio = 0.1f;
+    public float obScaleMaxRatio = 0.2f;
     ////Styles
     public float rotLabelWidth = 38f;
     public float editSliderWidth = 100f;
     public float nameLabelWidth = 38f;
     public float nameTextWidth = 150f;
     public float cardLabelWidth = 35f;
+    public float obScaleInfoLabelWidth = 27;
 
     void Awake()
     {
@@ -609,6 +621,7 @@ public class RaceManager : MonoBehaviour
     void Start()
     {
         GetRacetrackList();
+
     }
 
     void Update()
@@ -669,7 +682,7 @@ public class RaceManager : MonoBehaviour
                 prepCp(false);
                 break;
             case estados.ObsScreen:
-                estadoAct = estados.Test;
+                estadoAct = estados.ObsScreen;
                 prepCp(false);
                 if (loadedTrack.obList.Count > 0)
                 {
@@ -798,6 +811,7 @@ public class RaceManager : MonoBehaviour
                 if (GUILayout.Button("New Checkpoint"))
                 {
                     CheckPoint cp = new GameObject().AddComponent<CheckPoint>();
+                    if (!likeVesselRot) cp.resetRot();
                     if (loadedTrack.cpList.Count == 1)
                     {
                         cp.tipoCp = CheckPoint.Types.START;
@@ -815,6 +829,7 @@ public class RaceManager : MonoBehaviour
                     loadedTrack.cpList.Add(cp);
                     cambiaEditCp(loadedTrack.cpList.Count - 1);
                 }
+                likeVesselRot = GUILayout.Toggle(likeVesselRot, "Vessel rotation");
 
                 if (loadedTrack.cpList.Count > 0)
                 {
@@ -907,27 +922,14 @@ public class RaceManager : MonoBehaviour
                 {
                     GUILayout.BeginVertical();
 
-                    GUILayout.Label("Edit Checkpoint");
+                    GUILayout.Label("Select Checkpoint");
                     GUILayout.BeginHorizontal();
-                    if (GUILayout.Button("|<")) //First
-                    {
-                        cambiaEditCp(0);
-                    }
-                    if (GUILayout.Button("<")) //previous
-                    {
-                        cambiaEditCp(editionCp - 1);
-                        trackLength = loadedTrack.trackLength;
-                    }
+                    if (GUILayout.Button("|<")) cambiaEditCp(0); //First
+                    if (GUILayout.Button("<")) cambiaEditCp(editionCp - 1); //previous
                     GUILayout.Label(editionCp.ToString());
-                    if (GUILayout.Button(">"))  //next
-                    {
-                        cambiaEditCp(editionCp + 1);
-                        trackLength = loadedTrack.trackLength;
-                    }
-                    if (GUILayout.Button(">|")) //last
-                    {
-                        cambiaEditCp(loadedTrack.cpList.Count - 1);
-                    }
+                    if (GUILayout.Button(">")) cambiaEditCp(editionCp + 1);  //next
+                    if (GUILayout.Button(">|")) cambiaEditCp(loadedTrack.cpList.Count - 1); //last
+                    
                     GUILayout.EndHorizontal();
 
                     GUILayout.BeginHorizontal();
@@ -955,16 +957,26 @@ public class RaceManager : MonoBehaviour
 
                     GUILayout.BeginHorizontal();
                     GUILayout.Label("Pitch", GUILayout.Width(rotLabelWidth));
-                    rotx = GUILayout.HorizontalSlider(rotx, -0.75f, 0.75f, GUILayout.Width(editSliderWidth));
+                    if (GUILayout.Button("90")) loadedTrack.cpList[editionCp].rotateRwp(90, 0, 0);
+                    if (GUILayout.RepeatButton("--") | GUILayout.Button("-")) loadedTrack.cpList[editionCp].rotateRwp(-1, 0, 0);
+                    if (GUILayout.Button("+") | GUILayout.RepeatButton("++")) loadedTrack.cpList[editionCp].rotateRwp(1, 0, 0);
                     GUILayout.EndHorizontal();
+
                     GUILayout.BeginHorizontal();
                     GUILayout.Label("Roll", GUILayout.Width(rotLabelWidth));
-                    roty = GUILayout.HorizontalSlider(roty, -0.75f, 0.75f, GUILayout.Width(editSliderWidth));
+                    if (GUILayout.Button("90")) loadedTrack.cpList[editionCp].rotateRwp(0, 90, 0);
+                    if (GUILayout.RepeatButton("--") | GUILayout.Button("-")) loadedTrack.cpList[editionCp].rotateRwp(0, -1, 0);
+                    if (GUILayout.Button("+") | GUILayout.RepeatButton("++")) loadedTrack.cpList[editionCp].rotateRwp(0, 1, 0);
                     GUILayout.EndHorizontal();
+
                     GUILayout.BeginHorizontal();
                     GUILayout.Label("Yaw", GUILayout.Width(rotLabelWidth));
-                    rotz = GUILayout.HorizontalSlider(rotz, -0.75f, 0.75f, GUILayout.Width(editSliderWidth));
+                    if (GUILayout.Button("90")) loadedTrack.cpList[editionCp].rotateRwp(0, 0, 90);
+                    if (GUILayout.RepeatButton("--") | GUILayout.Button("-")) loadedTrack.cpList[editionCp].rotateRwp(0, 0, -1);
+                    if (GUILayout.Button("+") | GUILayout.RepeatButton("++")) loadedTrack.cpList[editionCp].rotateRwp(0, 0, 1);
                     GUILayout.EndHorizontal();
+
+                    if (GUILayout.Button("Reset Rotation")) loadedTrack.cpList[editionCp].resetRot();
 
                     GUILayout.Label("Translate");
 
@@ -1000,30 +1012,19 @@ public class RaceManager : MonoBehaviour
 
                     GUILayout.EndVertical();
 
-                    if (Input.GetMouseButton(0))
-                    {
-                        loadedTrack.cpList[editionCp].rotateRwp(rotx, roty, rotz);
-                        loadedTrack.cpList[editionCp].moveRwp(trax, tray, traz);
-                        trackLength = loadedTrack.trackLength;
-                    }
-
+                    if (Input.GetMouseButton(0)) loadedTrack.cpList[editionCp].moveCp(trax, tray, traz);
                     if (Input.GetMouseButtonUp(0))
                     {
-                        rotx = 0;
-                        roty = 0;
-                        rotz = 0;
                         trax = 0;
                         tray = 0;
                         traz = 0;
                         trackLength = loadedTrack.trackLength;
                     }
                 }
-
                 GUILayout.EndHorizontal();
                 break;
             case estados.RaceScreen:
                 GUILayout.Label(loadedTrack.name + " by " + loadedTrack.author);
-
                 if (enCarrera)
                 {
                     if (loadedTrack.laps > 1)
@@ -1062,29 +1063,19 @@ public class RaceManager : MonoBehaviour
                 GUILayout.Label("Time penalty: " + tiempo((float)penTime));
                 GUILayout.Label("Total time: " + tiempo((float)tiempoTot));
                 GUILayout.Label("Best Time: " + tiempo(loadedTrack.trackTime));
-                if (GUILayout.Button("Restart Race"))
-                {
-                    cambiaEstado(estados.RaceScreen);
-                }
-                if (GUILayout.Button("Edit Race Track"))
-                {
-                    cambiaEstado(estados.EditScreen);
-                }
-
-                if (GUILayout.Button("Load Track"))
-                {
-                    cambiaEstado(estados.LoadScreen);
-                }
+                if (GUILayout.Button("Restart Race")) cambiaEstado(estados.RaceScreen);
+                if (GUILayout.Button("Edit Race Track")) cambiaEstado(estados.EditScreen);
+                if (GUILayout.Button("Load Track")) cambiaEstado(estados.LoadScreen);
                 break;
-            case estados.Test:
+            case estados.ObsScreen:
                 GUILayout.Label("Obstacle Editor");
-
                 GUILayout.BeginHorizontal();
-
                 GUILayout.BeginVertical();
                 if (GUILayout.Button("Spawn Obstacle"))
                 {
                     Obstacle obs = new GameObject().AddComponent<Obstacle>();
+                    obs.cube.transform.localScale = new Vector3(Obstacle.maxScale / 2, Obstacle.maxScale / 2, Obstacle.maxScale / 2);
+                    obs.resetRot();
                     loadedTrack.obList.Add(obs);
                     cambiaEditOb(loadedTrack.obList.Count - 1);
                 }
@@ -1098,180 +1089,79 @@ public class RaceManager : MonoBehaviour
                         cambiaEditOb(editionOb);
                     }
                 }
-
-                if (GUILayout.Button("Edit checkpoints"))
-                {
-                    cambiaEstado(estados.EditScreen);
-                }
-
+                if (GUILayout.Button("Edit Racetrack")) cambiaEstado(estados.EditScreen);
                 GUILayout.EndVertical();
 
                 if (loadedTrack.obList.Count > 0)
                 {
                     GUILayout.BeginVertical();
-
-                    GUILayout.Label("Edit Checkpoint");
+                    GUILayout.Label("Select Obstacle");
                     GUILayout.BeginHorizontal();
-                    if (GUILayout.Button("|<")) //First
-                    {
-                        cambiaEditOb(0);
-                    }
-                    if (GUILayout.Button("<")) //previous
-                    {
-                        cambiaEditOb(editionOb - 1);
-                    }
+                    if (GUILayout.Button("|<")) cambiaEditOb(0); //First
+                    if (GUILayout.Button("<")) cambiaEditOb(editionOb - 1); //Previous
                     GUILayout.Label(editionOb.ToString());
-                    if (GUILayout.Button(">"))  //next
-                    {
-                        cambiaEditOb(editionOb + 1);
-                    }
-                    if (GUILayout.Button(">|")) //last
-                    {
-                        cambiaEditOb(loadedTrack.obList.Count - 1);
-                    }
+                    if (GUILayout.Button(">")) cambiaEditOb(editionOb + 1); //Next
+                    if (GUILayout.Button(">|")) cambiaEditOb(loadedTrack.obList.Count - 1); //Last
                     GUILayout.EndHorizontal();
 
                     loadedTrack.obList[editionOb].Solid = GUILayout.Toggle(loadedTrack.obList[editionOb].Solid, "Solid thing");
 
-                    GUILayout.Label("Rotate");
-
                     GUILayout.BeginHorizontal();
                     GUILayout.Label("Pitch", GUILayout.Width(rotLabelWidth));
-                    obrotx = GUILayout.HorizontalSlider(obrotx, -0.75f, 0.75f, GUILayout.Width(editSliderWidth));
+                    if (GUILayout.Button("90")) loadedTrack.obList[editionOb].rotateOb(90, 0, 0);
+                    if (GUILayout.RepeatButton("--") | GUILayout.Button("-")) loadedTrack.obList[editionOb].rotateOb(-1, 0, 0);
+                    if (GUILayout.Button("+") | GUILayout.RepeatButton("++")) loadedTrack.obList[editionOb].rotateOb(1, 0, 0);
                     GUILayout.EndHorizontal();
+
                     GUILayout.BeginHorizontal();
                     GUILayout.Label("Roll", GUILayout.Width(rotLabelWidth));
-                    obroty = GUILayout.HorizontalSlider(obroty, -0.75f, 0.75f, GUILayout.Width(editSliderWidth));
+                    if (GUILayout.Button("90")) loadedTrack.obList[editionOb].rotateOb(0, 90, 0);
+                    if (GUILayout.RepeatButton("--") | GUILayout.Button("-")) loadedTrack.obList[editionOb].rotateOb(0, -1, 0);
+                    if (GUILayout.Button("+") | GUILayout.RepeatButton("++")) loadedTrack.obList[editionOb].rotateOb(0, 1, 0);
                     GUILayout.EndHorizontal();
+
                     GUILayout.BeginHorizontal();
                     GUILayout.Label("Yaw", GUILayout.Width(rotLabelWidth));
-                    obrotz = GUILayout.HorizontalSlider(obrotz, -0.75f, 0.75f, GUILayout.Width(editSliderWidth));
+                    if (GUILayout.Button("90")) loadedTrack.obList[editionOb].rotateOb(0, 0, 90);
+                    if (GUILayout.RepeatButton("--") | GUILayout.Button("-")) loadedTrack.obList[editionOb].rotateOb(0, 0, -1);
+                    if (GUILayout.Button("+") | GUILayout.RepeatButton("++")) loadedTrack.obList[editionOb].rotateOb(0, 0, 1);
                     GUILayout.EndHorizontal();
+
+                    if (GUILayout.Button("Reset Rotation")) loadedTrack.obList[editionOb].resetRot();
 
                     GUILayout.Label("Scale");
 
                     GUILayout.BeginHorizontal();
                     GUILayout.Label("X", GUILayout.Width(15));
-
-                    if (GUILayout.Button("|-"))
-                    {
-                        obscalex = -Obstacle.maxScale;
-                        obscaley = 0;
-                        obscalez = 0;
-                        loadedTrack.obList[editionOb].scaleOb(obscalex, obscaley, obscalez);
-                    }
-                    //if (GUILayout.RepeatButton("--") || GUILayout.Button("-")) //Esto hace cosas raras...
-                    if (GUILayout.RepeatButton("--"))
-                    {
-                        obscalex = -0.1f;
-                        obscaley = 0;
-                        obscalez = 0;
-                        loadedTrack.obList[editionOb].scaleOb(obscalex, obscaley, obscalez);
-                    }
-                    if (GUILayout.Button("-"))
-                    {
-                        obscalex = -0.1f;
-                        obscaley = 0;
-                        obscalez = 0;
-                        loadedTrack.obList[editionOb].scaleOb(obscalex, obscaley, obscalez);
-                    }
-                    GUILayout.Label(loadedTrack.obList[editionOb].cube.transform.localScale.x.ToString());
-                    if (GUILayout.Button("+") || GUILayout.RepeatButton("++")) //...Pero esto va bien
-                    {
-                        obscalex = 0.1f;
-                        obscaley = 0;
-                        obscalez = 0;
-                        loadedTrack.obList[editionOb].scaleOb(obscalex, obscaley, obscalez);
-                    }
-                    if (GUILayout.Button("+|"))
-                    {
-                        obscalex = Obstacle.maxScale;
-                        obscaley = 0;
-                        obscalez = 0;
-                        loadedTrack.obList[editionOb].scaleOb(obscalex, obscaley, obscalez);
-                    }
+                    if (GUILayout.Button("|-")) loadedTrack.obList[editionOb].scaleOb(-Obstacle.maxScale, 0, 0);
+                    if (GUILayout.RepeatButton("--")) loadedTrack.obList[editionOb].scaleOb(-obScaleMaxRatio, 0, 0);
+                    if (GUILayout.Button("-")) loadedTrack.obList[editionOb].scaleOb(-obScaleMinRatio, 0, 0);
+                    GUILayout.Label(loadedTrack.obList[editionOb].cube.transform.localScale.x.ToString(), GUILayout.Width(obScaleInfoLabelWidth));
+                    if (GUILayout.Button("+")) loadedTrack.obList[editionOb].scaleOb(obScaleMinRatio, 0, 0);
+                    if (GUILayout.RepeatButton("++")) loadedTrack.obList[editionOb].scaleOb(obScaleMaxRatio, 0, 0);
+                    if (GUILayout.Button("+|")) loadedTrack.obList[editionOb].scaleOb(Obstacle.maxScale, 0, 0);
                     GUILayout.EndHorizontal();
 
                     GUILayout.BeginHorizontal();
                     GUILayout.Label("Y", GUILayout.Width(15));
-
-                    if (GUILayout.Button("|-"))
-                    {
-                        obscaley = -Obstacle.maxScale;
-                        obscalex = 0;
-                        obscalez = 0;
-                        loadedTrack.obList[editionOb].scaleOb(obscalex, obscaley, obscalez);
-                    }
-                    if (GUILayout.RepeatButton("--"))
-                    {
-                        obscaley = -0.1f;
-                        obscalex = 0;
-                        obscalez = 0;
-                        loadedTrack.obList[editionOb].scaleOb(obscalex, obscaley, obscalez);
-                    }
-                    if (GUILayout.Button("-"))
-                    {
-                        obscaley = -0.1f;
-                        obscalex = 0;
-                        obscalez = 0;
-                        loadedTrack.obList[editionOb].scaleOb(obscalex, obscaley, obscalez);
-                    }
-                    GUILayout.Label(loadedTrack.obList[editionOb].cube.transform.localScale.y.ToString());
-                    if (GUILayout.Button("+") || GUILayout.RepeatButton("++"))
-                    {
-                        obscaley = 0.1f;
-                        obscalex = 0;
-                        obscalez = 0;
-                        loadedTrack.obList[editionOb].scaleOb(obscalex, obscaley, obscalez);
-                    }
-                    if (GUILayout.Button("+|"))
-                    {
-                        obscaley = Obstacle.maxScale;
-                        obscalex = 0;
-                        obscalez = 0;
-                        loadedTrack.obList[editionOb].scaleOb(obscalex, obscaley, obscalez);
-                    }
+                    if (GUILayout.Button("|-")) loadedTrack.obList[editionOb].scaleOb(0, -Obstacle.maxScale, 0);
+                    if (GUILayout.RepeatButton("--")) loadedTrack.obList[editionOb].scaleOb(0, -obScaleMaxRatio, 0);
+                    if (GUILayout.Button("-")) loadedTrack.obList[editionOb].scaleOb(0, -obScaleMinRatio, 0);
+                    GUILayout.Label(loadedTrack.obList[editionOb].cube.transform.localScale.y.ToString(), GUILayout.Width(obScaleInfoLabelWidth));
+                    if (GUILayout.Button("+")) loadedTrack.obList[editionOb].scaleOb(0, obScaleMinRatio, 0);
+                    if (GUILayout.RepeatButton("++")) loadedTrack.obList[editionOb].scaleOb(0, obScaleMaxRatio, 0);
+                    if (GUILayout.Button("+|")) loadedTrack.obList[editionOb].scaleOb(0, Obstacle.maxScale, 0);
                     GUILayout.EndHorizontal();
 
                     GUILayout.BeginHorizontal();
                     GUILayout.Label("Z", GUILayout.Width(15));
-
-                    if (GUILayout.Button("|-"))
-                    {
-                        obscalez = -Obstacle.maxScale;
-                        obscalex = 0;
-                        obscaley = 0;
-                        loadedTrack.obList[editionOb].scaleOb(obscalex, obscaley, obscalez);
-                    }
-                    if (GUILayout.RepeatButton("--"))
-                    {
-                        obscalez = -0.1f;
-                        obscalex = 0;
-                        obscaley = 0;
-                        loadedTrack.obList[editionOb].scaleOb(obscalex, obscaley, obscalez);
-                    }
-                    if (GUILayout.Button("-"))
-                    {
-                        obscalez = -0.1f;
-                        obscalex = 0;
-                        obscaley = 0;
-                        loadedTrack.obList[editionOb].scaleOb(obscalex, obscaley, obscalez);
-                    }
-                    GUILayout.Label(loadedTrack.obList[editionOb].cube.transform.localScale.z.ToString());
-                    if (GUILayout.Button("+") || GUILayout.RepeatButton("++"))
-                    {
-                        obscalez = 0.1f;
-                        obscalex = 0;
-                        obscaley = 0;
-                        loadedTrack.obList[editionOb].scaleOb(obscalex, obscaley, obscalez);
-                    }
-                    if (GUILayout.Button("+|"))
-                    {
-                        obscalez = Obstacle.maxScale;
-                        obscalex = 0;
-                        obscaley = 0;
-                        loadedTrack.obList[editionOb].scaleOb(obscalex, obscaley, obscalez);
-                    }
+                    if (GUILayout.Button("|-")) loadedTrack.obList[editionOb].scaleOb(0, 0, -Obstacle.maxScale);
+                    if (GUILayout.RepeatButton("--")) loadedTrack.obList[editionOb].scaleOb(0, 0, -obScaleMaxRatio);
+                    if (GUILayout.Button("-")) loadedTrack.obList[editionOb].scaleOb(0, 0, -obScaleMinRatio);
+                    GUILayout.Label(loadedTrack.obList[editionOb].cube.transform.localScale.z.ToString(), GUILayout.Width(obScaleInfoLabelWidth));
+                    if (GUILayout.Button("+")) loadedTrack.obList[editionOb].scaleOb(0, 0, obScaleMinRatio);
+                    if (GUILayout.RepeatButton("++")) loadedTrack.obList[editionOb].scaleOb(0, 0, obScaleMaxRatio);
+                    if (GUILayout.Button("+|")) loadedTrack.obList[editionOb].scaleOb(0, 0, Obstacle.maxScale);
                     GUILayout.EndHorizontal();
 
                     GUILayout.Label("Translate");
@@ -1308,17 +1198,9 @@ public class RaceManager : MonoBehaviour
 
                     GUILayout.EndVertical();
 
-                    if (Input.GetMouseButton(0))
-                    {
-                        loadedTrack.obList[editionOb].rotateOb(obrotx, obroty, obrotz);
-                        loadedTrack.obList[editionOb].moveOb(obtrax, obtray, obtraz);
-                    }
-
+                    if (Input.GetMouseButton(0)) loadedTrack.obList[editionOb].moveOb(obtrax, obtray, obtraz);
                     if (Input.GetMouseButtonUp(0))
                     {
-                        obrotx = 0;
-                        obroty = 0;
-                        obrotz = 0;
                         obtrax = 0;
                         obtray = 0;
                         obtraz = 0;
@@ -1420,10 +1302,7 @@ public class RaceManager : MonoBehaviour
             foreach (Obstacle.ObsClon obClon in raceClon.obList)
             {
                 Obstacle obs = new GameObject().AddComponent<Obstacle>();
-                obs.pCoords = new Vector3(obClon.pCoordsx, obClon.pCoordsy, obClon.pCoordsz);
-                obs.rot = new Quaternion(obClon.rotx, obClon.roty, obClon.rotz, obClon.rotw);
-                obs.cube.transform.localScale = new Vector3(obClon.scalex, obClon.scaley, obClon.scalez);
-                obs.Solid = obClon.solid;
+                obs.fromClon(obClon);
                 loadedTrack.obList.Add(obs);
             }
         }
@@ -1629,7 +1508,7 @@ public class RaceManager : MonoBehaviour
             {
                 num = loadedTrack.obList.Count - 1;
             }
-            if (editionOb <= loadedTrack.obList.Count-1)
+            if (editionOb <= loadedTrack.obList.Count - 1)
             {
                 loadedTrack.obList[editionOb].ObColor = Obstacle.colorNormal;
             }
@@ -1833,28 +1712,6 @@ public class RaceManager : MonoBehaviour
         data.laps = loadedTrack.laps;
         return MD5Hash(data);
     }
-
-    //public ObsClon[] toObsClon(List<Obstacle> obCourse)
-    //{
-    //    ObsClon[] clones = new ObsClon[obCourse.Count];
-
-    //    for (int i = 0; i < obCourse.Count; i++)
-    //    {
-    //        clones[i].body = obCourse[i].body.name;
-    //        clones[i].pCoordsx = obCourse[i].pCoords.x;
-    //        clones[i].pCoordsy = obCourse[i].pCoords.y;
-    //        clones[i].pCoordsz = obCourse[i].pCoords.z;
-    //        clones[i].rotx = obCourse[i].rot.x;
-    //        clones[i].roty = obCourse[i].rot.y;
-    //        clones[i].rotz = obCourse[i].rot.z;
-    //        clones[i].rotw = obCourse[i].rot.w;
-    //        clones[i].scalex = obCourse[i].transform.localScale.x;
-    //        clones[i].scaley = obCourse[i].transform.localScale.y;
-    //        clones[i].scalez = obCourse[i].transform.localScale.z;
-    //        clones[i].solid = obCourse[i].Solid;
-    //    }
-    //    return clones;
-    //}
 }
 
 /// <summary>
@@ -2044,24 +1901,20 @@ public class Obstacle : MonoBehaviour
         cube.transform.localScale = new Vector3((float)Math.Round(sx, 2), (float)Math.Round(sy, 2), (float)Math.Round(sz, 2));
     }
 
-    //convertiría esto en una clase serializable
     [Serializable]
     public class ObsClon
     {
         public string body;
-        public float pCoordsx;
-        public float pCoordsy;
-        public float pCoordsz;
-        public float rotx;
-        public float roty;
-        public float rotz;
-        public float rotw;
-        public float scalex;
-        public float scaley;
-        public float scalez;
+        public float pCoordsx, pCoordsy, pCoordsz;
+        public float rotx, roty, rotz, rotw;
+        public float scalex, scaley, scalez;
         public bool solid;
     }
 
+    /// <summary>
+    /// Escupe una clase serializable que contiene los datos del obstáculo
+    /// </summary>
+    /// <returns></returns>
     public ObsClon toClon()
     {
         ObsClon clon = new ObsClon();
@@ -2075,9 +1928,28 @@ public class Obstacle : MonoBehaviour
         clon.rotw = rot.w;
         clon.scalex = cube.transform.localScale.x;
         clon.scaley = cube.transform.localScale.y;
-        clon.scalez = cube.transform.localScale.z;        
+        clon.scalez = cube.transform.localScale.z;
         clon.solid = Solid;
         return clon;
     }
-}
 
+    /// <summary>
+    /// toma los datos de un ObsClon
+    /// </summary>
+    /// <param name="clon"></param>
+    public void fromClon(ObsClon clon)
+    {
+        pCoords = new Vector3(clon.pCoordsx, clon.pCoordsy, clon.pCoordsz);
+        rot = new Quaternion(clon.rotx, clon.roty, clon.rotz, clon.rotw);
+        cube.transform.localScale = new Vector3(clon.scalex, clon.scaley, clon.scalez);
+        Solid = clon.solid;
+    }
+
+    internal void resetRot()
+    {
+        //http://answers.unity3d.com/questions/254130/how-do-i-rotate-an-object-towards-a-vector3-point.html
+        Vector3 _direction = (body.position - transform.position).normalized;
+        Quaternion _lookRotation = Quaternion.LookRotation(_direction);
+        rot = _lookRotation;
+    }
+}
