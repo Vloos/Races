@@ -87,7 +87,7 @@ namespace Races
         {
             if (data.from == GameScenes.FLIGHT)
             {
-                raceMan.lastLoadedTrack = raceMan.trackToclone(raceMan.loadedTrack);
+                raceMan.lastLoadedTrack = raceMan.loadedTrack.toClon();
                 raceMan.cambiaEstado(RaceManager.estados.LoadScreen);
             }
             if (data.to != GameScenes.FLIGHT)
@@ -460,12 +460,54 @@ public class CheckPoint : MonoBehaviour
         pCoords.z += alt;
     }
 
+    /// <summary>
+    /// Alinea el punto de control con el ecuador
+    /// </summary>
     internal void resetRot()
     {
         //http://answers.unity3d.com/questions/254130/how-do-i-rotate-an-object-towards-a-vector3-point.html
         Vector3 _direction = (body.position - transform.position).normalized;
         Quaternion _lookRotation = Quaternion.LookRotation(_direction);
         rot = _lookRotation;
+    }
+
+    [Serializable]
+    public class CheckPointClon
+    {
+        public string body;  //¿Conmo convertir un string a un celestialbody?
+        public int size;
+        //posición del marcador lon lat alt
+        public float pCoordsX;
+        public float pCoordsY;
+        public float pCoordsZ;
+        //rotación del marcador pitch roll yaw ¿w?
+        public float rotX;
+        public float rotY;
+        public float rotZ;
+        public float rotW;
+    }
+
+    internal CheckPointClon toClon()
+    {
+        CheckPointClon clon = new CheckPointClon();
+        clon.body = body.name;
+        clon.size = Size;
+        clon.pCoordsX = pCoords.x;
+        clon.pCoordsY = pCoords.y;
+        clon.pCoordsZ = pCoords.z;
+        clon.rotX = rot.x;
+        clon.rotY = rot.y;
+        clon.rotZ = rot.z;
+        clon.rotW = rot.w;
+
+        return clon;
+    }
+
+    public void fromClon(CheckPointClon clon)
+    {
+        pCoords = new Vector3(clon.pCoordsX, clon.pCoordsY, clon.pCoordsZ);
+        rot = new Quaternion(clon.rotX, clon.rotY, clon.rotZ, clon.rotW);
+        Size = clon.size;
     }
 }
 
@@ -513,8 +555,105 @@ public class LoadedTrack
         }
 
     }
+
+    [Serializable]
+    public class RaceClon
+    {
+        public string bodyName;
+        public string name;
+        public string author;
+        public int laps;
+        public float lenght;
+        public string key;
+        public CheckPoint.CheckPointClon[] cpList;
+        public Obstacle.ObsClon[] obList;
+    }
+
+    [Serializable]
+    public class CheckPointClon
+    {
+        public string body;  //¿Conmo convertir un string a un celestialbody?
+        public int size;
+        //posición del marcador lon lat alt
+        public float pCoordsX;
+        public float pCoordsY;
+        public float pCoordsZ;
+        //rotación del marcador pitch roll yaw ¿w?
+        public float rotX;
+        public float rotY;
+        public float rotZ;
+        public float rotW;
+    }
+
+    public RaceClon toClon()
+    {
+        RaceClon clon = new RaceClon();
+
+        clon.bodyName = bodyName;
+        clon.name = name;
+        clon.author = author;
+        clon.laps = laps;
+        clon.lenght = trackLength;
+        clon.key = trackKey;
+        clon.cpList = new CheckPoint.CheckPointClon[cpList.Count];
+        clon.obList = new Obstacle.ObsClon[obList.Count];
+
+        for (int i = 0; i < cpList.Count; i++)
+        {
+            clon.cpList[i] = cpList[i].toClon();
+        }
+
+        for (int i = 0; i < obList.Count; i++)
+        {
+            clon.obList[i] = obList[i].toClon();
+        }
+        return clon;
+
+    }
+
+    public void fromClon(RaceClon clon)
+    {
+        bodyName = clon.bodyName;
+        name = clon.name;
+        author = clon.author;
+        trackKey = clon.key;
+        laps = clon.laps;
+        foreach (CheckPoint.CheckPointClon cpClon in clon.cpList)
+        {
+            CheckPoint cp = new GameObject().AddComponent<CheckPoint>();
+            cp.fromClon(cpClon);
+            cp.cpBoxTrigger.GetComponent<BoxCollider>().name = "cp" + cpList.Count;
+            cpList.Add(cp);
+
+        }
+        foreach (Obstacle.ObsClon obClon in clon.obList)
+        {
+            Obstacle ob = new GameObject().AddComponent<Obstacle>();
+            ob.fromClon(obClon);
+            obList.Add(ob);
+        }
+    }
 }
 
+/// <summary>
+/// Esto dejará de usarse
+/// </summary>
+[Serializable]
+public class RaceClon
+{
+    public string bodyName;
+    public string name;
+    public string author;
+    public int laps;
+    public float lenght;
+    public string key;
+    public CheckPointClon[] cpList;
+    public Obstacle.ObsClon[] obList;
+}
+
+/// <summary>
+/// Esto dejará de usarse
+/// </summary>
 [Serializable]
 public class CheckPointClon
 {
@@ -532,19 +671,6 @@ public class CheckPointClon
 }
 
 [Serializable]
-public class RaceClon
-{
-    public string bodyName;
-    public string name;
-    public string author;
-    public int laps;
-    public float lenght;
-    public string key;
-    public CheckPointClon[] cpList;
-    public Obstacle.ObsClon[] obList;
-}
-
-[Serializable]
 public class Records
 {
     public string[] key;
@@ -554,7 +680,7 @@ public class Records
 [Serializable]
 public class keyGenData
 {
-    public CheckPointClon[] cpList;
+    public CheckPoint.CheckPointClon[] cpList;
     public int laps;
 }
 
@@ -563,14 +689,16 @@ public class keyGenData
 /// </summary>
 public class RaceManager : MonoBehaviour
 {
+
     public static RaceManager raceManager;
     public enum estados { LoadScreen, EditScreen, RaceScreen, EndScreen, ObsScreen, Test };
     public estados estadoAct = estados.LoadScreen;
-    public List<RaceClon> raceList = new List<RaceClon>(); //Lista de carreras disponibles en el directorio
+    public List<LoadedTrack.RaceClon> raceList = new List<LoadedTrack.RaceClon>(); //Lista de carreras disponibles en el directorio
+    public List<RaceClon> oldRaces = new List<RaceClon>(); //Lista de carreras disponibles en el directorio
     public LoadedTrack loadedTrack = new LoadedTrack();  //Carrera que se va a usar para correr o editar.
     private int editionCp = 0;
     private int editionOb = 0;
-    public RaceClon lastLoadedTrack = new RaceClon(); //Esto valdrá (supongo) para cargar de nuevo un circuito al volver a la escena de vuelo
+    public LoadedTrack.RaceClon lastLoadedTrack = new LoadedTrack.RaceClon(); //Esto valdrá (supongo) para cargar de nuevo un circuito al volver a la escena de vuelo
     public Dictionary<string, float> records = new Dictionary<string, float>() { { "0", 0 } };
 
     //Carrera
@@ -591,7 +719,6 @@ public class RaceManager : MonoBehaviour
     public float trackLength;
     bool trackExist, saving = false;
     ////tamaño, rotación y translación para los puntos de control, y para obstáculos
-    public bool likeVesselRot = true;
     public float trax, tray, traz = 0;
     public int size = 0;
     public float obtrax, obtray, obtraz;
@@ -621,7 +748,6 @@ public class RaceManager : MonoBehaviour
     void Start()
     {
         GetRacetrackList();
-
     }
 
     void Update()
@@ -716,7 +842,7 @@ public class RaceManager : MonoBehaviour
 
                 scrollRaceList = GUILayout.BeginScrollView(scrollRaceList, GUILayout.Height(250), GUILayout.Width(180));
 
-                foreach (RaceClon race in raceList)
+                foreach (LoadedTrack.RaceClon race in raceList)
                 {
                     if (race.bodyName == FlightGlobals.ActiveVessel.mainBody.name)
                     {
@@ -730,10 +856,7 @@ public class RaceManager : MonoBehaviour
                             loadedTrack.trackTime = (records.ContainsKey(loadedTrack.trackKey)) ? records[loadedTrack.trackKey] : 0;
                         }
                     }
-                    else
-                    {
-                        GUILayout.Label(race.name + " by " + race.author + "\n" + race.bodyName);
-                    }
+                    else GUILayout.Label(race.name + " by " + race.author + "\n" + race.bodyName);
                 }
 
                 GUILayout.EndScrollView();
@@ -749,21 +872,9 @@ public class RaceManager : MonoBehaviour
                     // Información del circuito cargado. No se asusten.
                     GUILayout.Label(loadedTrack.name + " by " + loadedTrack.author + "\n" + loadedTrack.cpList.Count + " Checkpoints\n" + loadedTrack.laps + " Laps\n" + trackLength.ToString("0.00") + " Meters\nBest time: " + tiempo(loadedTrack.trackTime));
                     GUILayout.Label("Starting point:\n" + "Latitude: " + loadedTrack.cpList[0].pCoords.x + "\nLongitude: " + loadedTrack.cpList[0].pCoords.y + "\nAltitude: " + loadedTrack.cpList[0].pCoords.z + "\nDistance: " + Vector3.Distance(loadedTrack.cpList[0].Coords, FlightGlobals.ActiveVessel.CoM).ToString("0.00"));
-                    if (loadedTrack.cpList.Count > 1)
-                    {
-                        if (GUILayout.Button("Start Race"))
-                        {
-                            cambiaEstado(estados.RaceScreen);
-                        }
-                    }
-                    if (GUILayout.Button("Edit Race Track"))
-                    {
-                        cambiaEstado(estados.EditScreen);
-                    }
-                    if (GUILayout.Button("Clear Race Track"))
-                    {
-                        newRaceTrack();
-                    }
+                    if (loadedTrack.cpList.Count > 1 && GUILayout.Button("Start Race")) cambiaEstado(estados.RaceScreen);
+                    if (GUILayout.Button("Edit Race Track")) cambiaEstado(estados.EditScreen);
+                    if (GUILayout.Button("Clear Race Track")) newRaceTrack();
                 }
                 GUILayout.EndVertical();
                 GUILayout.EndHorizontal();
@@ -785,22 +896,11 @@ public class RaceManager : MonoBehaviour
                 GUILayout.EndHorizontal();
                 GUILayout.Label("Laps");
                 GUILayout.BeginHorizontal();
-                if (GUILayout.Button("1"))
-                {
-                    loadedTrack.laps = 1;
-                }
-                if (GUILayout.Button("-"))
-                {
-                    if (loadedTrack.laps > 1)
-                    {
-                        loadedTrack.laps--;
-                    }
-                }
+                if (GUILayout.Button("1")) loadedTrack.laps = 1;
+                if (GUILayout.Button("-") && loadedTrack.laps > 1) loadedTrack.laps--;
                 GUILayout.Label(loadedTrack.laps.ToString());
-                if (GUILayout.Button("+"))
-                {
-                    loadedTrack.laps++;
-                }
+                if (GUILayout.Button("+")) loadedTrack.laps++;
+
                 GUILayout.EndHorizontal();
 
                 GUILayout.BeginHorizontal();
@@ -811,7 +911,6 @@ public class RaceManager : MonoBehaviour
                 if (GUILayout.Button("New Checkpoint"))
                 {
                     CheckPoint cp = new GameObject().AddComponent<CheckPoint>();
-                    if (!likeVesselRot) cp.resetRot();
                     if (loadedTrack.cpList.Count == 1)
                     {
                         cp.tipoCp = CheckPoint.Types.START;
@@ -829,22 +928,15 @@ public class RaceManager : MonoBehaviour
                     loadedTrack.cpList.Add(cp);
                     cambiaEditCp(loadedTrack.cpList.Count - 1);
                 }
-                likeVesselRot = GUILayout.Toggle(likeVesselRot, "Vessel rotation");
 
-                if (loadedTrack.cpList.Count > 0)
+                if (loadedTrack.cpList.Count > 0 && GUILayout.Button("Remove Checkpoint"))
                 {
-                    if (GUILayout.Button("Remove Checkpoint"))
-                    {
-                        loadedTrack.cpList[editionCp].destroy();
-                        loadedTrack.cpList.RemoveAt(editionCp);
-                        cambiaEditCp(editionCp);
-                    }
+                    loadedTrack.cpList[editionCp].destroy();
+                    loadedTrack.cpList.RemoveAt(editionCp);
+                    cambiaEditCp(editionCp);
                 }
 
-                if (GUILayout.Button("Edit Obstacles"))
-                {
-                    cambiaEstado(estados.ObsScreen);
-                }
+                if (GUILayout.Button("Edit Obstacles")) cambiaEstado(estados.ObsScreen);
 
                 if (GUILayout.Button("Save Race Track"))
                 {
@@ -897,24 +989,15 @@ public class RaceManager : MonoBehaviour
                      */
                 }
 
-                if (GUILayout.Button("New Race Track"))
+                if (GUILayout.Button("New Race Track")) newRaceTrack();
+
+                if (loadedTrack.cpList.Count > 1 && GUILayout.Button("Start Race!"))
                 {
-                    newRaceTrack();
+                    loadedTrack.trackKey = genTrackKey();
+                    cambiaEstado(estados.RaceScreen);
                 }
 
-                if (loadedTrack.cpList.Count > 1)
-                {
-                    if (GUILayout.Button("Start Race!"))
-                    {
-                        loadedTrack.trackKey = genTrackKey();
-                        cambiaEstado(estados.RaceScreen);
-                    }
-                }
-
-                if (GUILayout.Button("Back"))
-                {
-                    cambiaEstado(estados.LoadScreen);
-                }
+                if (GUILayout.Button("Back")) cambiaEstado(estados.LoadScreen);
 
                 GUILayout.EndVertical();
 
@@ -929,7 +1012,7 @@ public class RaceManager : MonoBehaviour
                     GUILayout.Label(editionCp.ToString());
                     if (GUILayout.Button(">")) cambiaEditCp(editionCp + 1);  //next
                     if (GUILayout.Button(">|")) cambiaEditCp(loadedTrack.cpList.Count - 1); //last
-                    
+
                     GUILayout.EndHorizontal();
 
                     GUILayout.BeginHorizontal();
@@ -1041,19 +1124,10 @@ public class RaceManager : MonoBehaviour
                 }
                 else
                 {
-                    if (loadedTrack.laps > 0)
-                    {
-                        GUILayout.Label(loadedTrack.laps + " Laps");
-                    }
+                    if (loadedTrack.laps > 0) GUILayout.Label(loadedTrack.laps + " Laps");
                     GUILayout.Label("Cross first checkpoint (white) to start race!");
-                    if (GUILayout.Button("Edit Track"))
-                    {
-                        cambiaEstado(estados.EditScreen);
-                    }
-                    if (GUILayout.Button("Load Track"))
-                    {
-                        cambiaEstado(estados.LoadScreen);
-                    }
+                    if (GUILayout.Button("Edit Track")) cambiaEstado(estados.EditScreen);
+                    if (GUILayout.Button("Load Track")) cambiaEstado(estados.LoadScreen);
                 }
 
                 break;
@@ -1256,7 +1330,7 @@ public class RaceManager : MonoBehaviour
     public void SaveRaceTrack()
     {
         //Tomar los datos de la carrera cargada (no guardable) y transferirlos a la carrera guardable
-        RaceClon raceClon = trackToclone(loadedTrack);
+        LoadedTrack.RaceClon raceClon = loadedTrack.toClon();
         if (!Directory.Exists(Races.Races.RaceTrackFolder))
         {
             Directory.CreateDirectory(Races.Races.RaceTrackFolder);
@@ -1272,45 +1346,17 @@ public class RaceManager : MonoBehaviour
     /// <summary>
     /// Coge una carrera de la lista de carreras y la mete en LoadedTrack 
     /// </summary>
-    public void LoadRaceTrack(RaceClon raceClon)
+    public void LoadRaceTrack(LoadedTrack.RaceClon raceClon)
     {
         loadedTrack = new LoadedTrack();
+        loadedTrack.fromClon(raceClon);
         lastLoadedTrack = raceClon;         //Esto supongo que valdrá para volver a cargar el circuito cuando se revierte el vuelo
-        loadedTrack.name = raceClon.name;
-        loadedTrack.author = raceClon.author;
-        loadedTrack.bodyName = raceClon.bodyName;
-        loadedTrack.laps = raceClon.laps;
-        loadedTrack.trackKey = raceClon.key;
-
-        //Extraer cpList de raceclon y meterlos en loadedTrack
-        for (int i = 0; i < raceClon.cpList.Length; i++)
-        {
-            CheckPointClon cpClon = raceClon.cpList[i];
-            CheckPoint checkPoint = new GameObject().AddComponent<CheckPoint>();
-            loadedTrack.cpList.Add(checkPoint);
-
-            //asumimos que el buque está en el mismo body que el circuito y más tarde se filtran los circuitos
-            checkPoint.body = FlightGlobals.ActiveVessel.mainBody;
-            checkPoint.Size = cpClon.size;
-            checkPoint.pCoords = new Vector3(cpClon.pCoordsX, cpClon.pCoordsY, cpClon.pCoordsZ);
-            checkPoint.rot = new Quaternion(cpClon.rotX, cpClon.rotY, cpClon.rotZ, cpClon.rotW);
-            checkPoint.cpBoxTrigger.GetComponent<BoxCollider>().name = "cp" + i; //Poner nombre a los colisionadores, para saber contra cual se colisiona
-        }
-
-        if (raceClon.obList.Length > 0)
-        {
-            foreach (Obstacle.ObsClon obClon in raceClon.obList)
-            {
-                Obstacle obs = new GameObject().AddComponent<Obstacle>();
-                obs.fromClon(obClon);
-                loadedTrack.obList.Add(obs);
-            }
-        }
         Debug.Log("Race track loaded: " + loadedTrack.name + " by " + loadedTrack.author);
     }
 
     /// <summary>
     /// Escanea el directorio de circuitos en busca de circuitos y llena una lista de circuitos con los circuitos encontrados
+    /// Como cambia la forma de guardar los circuitos, esto convierte los viejos. La conversión la quitaré en la siguiente versión...
     /// </summary>
     public void GetRacetrackList()
     {
@@ -1322,21 +1368,58 @@ public class RaceManager : MonoBehaviour
         var info = new DirectoryInfo(Races.Races.RaceTrackFolder);
         var fileInfo = info.GetFiles("*" + Races.Races.RaceTrackFileExtension, SearchOption.TopDirectoryOnly);
         Debug.Log(fileInfo.Length + " Race Tracks found");
+
         foreach (var file in fileInfo)
         {
             try
             {
                 BinaryFormatter bf = new BinaryFormatter();
                 FileStream fileStream = File.Open(file.FullName, FileMode.Open);
-                RaceClon race = (RaceClon)bf.Deserialize(fileStream);
-                raceList.Add(race);
-                fileStream.Close();
+                var stream = bf.Deserialize(fileStream);
+                LoadedTrack.RaceClon race =  stream as LoadedTrack.RaceClon;
+
+                if (race == null)
+                {
+                    RaceClon oldRace = stream as RaceClon;
+                    if (oldRace != null) oldRaces.Add(oldRace);
+                }
+                else raceList.Add(race);
             }
             catch (Exception)
             {
-                Debug.LogError("Wrong file format");
+                Debug.LogError("Something went wrong");
             }
         }
+        if (oldRaces.Count > 0)
+        {
+            foreach (RaceClon clon in oldRaces)
+            {
+                LoadedTrack.RaceClon race = new LoadedTrack.RaceClon();
+                race.author = clon.author;
+                race.bodyName = clon.bodyName;
+                race.cpList = new CheckPoint.CheckPointClon[clon.cpList.Length];
+                for (int i = 0; i < clon.cpList.Length; i++)
+                {
+                    race.cpList[i] = new CheckPoint.CheckPointClon();
+                    race.cpList[i].body = clon.cpList[i].body;
+                    race.cpList[i].pCoordsX = clon.cpList[i].pCoordsX;
+                    race.cpList[i].pCoordsY = clon.cpList[i].pCoordsY;
+                    race.cpList[i].pCoordsZ = clon.cpList[i].pCoordsZ;
+                    race.cpList[i].rotW = clon.cpList[i].rotW;
+                    race.cpList[i].rotX = clon.cpList[i].rotX;
+                    race.cpList[i].rotY = clon.cpList[i].rotY;
+                    race.cpList[i].rotZ = clon.cpList[i].rotZ;
+                    race.cpList[i].size = clon.cpList[i].size;
+                }
+                race.key = clon.key;
+                race.laps = clon.laps;
+                race.lenght = clon.lenght;
+                race.name = clon.name;
+                race.obList = clon.obList;
+                raceList.Add(race);
+            }
+        }
+
         //y tambien se carga el archivo de tiempos
         loadRecordFile();
     }
@@ -1522,52 +1605,6 @@ public class RaceManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Debuelve un clon serializable de un circuito
-    /// </summary>
-    /// <param name="track"></param>
-    /// <returns></returns>
-    public RaceClon trackToclone(LoadedTrack track)
-    {
-        RaceClon raceClon = new RaceClon();
-        raceClon.cpList = new CheckPointClon[loadedTrack.cpList.Count];
-        for (int i = 0; i < loadedTrack.cpList.Count; i++)
-        {
-            CheckPointClon cpClon = new CheckPointClon();
-            cpClon.body = loadedTrack.cpList[i].body.name;
-            cpClon.size = loadedTrack.cpList[i].Size;
-            cpClon.pCoordsX = loadedTrack.cpList[i].pCoords.x;
-            cpClon.pCoordsY = loadedTrack.cpList[i].pCoords.y;
-            cpClon.pCoordsZ = loadedTrack.cpList[i].pCoords.z;
-            cpClon.rotX = loadedTrack.cpList[i].rot.x;
-            cpClon.rotY = loadedTrack.cpList[i].rot.y;
-            cpClon.rotZ = loadedTrack.cpList[i].rot.z;
-            cpClon.rotW = loadedTrack.cpList[i].rot.w;
-            raceClon.cpList[i] = cpClon;
-        }
-
-        //Guarda los obstáculos
-        raceClon.obList = new Obstacle.ObsClon[loadedTrack.obList.Count];
-        for (int i = 0; i < loadedTrack.obList.Count; i++)
-        {
-            raceClon.obList[i] = loadedTrack.obList[i].toClon();
-        }
-
-        raceClon.name = track.name;
-        raceClon.author = track.author;
-        raceClon.bodyName = track.bodyName;
-        raceClon.laps = track.laps;
-        raceClon.lenght = track.trackLength;
-        //Genera una clave unica partiendo de los puntos de control del circuito
-        keyGenData data = new keyGenData();
-        data.laps = raceClon.laps;
-        data.cpList = raceClon.cpList;
-        raceClon.key = MD5Hash(data);
-        track.trackKey = raceClon.key;
-
-        return raceClon;
-    }
-
-    /// <summary>
     /// Esta función copiada de aqui: http://stackoverflow.com/questions/1120198/most-efficient-way-to-remove-special-characters-from-string
     /// </summary>
     /// <param name="str"></param>
@@ -1694,10 +1731,10 @@ public class RaceManager : MonoBehaviour
     public string genTrackKey()
     {
         keyGenData data = new keyGenData();
-        data.cpList = new CheckPointClon[loadedTrack.cpList.Count];
+        data.cpList = new CheckPoint.CheckPointClon[loadedTrack.cpList.Count];
         for (int i = 0; i < loadedTrack.cpList.Count; i++)
         {
-            CheckPointClon cpClon = new CheckPointClon();
+            CheckPoint.CheckPointClon cpClon = new CheckPoint.CheckPointClon();
             cpClon.body = loadedTrack.cpList[i].body.name;
             cpClon.size = loadedTrack.cpList[i].Size;
             cpClon.pCoordsX = loadedTrack.cpList[i].pCoords.x;
