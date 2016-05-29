@@ -8,7 +8,6 @@ using KSP.UI.Screens;
 using System.Text;
 using System.Security.Cryptography;
 
-
 namespace Races
 {
     /// <summary>
@@ -399,7 +398,6 @@ public class CheckPoint : MonoBehaviour
         cuDown.transform.localScale = new Vector3(sizes[Size].y + sizes[Size].x, sizes[Size].x, sizes[Size].x);
         cuRi.transform.localScale = new Vector3(sizes[Size].x, sizes[Size].x, sizes[Size].z - sizes[Size].x);
         cuLe.transform.localScale = new Vector3(sizes[Size].x, sizes[Size].x, sizes[Size].z - sizes[Size].x);
-
     }
 
     /// <summary>
@@ -760,6 +758,14 @@ public class RaceManager : MonoBehaviour
                 loadedTrack.cpList[pActivo].Penalization = true;
             }
         }
+
+        if (estadoAct == estados.EditScreen)
+        {
+            if (Input.GetMouseButtonUp(0) && Input.GetKey(KeyCode.RightControl))
+            {
+                newCheckpoint(true);
+            }
+        }
     }
 
     public void cambiaEstado(estados estado)
@@ -833,6 +839,9 @@ public class RaceManager : MonoBehaviour
 
     public void windowFuction(int id)
     {
+        Vector3d mousePos = mousePosition();
+        Vector3d planetCoords = new Vector3d(FlightGlobals.ActiveVessel.mainBody.GetLatitude(mousePos), FlightGlobals.ActiveVessel.mainBody.GetLongitude(mousePos), FlightGlobals.ActiveVessel.mainBody.GetAltitude(mousePos));
+        GUILayout.Label(planetCoords.ToString());
         switch (estadoAct)
         {
             case estados.LoadScreen:
@@ -910,23 +919,7 @@ public class RaceManager : MonoBehaviour
 
                 if (GUILayout.Button("New Checkpoint"))
                 {
-                    CheckPoint cp = new GameObject().AddComponent<CheckPoint>();
-                    if (loadedTrack.cpList.Count == 1)
-                    {
-                        cp.tipoCp = CheckPoint.Types.START;
-                        trackLength = loadedTrack.trackLength;
-                    }
-                    else
-                    {
-                        if (loadedTrack.cpList.Count > 2)
-                        {
-                            loadedTrack.cpList[loadedTrack.cpList.Count - 2].tipoCp = CheckPoint.Types.CHECKPOINT;
-                        }
-                        cp.tipoCp = CheckPoint.Types.FINISH;
-                    }
-                    cp.cpBoxTrigger.GetComponent<BoxCollider>().name = "cp" + loadedTrack.cpList.Count;
-                    loadedTrack.cpList.Add(cp);
-                    cambiaEditCp(loadedTrack.cpList.Count - 1);
+                    newCheckpoint(false);
                 }
 
                 if (loadedTrack.cpList.Count > 0 && GUILayout.Button("Remove Checkpoint"))
@@ -1017,22 +1010,16 @@ public class RaceManager : MonoBehaviour
 
                     GUILayout.BeginHorizontal();
                     GUILayout.Label("Size");
-                    if (GUILayout.Button("-"))
+                    if (GUILayout.Button("-") && size > 0)
                     {
-                        if (size > 0)
-                        {
-                            size--;
-                            loadedTrack.cpList[editionCp].Size = size;
-                        }
+                        size--;
+                        loadedTrack.cpList[editionCp].Size = size;
                     }
                     GUILayout.Label(size.ToString());
-                    if (GUILayout.Button("+"))
+                    if (GUILayout.Button("+") && size < CheckPoint.sizes.Count - 1)
                     {
-                        if (size < CheckPoint.sizes.Count - 1)
-                        {
-                            size++;
-                            loadedTrack.cpList[editionCp].Size = size;
-                        }
+                        size++;
+                        loadedTrack.cpList[editionCp].Size = size;
                     }
                     GUILayout.EndHorizontal();
 
@@ -1154,16 +1141,13 @@ public class RaceManager : MonoBehaviour
                     cambiaEditOb(loadedTrack.obList.Count - 1);
                 }
 
-                if (loadedTrack.obList.Count > 0)
+                if (loadedTrack.obList.Count > 0 && GUILayout.Button("Remove Obstacle"))
                 {
-                    if (GUILayout.Button("Remove Obstacle"))
-                    {
-                        loadedTrack.obList[editionOb].destroy();
-                        loadedTrack.obList.RemoveAt(editionOb);
-                        cambiaEditOb(editionOb);
-                    }
+                    loadedTrack.obList[editionOb].destroy();
+                    loadedTrack.obList.RemoveAt(editionOb);
+                    cambiaEditOb(editionOb);
                 }
-                if (GUILayout.Button("Edit Racetrack")) cambiaEstado(estados.EditScreen);
+                if (GUILayout.Button("Edit Checkpoints")) cambiaEstado(estados.EditScreen);
                 GUILayout.EndVertical();
 
                 if (loadedTrack.obList.Count > 0)
@@ -1324,6 +1308,33 @@ public class RaceManager : MonoBehaviour
         trackLength = 0;
     }
 
+    public void newCheckpoint(bool enCursor)
+    {
+        CheckPoint cp = new GameObject().AddComponent<CheckPoint>();
+        if (loadedTrack.cpList.Count == 1)
+        {
+            cp.tipoCp = CheckPoint.Types.START;
+            trackLength = loadedTrack.trackLength;
+        }
+        else
+        {
+            if (loadedTrack.cpList.Count > 2)
+            {
+                loadedTrack.cpList[loadedTrack.cpList.Count - 2].tipoCp = CheckPoint.Types.CHECKPOINT;
+            }
+            cp.tipoCp = CheckPoint.Types.FINISH;
+        }
+        cp.cpBoxTrigger.GetComponent<BoxCollider>().name = "cp" + loadedTrack.cpList.Count;
+        if (enCursor)
+        {
+            Vector3d mousePos = mousePosition();
+            cp.pCoords = new Vector3((float)cp.body.GetLatitude(mousePos), (float)cp.body.GetLongitude(mousePos), (float)cp.body.GetAltitude(mousePos));
+            cp.resetRot();
+        }
+        loadedTrack.cpList.Add(cp);
+        cambiaEditCp(loadedTrack.cpList.Count - 1);
+    }
+
     /// <summary>
     /// Hace una copia de la carrera cargada LoadedTrack y la guarda en un archivo binario
     /// </summary>
@@ -1368,6 +1379,7 @@ public class RaceManager : MonoBehaviour
         var info = new DirectoryInfo(Races.Races.RaceTrackFolder);
         var fileInfo = info.GetFiles("*" + Races.Races.RaceTrackFileExtension, SearchOption.TopDirectoryOnly);
         Debug.Log(fileInfo.Length + " Race Tracks found");
+        oldRaces.Clear();
 
         foreach (var file in fileInfo)
         {
@@ -1376,7 +1388,7 @@ public class RaceManager : MonoBehaviour
                 BinaryFormatter bf = new BinaryFormatter();
                 FileStream fileStream = File.Open(file.FullName, FileMode.Open);
                 var stream = bf.Deserialize(fileStream);
-                LoadedTrack.RaceClon race =  stream as LoadedTrack.RaceClon;
+                LoadedTrack.RaceClon race = stream as LoadedTrack.RaceClon;
 
                 if (race == null)
                 {
@@ -1392,6 +1404,7 @@ public class RaceManager : MonoBehaviour
         }
         if (oldRaces.Count > 0)
         {
+            Debug.Log("Convertir " + oldRaces.Count);
             foreach (RaceClon clon in oldRaces)
             {
                 LoadedTrack.RaceClon race = new LoadedTrack.RaceClon();
@@ -1749,6 +1762,16 @@ public class RaceManager : MonoBehaviour
         data.laps = loadedTrack.laps;
         return MD5Hash(data);
     }
+
+    public Vector3d mousePosition()
+    {
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        RaycastHit hit;
+        // Casts the ray and get the first game object hit
+        Physics.Raycast(ray, out hit);
+
+        return hit.point;
+    }
 }
 
 /// <summary>
@@ -1856,21 +1879,14 @@ public class Obstacle : MonoBehaviour
     void Update()
     {
         //que el punto de control no se meta por debajo del suelo
-        if (pCoords.z - body.TerrainAltitude(pCoords.x, pCoords.y) <= 0)
-        {
-            pCoords.z = (float)body.TerrainAltitude(pCoords.x, pCoords.y);
-        }
-
-        if (pCoords.z > maxAlt)
-        {
-            pCoords.z = maxAlt;
-        }
+        if (pCoords.z - body.TerrainAltitude(pCoords.x, pCoords.y) <= 0) pCoords.z = (float)body.TerrainAltitude(pCoords.x, pCoords.y);
+        if (pCoords.z > maxAlt) pCoords.z = maxAlt;
 
         //Como el origen del mundo se mueve con el buque, esto mantiene el punto de control en una posicion fija respecto al planeta.
         coords = body.GetWorldSurfacePosition(pCoords.x, pCoords.y, pCoords.z);
 
-        this.transform.position = coords;
-        this.transform.rotation = rot;
+        transform.position = coords;
+        transform.rotation = rot;
     }
 
     public void destroy()
@@ -1909,31 +1925,9 @@ public class Obstacle : MonoBehaviour
         float sy = cube.transform.localScale.y + y;
         float sz = cube.transform.localScale.z + z;
 
-        if (sx < minScale)
-        {
-            sx = minScale;
-        }
-        else if (sx > maxScale)
-        {
-            sx = maxScale;
-        }
-
-        if (sy < minScale)
-        {
-            sy = minScale;
-        }
-        else if (sy > maxScale)
-        {
-            sy = maxScale;
-        }
-        if (sz < minScale)
-        {
-            sz = minScale;
-        }
-        else if (sz > maxScale)
-        {
-            sz = maxScale;
-        }
+        if (sx < minScale) sx = minScale; else if (sx > maxScale) sx = maxScale;
+        if (sy < minScale) sy = minScale; else if (sy > maxScale) sy = maxScale;
+        if (sz < minScale) sz = minScale; else if (sz > maxScale) sz = maxScale;
 
         cube.transform.localScale = new Vector3((float)Math.Round(sx, 2), (float)Math.Round(sy, 2), (float)Math.Round(sz, 2));
     }
