@@ -3,6 +3,12 @@ Pequeño mod para Kerbal Space Program en el que se pueden crear circuitos, colo
 
 ## Historial de cambios
 
+* 0.0.7-alpha
+ * Cambio algunos deslizadores por botones, para precisión suprema.
+ * Se podrán colocar puntos de control y obstaculos con el raton pulsando Control Derecho y Boton Izquierdo del Ratón. Si la cámara está a demasiada altura puede que aparezcan en el aire.
+ * Los archivos krt (Kerbal Race Track) se guardan de forma diferente. Carga un circuito, edítalo y guardalo (no hace falta modificarlo) para guardarlo correctamente (quiero elimminar esa capacidad de convertir los circuito de un formato a otro en el próximo lanzamiento)
+ * Le he toqueteado alguna que otra cosa a la interfaz gráfica de usuario, en especial al dialogo de confirmación de guardado de un circuito existente. Puede que funcione un poco menos mal que antes.
+
 * 0.0.6-alpha
  * Se pueden poner obstaculos simples y estáticos, formados por aburridos cubos grises reescalables.
 

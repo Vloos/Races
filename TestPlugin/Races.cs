@@ -716,7 +716,7 @@ public class RaceManager : MonoBehaviour
     public string guiRaceName, guiRaceAuth;
     public Vector2 scrollRaceList = Vector2.zero;
     public float trackLength;
-    bool trackExist, saving = false;
+    bool trackExist = false;
     ////tamaño, rotación y translación para los puntos de control, y para obstáculos
     public float trax, tray, traz = 0;
     public int size = 0;
@@ -765,7 +765,7 @@ public class RaceManager : MonoBehaviour
         if (Input.GetMouseButtonUp(0) && (Input.GetKey(KeyCode.RightControl) || Input.GetKey(KeyCode.RightCommand)))
         {
             if (estadoAct == estados.EditScreen) newCheckpoint(true);
-            if (estadoAct == estados.ObsScreen) newObstacle(true);            
+            if (estadoAct == estados.ObsScreen) newObstacle(true);
         }
     }
 
@@ -880,6 +880,10 @@ public class RaceManager : MonoBehaviour
                     GUILayout.Label(loadedTrack.name + " by " + loadedTrack.author + "\n" + loadedTrack.cpList.Count + " Checkpoints\n" + loadedTrack.laps + " Laps\n" + trackLength.ToString("0.00") + " Meters\nBest time: " + tiempo(loadedTrack.trackTime));
                     GUILayout.Label("Starting point:\n" + "Latitude: " + loadedTrack.cpList[0].pCoords.x + "\nLongitude: " + loadedTrack.cpList[0].pCoords.y + "\nAltitude: " + loadedTrack.cpList[0].pCoords.z + "\nDistance: " + Vector3.Distance(loadedTrack.cpList[0].Coords, FlightGlobals.ActiveVessel.CoM).ToString("0.00"));
                     if (loadedTrack.cpList.Count > 1 && GUILayout.Button("Start Race")) cambiaEstado(estados.RaceScreen);
+                }
+
+                if (loadedTrack.cpList.Count > 0 || loadedTrack.obList.Count > 0) 
+                {
                     if (GUILayout.Button("Edit Race Track")) cambiaEstado(estados.EditScreen);
                     if (GUILayout.Button("Clear Race Track")) newRaceTrack();
                 }
@@ -894,6 +898,7 @@ public class RaceManager : MonoBehaviour
                 GUILayout.BeginVertical();
 
                 GUILayout.BeginHorizontal();
+                GUI.SetNextControlName("TrackNAme");
                 GUILayout.Label("Name", GUILayout.Width(nameLabelWidth));
                 loadedTrack.name = GUILayout.TextField(loadedTrack.name, GUILayout.Width(nameTextWidth));
                 GUILayout.EndHorizontal();
@@ -917,7 +922,7 @@ public class RaceManager : MonoBehaviour
 
                 if (GUILayout.Button("New Checkpoint here")) newCheckpoint(false);
                 GUILayout.Label("RCtrl + LMB new checkpoint on cursor");
-                
+
                 if (loadedTrack.cpList.Count > 0 && GUILayout.Button("Remove Checkpoint"))
                 {
                     loadedTrack.cpList[editionCp].destroy();
@@ -927,53 +932,7 @@ public class RaceManager : MonoBehaviour
 
                 if (GUILayout.Button("Edit Obstacles")) cambiaEstado(estados.ObsScreen);
 
-                if (GUILayout.Button("Save Race Track"))
-                {
-                    if (loadedTrack.cpList.Count > 0)
-                    {
-                        trackExist = (raceList.FindAll(x => x.name == loadedTrack.name).Count != 0);
-
-                        if (!trackExist)
-                        {
-                            SaveRaceTrack();
-                            raceList.Clear();
-                            GetRacetrackList();
-                            trackExist = false;
-                            saving = false;
-                        }
-                        else saving = true;
-                    }
-                }
-                if (saving)
-                {
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("Already exist");
-                    if (GUILayout.Button("Overwrite"))
-                    {
-                        SaveRaceTrack();
-                        raceList.Clear();
-                        GetRacetrackList();
-                        trackExist = false;
-                        saving = false;
-                    }
-                    if (GUILayout.Button("Cancel"))
-                    {
-                        trackExist = false;
-                        saving = false;
-                    }
-                    GUILayout.EndHorizontal();
-
-                    /* este es el tema: quiero que cuando esté activa esta confirmación, si hay algun cambio en el circuito la confirmación desaparezca sin guardar
-                     * lo que pasa es que si lo hago con esto aquí mismo:
-                     * 
-                     * if (GUI.changed)
-                     * {
-                     *  Debug.Log("GUI changed, y trackExist = false, saving = false");
-                     * }
-                     * 
-                     * detecta el cambio en el mismo momento en que se pulsa en el botón de guardar, y tiene en cuenta esa pulsación para el cambio
-                     */
-                }
+                saveDialog();
 
                 if (GUILayout.Button("New Race Track")) newRaceTrack();
 
@@ -983,7 +942,7 @@ public class RaceManager : MonoBehaviour
                     cambiaEstado(estados.RaceScreen);
                 }
 
-                if (GUILayout.Button("Back")) cambiaEstado(estados.LoadScreen);
+                if (GUILayout.Button("Load Racetrack")) cambiaEstado(estados.LoadScreen);
 
                 GUILayout.EndVertical();
 
@@ -1115,17 +1074,65 @@ public class RaceManager : MonoBehaviour
                 break;
             case estados.ObsScreen:
                 GUILayout.Label("Obstacle Editor");
+
                 GUILayout.BeginHorizontal();
+
                 GUILayout.BeginVertical();
-                if (GUILayout.Button("Spawn Obstacle")) newObstacle(false);
-                GUILayout.Label("RCtrl + LMB obstacle on cursor");
+
+                GUILayout.BeginHorizontal();
+                GUI.SetNextControlName("TrackNAme");
+                GUILayout.Label("Name", GUILayout.Width(nameLabelWidth));
+                loadedTrack.name = GUILayout.TextField(loadedTrack.name, GUILayout.Width(nameTextWidth));
+                GUILayout.EndHorizontal();
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("Author", GUILayout.Width(nameLabelWidth));
+                loadedTrack.author = GUILayout.TextField(loadedTrack.author, GUILayout.Width(nameTextWidth));
+                GUILayout.EndHorizontal();
+                GUILayout.Label("Laps");
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("1")) loadedTrack.laps = 1;
+                if (GUILayout.Button("-") && loadedTrack.laps > 1) loadedTrack.laps--;
+                GUILayout.Label(loadedTrack.laps.ToString());
+                if (GUILayout.Button("+")) loadedTrack.laps++;
+
+                GUILayout.EndHorizontal();
+
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("Length");
+                GUILayout.Label(trackLength.ToString());
+                GUILayout.EndHorizontal();
+
+                if (GUILayout.Button("New Obstacle here")) newObstacle(false);
+                GUILayout.Label("RCtrl + LMB new obstacle on cursor");
+
                 if (loadedTrack.obList.Count > 0 && GUILayout.Button("Remove Obstacle"))
                 {
                     loadedTrack.obList[editionOb].destroy();
                     loadedTrack.obList.RemoveAt(editionOb);
                     cambiaEditOb(editionOb);
                 }
+
                 if (GUILayout.Button("Edit Checkpoints")) cambiaEstado(estados.EditScreen);
+
+                saveDialog();
+
+                if (GUILayout.Button("Clear Obstacles"))
+                {
+                    foreach (Obstacle obs in loadedTrack.obList)
+                    {
+                        obs.destroy();
+                    }
+                    loadedTrack.obList.Clear();
+                }
+
+                if (loadedTrack.cpList.Count > 1 && GUILayout.Button("Start Race!"))
+                {
+                    loadedTrack.trackKey = genTrackKey();
+                    cambiaEstado(estados.RaceScreen);
+                }
+
+                if (GUILayout.Button("Load Racetrack")) cambiaEstado(estados.LoadScreen);
+
                 GUILayout.EndVertical();
 
                 if (loadedTrack.obList.Count > 0)
@@ -1284,6 +1291,7 @@ public class RaceManager : MonoBehaviour
         loadedTrack.trackKey = "";
         editionCp = 0;
         trackLength = 0;
+        trackExist = false;
     }
 
     /// <summary>
@@ -1336,6 +1344,42 @@ public class RaceManager : MonoBehaviour
     }
 
     /// <summary>
+    /// Un trozo de interfaz que muestra la confirmación de guardado de circuito cuando el nombre del circuito ya existe
+    /// </summary>
+    public void saveDialog()
+    {
+        GUI.SetNextControlName("SaveButton");
+        if (loadedTrack.cpList.Count > 0 && GUILayout.Button("Save Race Track"))
+        {
+            GUI.FocusControl("SaveButton");
+            if (raceList.FindAll(x => x.name == loadedTrack.name).Count == 0)
+            {
+                SaveRaceTrack();
+                raceList.Clear();
+                GetRacetrackList();
+            }
+            else trackExist = true;
+        }
+
+        if (trackExist)
+        {
+            if (GUI.changed && GUI.GetNameOfFocusedControl() == "TrackNAme") trackExist = false;
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Already exist");
+            if (GUILayout.Button("Overwrite"))
+            {
+                SaveRaceTrack();
+                raceList.Clear();
+                GetRacetrackList();
+                trackExist = false;
+                Debug.Log(GUI.GetNameOfFocusedControl());
+            }
+            if (GUILayout.Button("Cancel")) trackExist = false;
+            GUILayout.EndHorizontal();
+        }
+    }
+
+    /// <summary>
     /// Hace una copia de la carrera cargada LoadedTrack y la guarda en un archivo binario
     /// </summary>
     public void SaveRaceTrack()
@@ -1346,12 +1390,19 @@ public class RaceManager : MonoBehaviour
         {
             Directory.CreateDirectory(Races.Races.RaceTrackFolder);
         }
-        BinaryFormatter bf = new BinaryFormatter();
-        string filename = RemoveSpecialCharacters(raceClon.name);
-        FileStream file = File.Create(Races.Races.RaceTrackFolder + filename + Races.Races.RaceTrackFileExtension);
-        bf.Serialize(file, raceClon);
-        file.Close();
-        Debug.Log("Saved: " + raceClon.name + " - " + raceClon.author);
+        try
+        {
+            BinaryFormatter bf = new BinaryFormatter();
+            string filename = RemoveSpecialCharacters(raceClon.name);
+            FileStream file = File.Create(Races.Races.RaceTrackFolder + filename + Races.Races.RaceTrackFileExtension);
+            bf.Serialize(file, raceClon);
+            file.Close();
+            Debug.Log("Saved: " + raceClon.name + " - " + raceClon.author);
+        }
+        catch (Exception)
+        {
+            Debug.LogError("Something went wrong saving the track file");
+        }
     }
 
     /// <summary>
@@ -1708,11 +1759,18 @@ public class RaceManager : MonoBehaviour
             saveThis.key[i] = keyList[i];
             saveThis.value[i] = valueList[i];
         }
-
-        BinaryFormatter bf = new BinaryFormatter();
-        FileStream file = File.Create(Races.Races.RaceTrackFolder + "records.dat");
-        bf.Serialize(file, saveThis);
-        file.Close();
+        try
+        {
+            BinaryFormatter bf = new BinaryFormatter();
+            FileStream file = File.Create(Races.Races.RaceTrackFolder + "records.dat");
+            bf.Serialize(file, saveThis);
+            file.Close();
+        }
+        catch (Exception)
+        {
+            Debug.LogError("Something went wrong saving records.dat");
+        }
+        
     }
 
     /// <summary>
