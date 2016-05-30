@@ -400,6 +400,7 @@ public class CheckPoint : MonoBehaviour
         cuLe.transform.localScale = new Vector3(sizes[Size].x, sizes[Size].x, sizes[Size].z - sizes[Size].x);
     }
 
+
     /// <summary>
     /// Coloca el punto de control. Todo el rato.
     /// </summary>
@@ -419,8 +420,8 @@ public class CheckPoint : MonoBehaviour
         //Como el origen del mundo se mueve con el buque, esto mantiene el punto de control en una posicion fija respecto al planeta.
         coords = body.GetWorldSurfacePosition(pCoords.x, pCoords.y, pCoords.z);
 
-        this.transform.position = coords;
-        this.transform.rotation = rot;
+        transform.position = coords;
+        transform.rotation = rot;
     }
 
     public void destroy()
@@ -753,18 +754,18 @@ public class RaceManager : MonoBehaviour
         if (enCarrera)
         {
             tiempoAct = Planetarium.GetUniversalTime() - tiempoIni;
+
+            //Reactiva la penalización de tiempo al tocar el punto de control si el buque controlado se aleja demasiado del punto de control previamente tocado
             if (Vector3.Distance(FlightGlobals.ActiveVessel.CoM, loadedTrack.cpList[pActivo].Coords) > CheckPoint.sizes[loadedTrack.cpList[pActivo].Size].y && !loadedTrack.cpList[pActivo].Penalization)
             {
                 loadedTrack.cpList[pActivo].Penalization = true;
             }
         }
 
-        if (estadoAct == estados.EditScreen)
+        if (Input.GetMouseButtonUp(0) && (Input.GetKey(KeyCode.RightControl) || Input.GetKey(KeyCode.RightCommand)))
         {
-            if (Input.GetMouseButtonUp(0) && Input.GetKey(KeyCode.RightControl))
-            {
-                newCheckpoint(true);
-            }
+            if (estadoAct == estados.EditScreen) newCheckpoint(true);
+            if (estadoAct == estados.ObsScreen) newObstacle(true);            
         }
     }
 
@@ -839,9 +840,6 @@ public class RaceManager : MonoBehaviour
 
     public void windowFuction(int id)
     {
-        Vector3d mousePos = mousePosition();
-        Vector3d planetCoords = new Vector3d(FlightGlobals.ActiveVessel.mainBody.GetLatitude(mousePos), FlightGlobals.ActiveVessel.mainBody.GetLongitude(mousePos), FlightGlobals.ActiveVessel.mainBody.GetAltitude(mousePos));
-        GUILayout.Label(planetCoords.ToString());
         switch (estadoAct)
         {
             case estados.LoadScreen:
@@ -917,11 +915,9 @@ public class RaceManager : MonoBehaviour
                 GUILayout.Label(trackLength.ToString());
                 GUILayout.EndHorizontal();
 
-                if (GUILayout.Button("New Checkpoint"))
-                {
-                    newCheckpoint(false);
-                }
-
+                if (GUILayout.Button("New Checkpoint here")) newCheckpoint(false);
+                GUILayout.Label("RCtrl + LMB new checkpoint on cursor");
+                
                 if (loadedTrack.cpList.Count > 0 && GUILayout.Button("Remove Checkpoint"))
                 {
                     loadedTrack.cpList[editionCp].destroy();
@@ -945,10 +941,7 @@ public class RaceManager : MonoBehaviour
                             trackExist = false;
                             saving = false;
                         }
-                        else
-                        {
-                            saving = true;
-                        }
+                        else saving = true;
                     }
                 }
                 if (saving)
@@ -1010,17 +1003,9 @@ public class RaceManager : MonoBehaviour
 
                     GUILayout.BeginHorizontal();
                     GUILayout.Label("Size");
-                    if (GUILayout.Button("-") && size > 0)
-                    {
-                        size--;
-                        loadedTrack.cpList[editionCp].Size = size;
-                    }
+                    if (GUILayout.Button("-") && size > 0) loadedTrack.cpList[editionCp].Size = --size;
                     GUILayout.Label(size.ToString());
-                    if (GUILayout.Button("+") && size < CheckPoint.sizes.Count - 1)
-                    {
-                        size++;
-                        loadedTrack.cpList[editionCp].Size = size;
-                    }
+                    if (GUILayout.Button("+") && size < CheckPoint.sizes.Count - 1) loadedTrack.cpList[editionCp].Size = ++size;
                     GUILayout.EndHorizontal();
 
                     GUILayout.Label("Rotate");
@@ -1132,15 +1117,8 @@ public class RaceManager : MonoBehaviour
                 GUILayout.Label("Obstacle Editor");
                 GUILayout.BeginHorizontal();
                 GUILayout.BeginVertical();
-                if (GUILayout.Button("Spawn Obstacle"))
-                {
-                    Obstacle obs = new GameObject().AddComponent<Obstacle>();
-                    obs.cube.transform.localScale = new Vector3(Obstacle.maxScale / 2, Obstacle.maxScale / 2, Obstacle.maxScale / 2);
-                    obs.resetRot();
-                    loadedTrack.obList.Add(obs);
-                    cambiaEditOb(loadedTrack.obList.Count - 1);
-                }
-
+                if (GUILayout.Button("Spawn Obstacle")) newObstacle(false);
+                GUILayout.Label("RCtrl + LMB obstacle on cursor");
                 if (loadedTrack.obList.Count > 0 && GUILayout.Button("Remove Obstacle"))
                 {
                     loadedTrack.obList[editionOb].destroy();
@@ -1308,6 +1286,10 @@ public class RaceManager : MonoBehaviour
         trackLength = 0;
     }
 
+    /// <summary>
+    /// pone un nuevo punto de control en la posición del buque on en la posición del cursor
+    /// </summary>
+    /// <param name="enCursor"></param>
     public void newCheckpoint(bool enCursor)
     {
         CheckPoint cp = new GameObject().AddComponent<CheckPoint>();
@@ -1333,6 +1315,24 @@ public class RaceManager : MonoBehaviour
         }
         loadedTrack.cpList.Add(cp);
         cambiaEditCp(loadedTrack.cpList.Count - 1);
+    }
+
+    /// <summary>
+    /// pone un nuevo obstáculo en la posición del buche o en la posición del cursor
+    /// </summary>
+    /// <param name="enCursor"></param>
+    public void newObstacle(bool enCursor)
+    {
+        Obstacle obs = new GameObject().AddComponent<Obstacle>();
+        obs.cube.transform.localScale = new Vector3(Obstacle.maxScale / 2, Obstacle.maxScale / 2, Obstacle.maxScale / 2);
+        if (enCursor)
+        {
+            Vector3d mousePos = mousePosition();
+            obs.pCoords = new Vector3((float)obs.body.GetLatitude(mousePos), (float)obs.body.GetLongitude(mousePos), (float)obs.body.GetAltitude(mousePos));
+        }
+        obs.resetRot();
+        loadedTrack.obList.Add(obs);
+        cambiaEditOb(loadedTrack.obList.Count - 1);
     }
 
     /// <summary>
@@ -1763,6 +1763,10 @@ public class RaceManager : MonoBehaviour
         return MD5Hash(data);
     }
 
+    /// <summary>
+    /// con un rayo calcula la posición del cursor relativa a las coordenadas del mundo
+    /// </summary>
+    /// <returns>las coordenadas del mundo donde estaría el cursor, visto desde la cámara</returns>
     public Vector3d mousePosition()
     {
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
