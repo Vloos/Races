@@ -172,8 +172,10 @@ public class CheckPoint : MonoBehaviour
     public static Color colorStart = Color.white;
     public static Color colorCheckP = Color.yellow;
     public static Color colorFinish = Color.red;
-    public static Color colorPasado = Color.clear;
+    public static Color colorPasado = new Color(0.5f, 0.5f, 0.5f, 0.5f);
     public static Color colorEdit = new Color(255, 0, 255);
+    public static Material pasado = new Material(Shader.Find("Transparent/Diffuse"));
+    public static Material listo = new Material(Shader.Find("KSP/Emissive/Diffuse"));
     public static Dictionary<int, Vector3> sizes = new Dictionary<int, Vector3>() {
         {0, new Vector3(2f, 32f, 18f)}, //Grosor de la linea, ancho del rectángulo, alto del rectángulo
         {1, new Vector3(3f, 48f, 27f)},
@@ -193,10 +195,29 @@ public class CheckPoint : MonoBehaviour
         set
         {
             wpColor = value;
-            cuUp.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", wpColor);
-            cuDown.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", wpColor);
-            cuRi.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", wpColor);
-            cuLe.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", wpColor);
+            if (value == colorPasado)
+            {
+                cuUp.cubo.GetComponent<MeshRenderer>().material = pasado;
+                cuDown.cubo.GetComponent<MeshRenderer>().material = pasado;
+                cuRi.cubo.GetComponent<MeshRenderer>().material = pasado;
+                cuLe.cubo.GetComponent<MeshRenderer>().material = pasado;
+                cuUp.cubo.GetComponent<MeshRenderer>().material.color = wpColor;
+                cuDown.cubo.GetComponent<MeshRenderer>().material.color = wpColor;
+                cuRi.cubo.GetComponent<MeshRenderer>().material.color = wpColor;
+                cuLe.cubo.GetComponent<MeshRenderer>().material.color = wpColor;
+            }
+            else
+            {
+                cuUp.cubo.GetComponent<MeshRenderer>().material = listo;
+                cuDown.cubo.GetComponent<MeshRenderer>().material = listo;
+                cuRi.cubo.GetComponent<MeshRenderer>().material = listo;
+                cuLe.cubo.GetComponent<MeshRenderer>().material = listo;
+                cuUp.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", wpColor);
+                cuDown.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", wpColor);
+                cuRi.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", wpColor);
+                cuLe.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", wpColor);
+            }
+
         }
     }
 
@@ -216,28 +237,16 @@ public class CheckPoint : MonoBehaviour
             switch (value)
             {
                 case Types.START:
-                    cuUp.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", colorStart);
-                    cuDown.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", colorStart);
-                    cuRi.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", colorStart);
-                    cuLe.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", colorStart);
+                    cpColor = colorStart;
                     break;
                 case Types.CHECKPOINT:
-                    cuUp.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", colorCheckP);
-                    cuDown.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", colorCheckP);
-                    cuRi.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", colorCheckP);
-                    cuLe.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", colorCheckP);
+                    cpColor = colorCheckP;
                     break;
                 case Types.FINISH:
-                    cuUp.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", colorFinish);
-                    cuDown.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", colorFinish);
-                    cuRi.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", colorFinish);
-                    cuLe.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", colorFinish);
+                    cpColor = colorFinish;
                     break;
                 default:
-                    cuUp.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", Color.white);
-                    cuDown.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", Color.white);
-                    cuRi.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", Color.white);
-                    cuLe.cubo.GetComponent<MeshRenderer>().material.SetColor("_EmissiveColor", Color.white);
+                    cpColor = colorPasado;
                     break;
             }
         }
@@ -349,7 +358,7 @@ public class CheckPoint : MonoBehaviour
             cubo.AddComponent<timePenalization>();
             cubo.gameObject.GetComponent<timePenalization>().enabled = false;
             cubo.transform.parent = transform;
-            cubo.GetComponent<MeshRenderer>().material = new Material(Shader.Find("KSP/Emissive/Diffuse"));
+            //cubo.GetComponent<MeshRenderer>().material = new Material(Shader.Find("KSP/Emissive/Diffuse"));
             cubo.GetComponent<BoxCollider>().isTrigger = true;
             cubo.GetComponent<BoxCollider>().enabled = true;
         }
@@ -882,7 +891,7 @@ public class RaceManager : MonoBehaviour
                     if (loadedTrack.cpList.Count > 1 && GUILayout.Button("Start Race")) cambiaEstado(estados.RaceScreen);
                 }
 
-                if (loadedTrack.cpList.Count > 0 || loadedTrack.obList.Count > 0) 
+                if (loadedTrack.cpList.Count > 0 || loadedTrack.obList.Count > 0)
                 {
                     if (GUILayout.Button("Edit Race Track")) cambiaEstado(estados.EditScreen);
                     if (GUILayout.Button("Clear Race Track")) newRaceTrack();
@@ -1770,7 +1779,7 @@ public class RaceManager : MonoBehaviour
         {
             Debug.LogError("Something went wrong saving records.dat");
         }
-        
+
     }
 
     /// <summary>
