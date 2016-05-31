@@ -471,12 +471,13 @@ public class CheckPoint : MonoBehaviour
     /// <summary>
     /// Alinea el punto de control con el ecuador
     /// </summary>
-    internal void resetRot()
+    internal Quaternion resetRot()
     {
         //http://answers.unity3d.com/questions/254130/how-do-i-rotate-an-object-towards-a-vector3-point.html
         Vector3 _direction = (body.position - transform.position).normalized;
         Quaternion _lookRotation = Quaternion.LookRotation(_direction);
         rot = _lookRotation;
+        return _lookRotation;
     }
 
     [Serializable]
@@ -708,6 +709,8 @@ public class RaceManager : MonoBehaviour
     private int editionOb = 0;
     public LoadedTrack.RaceClon lastLoadedTrack = new LoadedTrack.RaceClon(); //Esto valdrá (supongo) para cargar de nuevo un circuito al volver a la escena de vuelo
     public Dictionary<string, float> records = new Dictionary<string, float>() { { "0", 0 } };
+    public EditorGizmos.GizmoRotate grot;
+    public EditorGizmos.GizmoOffset gofs;
 
     //Carrera
     public bool enCarrera = false;
@@ -788,6 +791,8 @@ public class RaceManager : MonoBehaviour
                 enCarrera = false;
                 loadedTrack.trackKey = genTrackKey();
                 loadedTrack.trackTime = (records.ContainsKey(loadedTrack.trackKey)) ? records[loadedTrack.trackKey] : 0;
+                if (grot != null) grot.Detach();
+                if (gofs != null) gofs.Detach();
                 break;
             case estados.EditScreen:
                 estadoAct = estados.EditScreen;
@@ -807,6 +812,8 @@ public class RaceManager : MonoBehaviour
                 break;
             case estados.RaceScreen:
                 prepCp(true);
+                if (grot != null) grot.Detach();
+                if (gofs != null) gofs.Detach();
                 loadedTrack.cpList[0].cpBoxTrigger.GetComponent<BoxCollider>().enabled = true;
                 estadoAct = estados.RaceScreen;
                 pActivo = 0;
@@ -825,6 +832,8 @@ public class RaceManager : MonoBehaviour
                 break;
             case estados.ObsScreen:
                 estadoAct = estados.ObsScreen;
+                if (grot != null) grot.Detach();
+                if (gofs != null) gofs.Detach();
                 prepCp(false);
                 if (loadedTrack.obList.Count > 0)
                 {
@@ -976,73 +985,34 @@ public class RaceManager : MonoBehaviour
                     if (GUILayout.Button("+") && size < CheckPoint.sizes.Count - 1) loadedTrack.cpList[editionCp].Size = ++size;
                     GUILayout.EndHorizontal();
 
-                    GUILayout.Label("Rotate");
+                    if (GUILayout.Button("Rotate"))
+                    {
+                        if (grot != null) grot.Detach();
+                        if (gofs != null) gofs.Detach();
+                        grot = EditorGizmos.GizmoRotate.Attach(loadedTrack.cpList[editionCp].transform, loadedTrack.cpList[editionCp].transform.position, cpRot, rotado);
+                    }
 
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("Pitch", GUILayout.Width(rotLabelWidth));
-                    if (GUILayout.Button("90")) loadedTrack.cpList[editionCp].rotateRwp(90, 0, 0);
-                    if (GUILayout.RepeatButton("--") | GUILayout.Button("-")) loadedTrack.cpList[editionCp].rotateRwp(-1, 0, 0);
-                    if (GUILayout.Button("+") | GUILayout.RepeatButton("++")) loadedTrack.cpList[editionCp].rotateRwp(1, 0, 0);
-                    GUILayout.EndHorizontal();
-
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("Roll", GUILayout.Width(rotLabelWidth));
-                    if (GUILayout.Button("90")) loadedTrack.cpList[editionCp].rotateRwp(0, 90, 0);
-                    if (GUILayout.RepeatButton("--") | GUILayout.Button("-")) loadedTrack.cpList[editionCp].rotateRwp(0, -1, 0);
-                    if (GUILayout.Button("+") | GUILayout.RepeatButton("++")) loadedTrack.cpList[editionCp].rotateRwp(0, 1, 0);
-                    GUILayout.EndHorizontal();
-
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("Yaw", GUILayout.Width(rotLabelWidth));
-                    if (GUILayout.Button("90")) loadedTrack.cpList[editionCp].rotateRwp(0, 0, 90);
-                    if (GUILayout.RepeatButton("--") | GUILayout.Button("-")) loadedTrack.cpList[editionCp].rotateRwp(0, 0, -1);
-                    if (GUILayout.Button("+") | GUILayout.RepeatButton("++")) loadedTrack.cpList[editionCp].rotateRwp(0, 0, 1);
-                    GUILayout.EndHorizontal();
-
-                    if (GUILayout.Button("Reset Rotation")) loadedTrack.cpList[editionCp].resetRot();
+                    if (GUILayout.Button("Reset Rotation")) grot.transform.rotation = loadedTrack.cpList[editionCp].resetRot();
 
                     GUILayout.Label("Translate");
+                    GUILayout.BeginHorizontal();
 
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("Latitude");
-                    GUILayout.Label(loadedTrack.cpList[editionCp].pCoords.x.ToString());
-                    GUILayout.EndHorizontal();
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("South", GUILayout.Width(cardLabelWidth));
-                    trax = GUILayout.HorizontalSlider(trax, -0.0001f, 0.0001f, GUILayout.Width(editSliderWidth));
-                    GUILayout.Label("North", GUILayout.Width(cardLabelWidth));
-                    GUILayout.EndHorizontal();
+                    bool abs = GUILayout.Button("Absolute");
+                    bool rel = GUILayout.Button("Relative");
 
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("Longitude");
-                    GUILayout.Label(loadedTrack.cpList[editionCp].pCoords.y.ToString());
-                    GUILayout.EndHorizontal();
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("West", GUILayout.Width(cardLabelWidth));
-                    tray = GUILayout.HorizontalSlider(tray, -0.0001f, 0.0001f, GUILayout.Width(editSliderWidth));
-                    GUILayout.Label("East", GUILayout.Width(cardLabelWidth));
-                    GUILayout.EndHorizontal();
-
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("Altitude");
-                    GUILayout.Label(loadedTrack.cpList[editionCp].pCoords.z.ToString());
-                    GUILayout.EndHorizontal();
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("Down", GUILayout.Width(cardLabelWidth));
-                    traz = GUILayout.HorizontalSlider(traz, -0.3f, 0.3f, GUILayout.Width(editSliderWidth));
-                    GUILayout.Label("Up", GUILayout.Width(cardLabelWidth));
-                    GUILayout.EndHorizontal();
-
-                    GUILayout.EndVertical();
-
-                    if (Input.GetMouseButton(0)) loadedTrack.cpList[editionCp].moveCp(trax, tray, traz);
-                    if (Input.GetMouseButtonUp(0))
+                    if (abs || rel)
                     {
-                        trax = 0;
-                        tray = 0;
-                        traz = 0;
-                        trackLength = loadedTrack.trackLength;
+                        if (grot != null) grot.Detach();
+                        if (gofs != null) gofs.Detach();
+                        gofs = EditorGizmos.GizmoOffset.Attach(loadedTrack.cpList[editionCp].transform, cpTran, cpTrEnd);
+                        if (abs)
+                        {
+                            Vector3 _direction = (loadedTrack.cpList[editionCp].body.position - transform.position).normalized;
+                            gofs.transform.rotation = Quaternion.LookRotation(_direction);
+                        }else gofs.transform.rotation = loadedTrack.cpList[editionCp].rot;
                     }
+                    GUILayout.EndHorizontal();
+                    GUILayout.EndVertical();
                 }
                 GUILayout.EndHorizontal();
                 break;
@@ -1147,6 +1117,7 @@ public class RaceManager : MonoBehaviour
                 if (loadedTrack.obList.Count > 0)
                 {
                     GUILayout.BeginVertical();
+
                     GUILayout.Label("Select Obstacle");
                     GUILayout.BeginHorizontal();
                     if (GUILayout.Button("|<")) cambiaEditOb(0); //First
@@ -1158,28 +1129,39 @@ public class RaceManager : MonoBehaviour
 
                     loadedTrack.obList[editionOb].Solid = GUILayout.Toggle(loadedTrack.obList[editionOb].Solid, "Solid thing");
 
+                    if (GUILayout.Button("Rotate"))
+                    {
+                        if (grot != null) grot.Detach();
+                        if (gofs != null) gofs.Detach();
+                        grot = EditorGizmos.GizmoRotate.Attach(loadedTrack.obList[editionOb].transform, loadedTrack.obList[editionOb].transform.position, obRot, rotado);
+                    }
+
+                    if (GUILayout.Button("Reset Rotation")) grot.transform.rotation = loadedTrack.obList[editionOb].resetRot();
+
+                    GUILayout.Label("Translate");
                     GUILayout.BeginHorizontal();
-                    GUILayout.Label("Pitch", GUILayout.Width(rotLabelWidth));
-                    if (GUILayout.Button("90")) loadedTrack.obList[editionOb].rotateOb(90, 0, 0);
-                    if (GUILayout.RepeatButton("--") | GUILayout.Button("-")) loadedTrack.obList[editionOb].rotateOb(-1, 0, 0);
-                    if (GUILayout.Button("+") | GUILayout.RepeatButton("++")) loadedTrack.obList[editionOb].rotateOb(1, 0, 0);
+                    bool abs = GUILayout.Button("Absolute");
+                    bool rel = GUILayout.Button("Relative");
                     GUILayout.EndHorizontal();
 
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("Roll", GUILayout.Width(rotLabelWidth));
-                    if (GUILayout.Button("90")) loadedTrack.obList[editionOb].rotateOb(0, 90, 0);
-                    if (GUILayout.RepeatButton("--") | GUILayout.Button("-")) loadedTrack.obList[editionOb].rotateOb(0, -1, 0);
-                    if (GUILayout.Button("+") | GUILayout.RepeatButton("++")) loadedTrack.obList[editionOb].rotateOb(0, 1, 0);
-                    GUILayout.EndHorizontal();
+                    if (abs || rel)
+                    {
+                        if (grot != null) grot.Detach();
+                        if (gofs != null) gofs.Detach();
+                        gofs = EditorGizmos.GizmoOffset.Attach(loadedTrack.obList[editionOb].transform, obTran, obTrEnd);
+                        if (abs)
+                        {
+                            Vector3 _direction = (loadedTrack.obList[editionOb].body.position - transform.position).normalized;
+                            gofs.transform.rotation = Quaternion.LookRotation(_direction);
+                        }
+                        else gofs.transform.rotation = loadedTrack.obList[editionOb].rot;
+                    }
 
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("Yaw", GUILayout.Width(rotLabelWidth));
-                    if (GUILayout.Button("90")) loadedTrack.obList[editionOb].rotateOb(0, 0, 90);
-                    if (GUILayout.RepeatButton("--") | GUILayout.Button("-")) loadedTrack.obList[editionOb].rotateOb(0, 0, -1);
-                    if (GUILayout.Button("+") | GUILayout.RepeatButton("++")) loadedTrack.obList[editionOb].rotateOb(0, 0, 1);
-                    GUILayout.EndHorizontal();
-
-                    if (GUILayout.Button("Reset Rotation")) loadedTrack.obList[editionOb].resetRot();
+                    if (GUILayout.Button("Hide gizmo"))
+                    {
+                        if (grot != null) grot.Detach();
+                        if (gofs != null) gofs.Detach();
+                    }
 
                     GUILayout.Label("Scale");
 
@@ -1216,47 +1198,7 @@ public class RaceManager : MonoBehaviour
                     if (GUILayout.Button("+|")) loadedTrack.obList[editionOb].scaleOb(0, 0, Obstacle.maxScale);
                     GUILayout.EndHorizontal();
 
-                    GUILayout.Label("Translate");
-
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("Latitude");
-                    GUILayout.Label(loadedTrack.obList[editionOb].pCoords.x.ToString());
-                    GUILayout.EndHorizontal();
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("South", GUILayout.Width(cardLabelWidth));
-                    obtrax = GUILayout.HorizontalSlider(obtrax, -0.0001f, 0.0001f, GUILayout.Width(editSliderWidth));
-                    GUILayout.Label("North", GUILayout.Width(cardLabelWidth));
-                    GUILayout.EndHorizontal();
-
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("Longitude");
-                    GUILayout.Label(loadedTrack.obList[editionOb].pCoords.y.ToString());
-                    GUILayout.EndHorizontal();
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("West", GUILayout.Width(cardLabelWidth));
-                    obtray = GUILayout.HorizontalSlider(obtray, -0.0001f, 0.0001f, GUILayout.Width(editSliderWidth));
-                    GUILayout.Label("East", GUILayout.Width(cardLabelWidth));
-                    GUILayout.EndHorizontal();
-
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("Altitude");
-                    GUILayout.Label(loadedTrack.obList[editionOb].pCoords.z.ToString());
-                    GUILayout.EndHorizontal();
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("Down", GUILayout.Width(cardLabelWidth));
-                    obtraz = GUILayout.HorizontalSlider(obtraz, -0.3f, 0.3f, GUILayout.Width(editSliderWidth));
-                    GUILayout.Label("Up", GUILayout.Width(cardLabelWidth));
-                    GUILayout.EndHorizontal();
-
                     GUILayout.EndVertical();
-
-                    if (Input.GetMouseButton(0)) loadedTrack.obList[editionOb].moveOb(obtrax, obtray, obtraz);
-                    if (Input.GetMouseButtonUp(0))
-                    {
-                        obtrax = 0;
-                        obtray = 0;
-                        obtraz = 0;
-                    }
                 }
                 GUILayout.EndHorizontal();
                 break;
@@ -1264,6 +1206,43 @@ public class RaceManager : MonoBehaviour
                 break;
         }
         GUI.DragWindow();
+    }
+
+    private void obTrEnd(Vector3 arg1)
+    {
+        CelestialBody cuerpo = loadedTrack.obList[editionOb].body;
+        Obstacle ob = loadedTrack.obList[editionOb];
+        loadedTrack.obList[editionOb].pCoords = new Vector3((float)cuerpo.GetLatitude(ob.transform.position), (float)cuerpo.GetLongitude(ob.transform.position), (float)cuerpo.GetAltitude(ob.transform.position));
+        loadedTrack.obList[editionOb].enabled = true;
+    }
+
+    private void obTran(Vector3 arg1)
+    {
+        loadedTrack.obList[editionOb].enabled = false;
+        loadedTrack.obList[editionOb].transform.position = gofs.transform.position;
+    }
+
+    private void obRot(Quaternion arg1)
+    {
+        loadedTrack.obList[editionOb].rot = grot.transform.rotation;
+    }
+
+    private void cpTrEnd(Vector3 arg1)
+    {
+        CelestialBody cuerpo = loadedTrack.cpList[editionCp].body;
+        CheckPoint cp = loadedTrack.cpList[editionCp];
+        loadedTrack.cpList[editionCp].pCoords = new Vector3((float)cuerpo.GetLatitude(cp.transform.position), (float)cuerpo.GetLongitude(cp.transform.position), (float)cuerpo.GetAltitude(cp.transform.position));
+        loadedTrack.cpList[editionCp].enabled = true;
+    }
+    private void cpTran(Vector3 arg1)
+    {
+        loadedTrack.cpList[editionCp].enabled = false;
+        loadedTrack.cpList[editionCp].transform.position = gofs.transform.position;
+    }
+    private void rotado(Quaternion arg1) { }
+    private void cpRot(Quaternion arg1)
+    {
+        loadedTrack.cpList[editionCp].rot = grot.transform.rotation;
     }
 
     /// <summary>
@@ -1310,6 +1289,8 @@ public class RaceManager : MonoBehaviour
     public void newCheckpoint(bool enCursor)
     {
         CheckPoint cp = new GameObject().AddComponent<CheckPoint>();
+        if (grot != null) grot.Detach();
+        if (gofs != null) gofs.Detach();
         if (loadedTrack.cpList.Count == 1)
         {
             cp.tipoCp = CheckPoint.Types.START;
@@ -1612,6 +1593,8 @@ public class RaceManager : MonoBehaviour
     /// <param name="num">El index del checkpoint que se quiere editar</param>
     public void cambiaEditCp(int num)
     {
+        if (grot != null) grot.Detach();
+        if (gofs != null) gofs.Detach();
         if (loadedTrack.cpList.Count > 0)
         {
             if (editionCp <= 0)
@@ -1840,7 +1823,6 @@ public class RaceManager : MonoBehaviour
         RaycastHit hit;
         // Casts the ray and get the first game object hit
         Physics.Raycast(ray, out hit);
-
         return hit.point;
     }
 }
@@ -2047,11 +2029,12 @@ public class Obstacle : MonoBehaviour
         Solid = clon.solid;
     }
 
-    internal void resetRot()
+    internal Quaternion resetRot()
     {
         //http://answers.unity3d.com/questions/254130/how-do-i-rotate-an-object-towards-a-vector3-point.html
         Vector3 _direction = (body.position - transform.position).normalized;
         Quaternion _lookRotation = Quaternion.LookRotation(_direction);
         rot = _lookRotation;
+        return _lookRotation;
     }
 }
