@@ -989,14 +989,18 @@ public class RaceManager : MonoBehaviour
                     {
                         if (grot != null) grot.Detach();
                         if (gofs != null) gofs.Detach();
-                        grot = EditorGizmos.GizmoRotate.Attach(loadedTrack.cpList[editionCp].transform, loadedTrack.cpList[editionCp].transform.position, cpRot, rotado);
+                        grot = EditorGizmos.GizmoRotate.Attach(loadedTrack.cpList[editionCp].transform, loadedTrack.cpList[editionCp].transform.position, cpRot, cpRotado);
                     }
 
-                    if (GUILayout.Button("Reset Rotation")) grot.transform.rotation = loadedTrack.cpList[editionCp].resetRot();
+                    if (GUILayout.Button("Reset Rotation"))
+                    {
+                        if (grot != null) grot.Detach();
+                        if (gofs != null) gofs.Detach();
+                        grot.transform.rotation = loadedTrack.cpList[editionCp].resetRot();
+                    }
 
-                    GUILayout.Label("Translate");
                     GUILayout.BeginHorizontal();
-
+                    GUILayout.Label("Translate");
                     bool abs = GUILayout.Button("Absolute");
                     bool rel = GUILayout.Button("Relative");
 
@@ -1012,6 +1016,13 @@ public class RaceManager : MonoBehaviour
                         }else gofs.transform.rotation = loadedTrack.cpList[editionCp].rot;
                     }
                     GUILayout.EndHorizontal();
+
+                    if (GUILayout.Button("Hide gizmo"))
+                    {
+                        if (grot != null) grot.Detach();
+                        if (gofs != null) gofs.Detach();
+                    }
+
                     GUILayout.EndVertical();
                 }
                 GUILayout.EndHorizontal();
@@ -1020,10 +1031,7 @@ public class RaceManager : MonoBehaviour
                 GUILayout.Label(loadedTrack.name + " by " + loadedTrack.author);
                 if (enCarrera)
                 {
-                    if (loadedTrack.laps > 1)
-                    {
-                        GUILayout.Label("Lap " + curLap + "/" + loadedTrack.laps);
-                    }
+                    if (loadedTrack.laps > 1) GUILayout.Label("Lap " + curLap + "/" + loadedTrack.laps);
                     GUILayout.Label("Time: " + tiempo((float)tiempoAct)); //Esto tiene que ser de tamaño grande.
                     GUILayout.Label("Time penalty: " + tiempo((float)penTime));
                     if (GUILayout.Button("Abort Race!")) //Solo visible durante la carrera
@@ -1133,13 +1141,18 @@ public class RaceManager : MonoBehaviour
                     {
                         if (grot != null) grot.Detach();
                         if (gofs != null) gofs.Detach();
-                        grot = EditorGizmos.GizmoRotate.Attach(loadedTrack.obList[editionOb].transform, loadedTrack.obList[editionOb].transform.position, obRot, rotado);
+                        grot = EditorGizmos.GizmoRotate.Attach(loadedTrack.obList[editionOb].transform, loadedTrack.obList[editionOb].transform.position, obRot, obRotado);
                     }
 
-                    if (GUILayout.Button("Reset Rotation")) grot.transform.rotation = loadedTrack.obList[editionOb].resetRot();
-
-                    GUILayout.Label("Translate");
+                    if (GUILayout.Button("Reset Rotation"))
+                    {
+                        if (grot != null) grot.Detach();
+                        if (gofs != null) gofs.Detach();
+                        loadedTrack.obList[editionOb].resetRot();
+                    }
+                    
                     GUILayout.BeginHorizontal();
+                    GUILayout.Label("Translate");
                     bool abs = GUILayout.Button("Absolute");
                     bool rel = GUILayout.Button("Relative");
                     GUILayout.EndHorizontal();
@@ -1208,6 +1221,10 @@ public class RaceManager : MonoBehaviour
         GUI.DragWindow();
     }
 
+    /// <summary>
+    /// llamado cuando se suelta el chirimbolo de translación de obstáculos
+    /// </summary>
+    /// <param name="arg1"></param>
     private void obTrEnd(Vector3 arg1)
     {
         CelestialBody cuerpo = loadedTrack.obList[editionOb].body;
@@ -1216,17 +1233,40 @@ public class RaceManager : MonoBehaviour
         loadedTrack.obList[editionOb].enabled = true;
     }
 
+    /// <summary>
+    /// llamado mientras se agarra el chirimbolo de translación de obstáculos
+    /// </summary>
+    /// <param name="arg1"></param>
     private void obTran(Vector3 arg1)
     {
         loadedTrack.obList[editionOb].enabled = false;
         loadedTrack.obList[editionOb].transform.position = gofs.transform.position;
     }
 
-    private void obRot(Quaternion arg1)
+    /// <summary>
+    /// llamado cuando se suelta el chirimbolo de rotación de obstáculos
+    /// </summary>
+    /// <param name="arg1"></param>
+    private void obRotado(Quaternion arg1)
     {
-        loadedTrack.obList[editionOb].rot = grot.transform.rotation;
+        loadedTrack.obList[editionOb].enabled = true;
+        loadedTrack.obList[editionOb].rot = arg1 * grot.HostRot0;
     }
 
+    /// <summary>
+    /// llamado cuando mientras se agarra el chirimbolo de rotación de obstáculos
+    /// </summary>
+    /// <param name="arg1"></param>
+    private void obRot(Quaternion arg1)
+    {
+        loadedTrack.obList[editionOb].enabled = false;
+        loadedTrack.obList[editionOb].transform.localRotation = arg1 * grot.HostRot0;
+    }
+
+    /// <summary>
+    /// llamado cuando se suelta el chirimbolo de translación de puntos de control
+    /// </summary>
+    /// <param name="arg1"></param>
     private void cpTrEnd(Vector3 arg1)
     {
         CelestialBody cuerpo = loadedTrack.cpList[editionCp].body;
@@ -1234,15 +1274,35 @@ public class RaceManager : MonoBehaviour
         loadedTrack.cpList[editionCp].pCoords = new Vector3((float)cuerpo.GetLatitude(cp.transform.position), (float)cuerpo.GetLongitude(cp.transform.position), (float)cuerpo.GetAltitude(cp.transform.position));
         loadedTrack.cpList[editionCp].enabled = true;
     }
+
+    /// <summary>
+    /// llamado mientras se agarra el chirimbolo de translación de puntos de control
+    /// </summary>
+    /// <param name="arg1"></param>
     private void cpTran(Vector3 arg1)
     {
         loadedTrack.cpList[editionCp].enabled = false;
         loadedTrack.cpList[editionCp].transform.position = gofs.transform.position;
     }
-    private void rotado(Quaternion arg1) { }
+
+    /// <summary>
+    /// llamado cuando se suelta el chirimbolo de rotación de puntos de control
+    /// </summary>
+    /// <param name="arg1"></param>
+    private void cpRotado(Quaternion arg1)
+    {
+        loadedTrack.cpList[editionCp].enabled = true;
+        loadedTrack.cpList[editionCp].rot = arg1 * grot.HostRot0;
+    }
+
+    /// <summary>
+    /// llamado mientras se agarra el chirimbolo de rotación de puntos de control
+    /// </summary>
+    /// <param name="arg1"></param>
     private void cpRot(Quaternion arg1)
     {
-        loadedTrack.cpList[editionCp].rot = grot.transform.rotation;
+        loadedTrack.cpList[editionCp].enabled = false;
+        loadedTrack.cpList[editionCp].transform.localRotation = arg1 * grot.HostRot0;
     }
 
     /// <summary>
