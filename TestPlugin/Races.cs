@@ -47,7 +47,10 @@ namespace Races
                 DontDestroyOnLoad(gameObject);
                 raceMod = this;
             }
-            else if (raceMod != this) Destroy(gameObject);
+            else if (raceMod != this)
+            {
+                Destroy(gameObject);
+            }
 
             Assembly ass = Assembly.GetExecutingAssembly();
             AssemblyName assName = ass.GetName();
@@ -83,12 +86,13 @@ namespace Races
         {
             if (data.from == GameScenes.FLIGHT)
             {
-                if (raceMan.grot != null) raceMan.grot.Detach();
-                if (raceMan.gofs != null) raceMan.gofs.Detach();
                 raceMan.lastLoadedTrack = raceMan.loadedTrack.toClon();
                 raceMan.cambiaEstado(RaceManager.estados.LoadScreen);
             }
-            if (data.to != GameScenes.FLIGHT) GUIoff();
+            if (data.to != GameScenes.FLIGHT)
+            {
+                GUIoff();
+            }
         }
 
         private void whatTheScene(GameScenes data)
@@ -97,15 +101,19 @@ namespace Races
             {
                 if (raceMan.lastLoadedTrack.bodyName == FlightGlobals.ActiveVessel.mainBody.name)
                 {
-                    if (raceMan.grot != null) raceMan.grot.Detach();
-                    if (raceMan.gofs != null) raceMan.gofs.Detach();
                     raceMan.LoadRaceTrack(raceMan.lastLoadedTrack); // Se supone que carga la ultima carrera que ha sido cargada cuando se vuelve a la escena de vuelo
                     raceMan.cambiaEstado(RaceManager.estados.LoadScreen);
                 }
-                else raceMan.newRaceTrack();
+                else
+                {
+                    raceMan.newRaceTrack();
+                }
                 GUIon();
             }
-            else GUIoff();
+            else
+            {
+                GUIoff();
+            }
         }
 
         private void appOff()
@@ -365,24 +373,15 @@ public class CheckPoint : MonoBehaviour
     void Awake()
     {
         //Donde está el buque en el momento de crear el punto de control
-
-        body = FlightGlobals.ActiveVessel.mainBody;
         pCoords = new Vector3((float)FlightGlobals.ActiveVessel.latitude, (float)FlightGlobals.ActiveVessel.longitude, (float)FlightGlobals.ActiveVessel.altitude);
-        rot = resetRot();
-
-        double vesselRotX = FlightGlobals.ActiveVessel.transform.rotation.eulerAngles.x - resetRot().eulerAngles.x;
-        double vesselRotY = FlightGlobals.ActiveVessel.transform.rotation.eulerAngles.y - resetRot().eulerAngles.y;
-        double vesselRotZ = FlightGlobals.ActiveVessel.transform.rotation.eulerAngles.z - resetRot().eulerAngles.z;
-
-        rotateRwp((float)vesselRotX, (float)vesselRotY, (float)vesselRotZ);
-
-        //rot = FlightGlobals.ActiveVessel.transform.rotation;
+        body = FlightGlobals.ActiveVessel.mainBody;
+        rot = FlightGlobals.ActiveVessel.transform.rotation;
         size = 0;
         wpColor = colorCheckP;
 
         //colisionador
         cpBoxTrigger.GetComponent<BoxCollider>().gameObject.AddComponent<colision>();
-        cpBoxTrigger.transform.parent = transform;
+        cpBoxTrigger.transform.parent = this.transform;
         cpBoxTrigger.GetComponent<BoxCollider>().isTrigger = true;
         cpBoxTrigger.transform.localScale = new Vector3(sizes[Size].y, sizes[Size].x + 0.2f, sizes[Size].z);
         cpBoxTrigger.GetComponent<BoxCollider>().enabled = false;
@@ -410,6 +409,7 @@ public class CheckPoint : MonoBehaviour
         cuLe.transform.localScale = new Vector3(sizes[Size].x, sizes[Size].x, sizes[Size].z - sizes[Size].x);
     }
 
+
     /// <summary>
     /// Coloca el punto de control. Todo el rato.
     /// </summary>
@@ -420,14 +420,17 @@ public class CheckPoint : MonoBehaviour
         {
             pCoords.z = (float)body.TerrainAltitude(pCoords.x, pCoords.y);
         }
-        if (pCoords.z > maxAlt) pCoords.z = maxAlt;
+
+        if (pCoords.z > maxAlt)
+        {
+            pCoords.z = maxAlt;
+        }
+
         //Como el origen del mundo se mueve con el buque, esto mantiene el punto de control en una posicion fija respecto al planeta.
         coords = body.GetWorldSurfacePosition(pCoords.x, pCoords.y, pCoords.z);
 
         transform.position = coords;
         transform.rotation = rot;
-        //rotar una cosa relativa a la rotacion de otra... y no da el resultado esperado
-        //transform.rotation = Quaternion.Inverse(rot) * body.transform.localRotation;
     }
 
     public void destroy()
@@ -473,6 +476,7 @@ public class CheckPoint : MonoBehaviour
         //http://answers.unity3d.com/questions/254130/how-do-i-rotate-an-object-towards-a-vector3-point.html
         Vector3 _direction = (body.position - transform.position).normalized;
         Quaternion _lookRotation = Quaternion.LookRotation(_direction);
+        rot = _lookRotation;
         return _lookRotation;
     }
 
@@ -726,7 +730,9 @@ public class RaceManager : MonoBehaviour
     public float trackLength;
     bool trackExist = false;
     ////tamaño, rotación y translación para los puntos de control, y para obstáculos
+    public float trax, tray, traz = 0;
     public int size = 0;
+    public float obtrax, obtray, obtraz;
     public float obScaleMinRatio = 0.1f;
     public float obScaleMaxRatio = 0.2f;
     ////Styles
@@ -990,7 +996,7 @@ public class RaceManager : MonoBehaviour
                     {
                         if (grot != null) grot.Detach();
                         if (gofs != null) gofs.Detach();
-                        loadedTrack.cpList[editionCp].resetRot();
+                        grot.transform.rotation = loadedTrack.cpList[editionCp].resetRot();
                     }
 
                     GUILayout.BeginHorizontal();
@@ -1007,8 +1013,7 @@ public class RaceManager : MonoBehaviour
                         {
                             Vector3 _direction = (loadedTrack.cpList[editionCp].body.position - transform.position).normalized;
                             gofs.transform.rotation = Quaternion.LookRotation(_direction);
-                        }
-                        else gofs.transform.rotation = loadedTrack.cpList[editionCp].rot;
+                        }else gofs.transform.rotation = loadedTrack.cpList[editionCp].rot;
                     }
                     GUILayout.EndHorizontal();
 
@@ -1145,7 +1150,7 @@ public class RaceManager : MonoBehaviour
                         if (gofs != null) gofs.Detach();
                         loadedTrack.obList[editionOb].resetRot();
                     }
-
+                    
                     GUILayout.BeginHorizontal();
                     GUILayout.Label("Translate");
                     bool abs = GUILayout.Button("Absolute");
@@ -1692,8 +1697,6 @@ public class RaceManager : MonoBehaviour
     /// <param name="num"></param>
     public void cambiaEditOb(int num)
     {
-        if (grot != null) grot.Detach();
-        if (gofs != null) gofs.Detach();
         if (loadedTrack.obList.Count > 0)
         {
             if (num < 0)
