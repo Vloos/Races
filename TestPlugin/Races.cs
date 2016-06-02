@@ -467,7 +467,7 @@ public class CheckPoint : MonoBehaviour
     /// </summary>
     public void rotateRwp()
     {
-        transform.rotation = resetRot();
+        rot = resetRot();
         rotateRwp(angleRot);
     }
 
@@ -519,10 +519,10 @@ public class CheckPoint : MonoBehaviour
         clon.pCoordsX = pCoords.x;
         clon.pCoordsY = pCoords.y;
         clon.pCoordsZ = pCoords.z;
-        clon.rotX = rot.x;
-        clon.rotY = rot.y;
-        clon.rotZ = rot.z;
-        clon.rotW = rot.w;
+        clon.rotX = angleRot.x;
+        clon.rotY = angleRot.y;
+        clon.rotZ = angleRot.z;
+        //clon.rotW = rot.w;
 
         return clon;
     }
@@ -530,7 +530,8 @@ public class CheckPoint : MonoBehaviour
     public void fromClon(CheckPointClon clon)
     {
         pCoords = new Vector3(clon.pCoordsX, clon.pCoordsY, clon.pCoordsZ);
-        rot = new Quaternion(clon.rotX, clon.rotY, clon.rotZ, clon.rotW);
+        //rot = new Quaternion(clon.rotX, clon.rotY, clon.rotZ, clon.rotW);
+        angleRot = new Vector3(clon.rotX, clon.rotY, clon.rotZ);
         Size = clon.size;
     }
 }
@@ -646,6 +647,10 @@ public class LoadedTrack
         {
             CheckPoint cp = new GameObject().AddComponent<CheckPoint>();
             cp.fromClon(cpClon);
+            Debug.Log("anglerot "+cp.angleRot);
+            //cp.rot = cp.resetRot();
+            cp.rotateRwp();
+            Debug.Log("euler despues de rotar" + cp.rot.eulerAngles);
             cp.cpBoxTrigger.GetComponent<BoxCollider>().name = "cp" + cpList.Count;
             cpList.Add(cp);
 
