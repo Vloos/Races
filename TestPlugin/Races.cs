@@ -153,6 +153,7 @@ public class CheckPoint : MonoBehaviour
     public Vector3 pCoords; //posición del marcador en lon lat alt
     private Vector3 coords;
     public Quaternion rot;  //rotación marcador
+    public Vector3 angleRot; //rotación, en grados euler, del punto de cotrol. Aquí se guardan despues de restar a cada uno el resultado de resetrwp
     public static int maxAlt = 50000;
     public GameObject cpBoxTrigger = GameObject.CreatePrimitive(PrimitiveType.Cube); //Esto detecta el buque pasar, para validar el punto de control
     private bool solid;
@@ -169,10 +170,11 @@ public class CheckPoint : MonoBehaviour
     public static Material pasado = new Material(Shader.Find("Transparent/Diffuse"));
     public static Material listo = new Material(Shader.Find("KSP/Emissive/Diffuse"));
     public static Dictionary<int, Vector3> sizes = new Dictionary<int, Vector3>() {
-        {0, new Vector3(2f, 32f, 18f)}, //Grosor de la linea, ancho del rectángulo, alto del rectángulo
-        {1, new Vector3(3f, 48f, 27f)},
-        {2, new Vector3(4F, 64f, 36f)},
-        {3, new Vector3(5F, 80f, 45f)}
+        {0, new Vector3(1f, 16f, 9f)}, //Grosor de la linea, ancho del rectángulo, alto del rectángulo
+        {1, new Vector3(2f, 32f, 18f)},
+        {2, new Vector3(3f, 48f, 27f)},
+        {3, new Vector3(4F, 64f, 36f)},
+        {4, new Vector3(5F, 80f, 45f)}
     };
 
     /// <summary>
@@ -365,18 +367,8 @@ public class CheckPoint : MonoBehaviour
     void Awake()
     {
         //Donde está el buque en el momento de crear el punto de control
-
         body = FlightGlobals.ActiveVessel.mainBody;
         pCoords = new Vector3((float)FlightGlobals.ActiveVessel.latitude, (float)FlightGlobals.ActiveVessel.longitude, (float)FlightGlobals.ActiveVessel.altitude);
-        rot = resetRot();
-
-        double vesselRotX = FlightGlobals.ActiveVessel.transform.rotation.eulerAngles.x - resetRot().eulerAngles.x;
-        double vesselRotY = FlightGlobals.ActiveVessel.transform.rotation.eulerAngles.y - resetRot().eulerAngles.y;
-        double vesselRotZ = FlightGlobals.ActiveVessel.transform.rotation.eulerAngles.z - resetRot().eulerAngles.z;
-
-        rotateRwp((float)vesselRotX, (float)vesselRotY, (float)vesselRotZ);
-
-        //rot = FlightGlobals.ActiveVessel.transform.rotation;
         size = 0;
         wpColor = colorCheckP;
 
@@ -408,6 +400,21 @@ public class CheckPoint : MonoBehaviour
         cuDown.transform.localScale = new Vector3(sizes[Size].y + sizes[Size].x, sizes[Size].x, sizes[Size].x);
         cuRi.transform.localScale = new Vector3(sizes[Size].x, sizes[Size].x, sizes[Size].z - sizes[Size].x);
         cuLe.transform.localScale = new Vector3(sizes[Size].x, sizes[Size].x, sizes[Size].z - sizes[Size].x);
+
+        if (pCoords.z - body.TerrainAltitude(pCoords.x, pCoords.y) <= 0) pCoords.z = (float)body.TerrainAltitude(pCoords.x, pCoords.y);
+        if (pCoords.z > maxAlt) pCoords.z = maxAlt;
+        coords = body.GetWorldSurfacePosition(pCoords.x, pCoords.y, pCoords.z);
+        rot = resetRot();
+        transform.position = coords;
+        transform.rotation = rot;
+
+        //Esto es para que el punto de control tome la rotación del buque
+        double vesselRotX = FlightGlobals.ActiveVessel.transform.rotation.eulerAngles.x;
+        double vesselRotY = FlightGlobals.ActiveVessel.transform.rotation.eulerAngles.y;
+        double vesselRotZ = FlightGlobals.ActiveVessel.transform.rotation.eulerAngles.z;
+        angleRot = new Vector3((float)vesselRotX - rot.eulerAngles.x, (float)vesselRotY - rot.eulerAngles.y, (float)vesselRotZ - rot.eulerAngles.z);
+        //rotateRwp(angleRot.x, angleRot.y, angleRot.z);
+        rotateRwp();
     }
 
     /// <summary>
@@ -426,8 +433,6 @@ public class CheckPoint : MonoBehaviour
 
         transform.position = coords;
         transform.rotation = rot;
-        //rotar una cosa relativa a la rotacion de otra... y no da el resultado esperado
-        //transform.rotation = Quaternion.Inverse(rot) * body.transform.localRotation;
     }
 
     public void destroy()
@@ -450,6 +455,20 @@ public class CheckPoint : MonoBehaviour
     public void rotateRwp(float xAngle, float yAngle, float zAngle)
     {
         rot *= Quaternion.Euler(xAngle, yAngle, zAngle);
+    }
+
+    public void rotateRwp(Vector3 angles)
+    {
+        rotateRwp(angles.x, angles.y, angles.z);
+    }
+
+    /// <summary>
+    /// Reinicia la rotación del punto de control y luego lo rota segun lo que sea angleRot
+    /// </summary>
+    public void rotateRwp()
+    {
+        transform.rotation = resetRot();
+        rotateRwp(angleRot);
     }
 
     /// <summary>
@@ -990,7 +1009,7 @@ public class RaceManager : MonoBehaviour
                     {
                         if (grot != null) grot.Detach();
                         if (gofs != null) gofs.Detach();
-                        loadedTrack.cpList[editionCp].resetRot();
+                        loadedTrack.cpList[editionCp].rot = loadedTrack.cpList[editionCp].resetRot();
                     }
 
                     GUILayout.BeginHorizontal();
@@ -1286,8 +1305,13 @@ public class RaceManager : MonoBehaviour
     /// <param name="arg1"></param>
     private void cpRotado(Quaternion arg1)
     {
-        loadedTrack.cpList[editionCp].enabled = true;
-        loadedTrack.cpList[editionCp].rot = arg1 * grot.HostRot0;
+        CheckPoint cp = loadedTrack.cpList[editionCp];
+        cp.rot = arg1 * grot.HostRot0;
+        Quaternion reset = cp.resetRot();
+        cp.angleRot = new Vector3(cp.rot.eulerAngles.x - reset.eulerAngles.x, cp.rot.eulerAngles.y - reset.eulerAngles.y, cp.rot.eulerAngles.z - reset.eulerAngles.z);
+        //reinicia la rotación y rota el punto de control hasta la rotación rotada anteriormente. Totalmente innecesario. Para pruebas
+        //cp.rot = reset;
+        //cp.rotateRwp();
     }
 
     /// <summary>
@@ -1296,8 +1320,7 @@ public class RaceManager : MonoBehaviour
     /// <param name="arg1"></param>
     private void cpRot(Quaternion arg1)
     {
-        loadedTrack.cpList[editionCp].enabled = false;
-        loadedTrack.cpList[editionCp].transform.localRotation = arg1 * grot.HostRot0;
+        loadedTrack.cpList[editionCp].rot = arg1 * grot.HostRot0;
     }
 
     /// <summary>
@@ -1364,7 +1387,7 @@ public class RaceManager : MonoBehaviour
         {
             Vector3d mousePos = mousePosition();
             cp.pCoords = new Vector3((float)cp.body.GetLatitude(mousePos), (float)cp.body.GetLongitude(mousePos), (float)cp.body.GetAltitude(mousePos));
-            cp.resetRot();
+            cp.rot =  cp.resetRot();
         }
         loadedTrack.cpList.Add(cp);
         cambiaEditCp(loadedTrack.cpList.Count - 1);
