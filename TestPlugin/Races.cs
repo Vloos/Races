@@ -156,8 +156,7 @@ public class CheckPoint : MonoBehaviour
     public Vector3 angleRot; //rotación, en grados euler, del punto de cotrol. Aquí se guardan despues de restar a cada uno el resultado de resetrwp
     public static int maxAlt = 50000;
     public GameObject cpBoxTrigger = GameObject.CreatePrimitive(PrimitiveType.Cube); //Esto detecta el buque pasar, para validar el punto de control
-    private bool solid;
-    private bool penalization;
+    private bool solid, penalization;
     private int size;
     private Color wpColor;
     public Qub cuUp, cuDown, cuLe, cuRi;
@@ -537,12 +536,8 @@ public class CheckPoint : MonoBehaviour
 
 public class LoadedTrack
 {
-    public string bodyName;
-    public string name;
-    public string author;
-    public string trackKey;
+    public string bodyName, name, author, trackKey;
     public float trackTime;
-
     private static int maxRaceWaypoints { get; } = 30; //cantidad máxima de puntos de control de una carrera, por si sirve para algo.
     public int laps;
     public List<CheckPoint> cpList = new List<CheckPoint>();
@@ -583,30 +578,12 @@ public class LoadedTrack
     [Serializable]
     public class RaceClon
     {
-        public string bodyName;
-        public string name;
-        public string author;
+        public string bodyName, name, author;
         public int laps;
         public float lenght;
         public string key;
         public CheckPoint.CheckPointClon[] cpList;
         public Obstacle.ObsClon[] obList;
-    }
-
-    [Serializable]
-    public class CheckPointClon
-    {
-        public string body;  //¿Conmo convertir un string a un celestialbody?
-        public int size;
-        //posición del marcador lon lat alt
-        public float pCoordsX;
-        public float pCoordsY;
-        public float pCoordsZ;
-        //rotación del marcador pitch roll yaw ¿w?
-        public float rotX;
-        public float rotY;
-        public float rotZ;
-        public float rotW;
     }
 
     public RaceClon toClon()
@@ -649,7 +626,6 @@ public class LoadedTrack
             cp.rotateRwp();
             cp.cpBoxTrigger.GetComponent<BoxCollider>().name = "cp" + cpList.Count;
             cpList.Add(cp);
-
         }
         foreach (Obstacle.ObsClon obClon in clon.obList)
         {
@@ -680,14 +656,12 @@ public class keyGenData
 /// </summary>
 public class RaceManager : MonoBehaviour
 {
-
     public static RaceManager raceManager;
     public enum estados { LoadScreen, EditScreen, RaceScreen, EndScreen, ObsScreen, Test };
     public estados estadoAct = estados.LoadScreen;
     public List<LoadedTrack.RaceClon> raceList = new List<LoadedTrack.RaceClon>(); //Lista de carreras disponibles en el directorio
     public LoadedTrack loadedTrack = new LoadedTrack();  //Carrera que se va a usar para correr o editar.
-    private int editionCp = 0;
-    private int editionOb = 0;
+    private int editionCp, editionOb = 0;
     public LoadedTrack.RaceClon lastLoadedTrack = new LoadedTrack.RaceClon(); //Esto valdrá (supongo) para cargar de nuevo un circuito al volver a la escena de vuelo
     public Dictionary<string, float> records = new Dictionary<string, float>() { { "0", 0 } };
     public EditorGizmos.GizmoRotate grot;
@@ -695,22 +669,16 @@ public class RaceManager : MonoBehaviour
 
     //Carrera
     public bool enCarrera = false;
-    public int pActivo;
-    public int curLap;
-    public double tiempoIni = 0d;
-    public double tiempoTot = 0d;
-    public double tiempoAct = 0d;
-    public double penTime = 0d;
+    public int pActivo, curLap;
+    public double tiempoIni, tiempoTot, tiempoAct, penTime = 0d;
 
     //GUI
-    public bool guiAct;
-    public bool appAct;
+    public bool guiAct, appAct;
     public Rect guiBox = new Rect();
     public string guiRaceName, guiRaceAuth;
     public Vector2 scrollRaceList = Vector2.zero;
     public float trackLength;
     bool trackExist = false;
-    ////tamaño, rotación y translación para los puntos de control, y para obstáculos
     public int size = 0;
     public float obScaleMinRatio = 0.1f;
     public float obScaleMaxRatio = 0.2f;
@@ -721,6 +689,8 @@ public class RaceManager : MonoBehaviour
     public float nameTextWidth = 150f;
     public float cardLabelWidth = 35f;
     public float obScaleInfoLabelWidth = 27;
+
+    public bool saving = false;
 
     void Awake()
     {
@@ -837,6 +807,7 @@ public class RaceManager : MonoBehaviour
 
     public void windowFuction(int id)
     {
+        GUILayout.Label(saving.ToString());
         GUILayout.Label(loadedTrack.trackKey);
         switch (estadoAct)
         {
@@ -1395,6 +1366,31 @@ public class RaceManager : MonoBehaviour
     }
 
     /// <summary>
+    /// Code by ChrisW -> http://stackoverflow.com/questions/876473/is-there-a-way-to-check-if-a-file-is-in-use
+    /// </summary>
+    protected virtual bool IsFileLocked(FileInfo file)
+    {
+        FileStream stream = null;
+
+        try
+        {
+            stream = file.Open(FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+        }
+        catch (IOException)
+        {
+            return true;
+        }
+        finally
+        {
+            if (stream != null)
+                stream.Close();
+        }
+
+        //file is not locked
+        return false;
+    }
+
+    /// <summary>
     /// Un trozo de interfaz que muestra la confirmación de guardado de circuito cuando el nombre del circuito ya existe
     /// </summary>
     public void saveDialog()
@@ -1419,10 +1415,18 @@ public class RaceManager : MonoBehaviour
             GUILayout.Label("Already exist");
             if (GUILayout.Button("Overwrite"))
             {
-                SaveRaceTrack();
-                raceList.Clear();
-                GetRacetrackList();
-                trackExist = false;
+                FileInfo file = new FileInfo(Races.Races.RaceTrackFolder + RemoveSpecialCharacters(loadedTrack.name) + Races.Races.RaceTrackFileExtension);
+                if (!IsFileLocked(file))
+                {
+                    SaveRaceTrack();
+                    raceList.Clear();
+                    GetRacetrackList();
+                    trackExist = false;
+                }
+                else
+                {
+                    Debug.LogWarning("[Races!] bussy");
+                }
             }
             if (GUILayout.Button("Cancel")) trackExist = false;
             GUILayout.EndHorizontal();
