@@ -59,5 +59,25 @@ namespace Races.Properties {
                 resourceCulture = value;
             }
         }
+        
+        /// <summary>
+        ///   Busca un recurso adaptado de tipo System.Byte[].
+        /// </summary>
+        internal static byte[] MiniAVC {
+            get {
+                object obj = ResourceManager.GetObject("MiniAVC", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Busca un recurso adaptado de tipo System.Byte[].
+        /// </summary>
+        internal static byte[] Races_ {
+            get {
+                object obj = ResourceManager.GetObject("Races_", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
     }
 }
