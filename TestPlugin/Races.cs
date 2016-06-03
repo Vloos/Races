@@ -521,7 +521,7 @@ public class CheckPoint : MonoBehaviour
         clon.rotX = angleRot.x;
         clon.rotY = angleRot.y;
         clon.rotZ = angleRot.z;
-        //clon.rotW = rot.w;
+        //clon.rotW = null;
 
         return clon;
     }
@@ -661,41 +661,6 @@ public class LoadedTrack
     }
 }
 
-/// <summary>
-/// Esto dejará de usarse
-/// </summary>
-[Serializable]
-public class RaceClon
-{
-    public string bodyName;
-    public string name;
-    public string author;
-    public int laps;
-    public float lenght;
-    public string key;
-    public CheckPointClon[] cpList;
-    public Obstacle.ObsClon[] obList;
-}
-
-/// <summary>
-/// Esto dejará de usarse
-/// </summary>
-[Serializable]
-public class CheckPointClon
-{
-    public string body;  //¿Conmo convertir un string a un celestialbody?
-    public int size;
-    //posición del marcador lon lat alt
-    public float pCoordsX;
-    public float pCoordsY;
-    public float pCoordsZ;
-    //rotación del marcador pitch roll yaw ¿w?
-    public float rotX;
-    public float rotY;
-    public float rotZ;
-    public float rotW;
-}
-
 [Serializable]
 public class Records
 {
@@ -720,7 +685,6 @@ public class RaceManager : MonoBehaviour
     public enum estados { LoadScreen, EditScreen, RaceScreen, EndScreen, ObsScreen, Test };
     public estados estadoAct = estados.LoadScreen;
     public List<LoadedTrack.RaceClon> raceList = new List<LoadedTrack.RaceClon>(); //Lista de carreras disponibles en el directorio
-    public List<RaceClon> oldRaces = new List<RaceClon>(); //Lista de carreras disponibles en el directorio
     public LoadedTrack loadedTrack = new LoadedTrack();  //Carrera que se va a usar para correr o editar.
     private int editionCp = 0;
     private int editionOb = 0;
@@ -1032,25 +996,22 @@ public class RaceManager : MonoBehaviour
                         else gofs.transform.rotation = loadedTrack.cpList[editionCp].rot;
                     }
                     GUILayout.EndHorizontal();
-
+                    if (GUILayout.Button("Send to floor"))
+                    {
+                        if (grot != null) grot.Detach();
+                        if (gofs != null) gofs.Detach();
+                        CheckPoint theCp = loadedTrack.cpList[editionCp];
+                        theCp.pCoords.z = (float)theCp.body.TerrainAltitude(theCp.pCoords.x, theCp.pCoords.y);
+                    }
                     if (GUILayout.Button("Hide gizmo"))
                     {
                         if (grot != null) grot.Detach();
                         if (gofs != null) gofs.Detach();
                     }
-                    if (GUILayout.Button("Send to floor"))
-                    {
-                        CheckPoint theCp = loadedTrack.cpList[editionCp];
-                        theCp.pCoords.z = (float)theCp.body.TerrainAltitude(theCp.pCoords.x, theCp.pCoords.y);
-                    }
+
                     GUILayout.EndVertical();
                 }
                 GUILayout.EndHorizontal();
-
-                if (Input.GetMouseButtonUp(0))
-                {
-                    mousePosition();
-                }
 
                 break;
             case estados.RaceScreen:
@@ -1198,6 +1159,8 @@ public class RaceManager : MonoBehaviour
 
                     if (GUILayout.Button("Send to floor"))
                     {
+                        if (grot != null) grot.Detach();
+                        if (gofs != null) gofs.Detach();
                         Obstacle theOb = loadedTrack.obList[editionOb];
                         theOb.pCoords.z = (float)theOb.body.TerrainAltitude(theOb.pCoords.x, theOb.pCoords.y);
                     }
@@ -1292,7 +1255,7 @@ public class RaceManager : MonoBehaviour
     /// </summary>
     /// <param name="arg1"></param>
     private void obRot(Quaternion arg1)
-    {        
+    {
         loadedTrack.obList[editionOb].rot = arg1 * grot.HostRot0;
     }
 
@@ -1406,7 +1369,7 @@ public class RaceManager : MonoBehaviour
         {
             Vector3d mousePos = mousePosition();
             cp.pCoords = new Vector3((float)cp.body.GetLatitude(mousePos), (float)cp.body.GetLongitude(mousePos), (float)cp.body.GetAltitude(mousePos));
-            cp.rot =  cp.resetRot();
+            cp.rot = cp.resetRot();
         }
         loadedTrack.cpList.Add(cp);
         cambiaEditCp(loadedTrack.cpList.Count - 1);
@@ -1517,7 +1480,6 @@ public class RaceManager : MonoBehaviour
         var info = new DirectoryInfo(Races.Races.RaceTrackFolder);
         var fileInfo = info.GetFiles("*" + Races.Races.RaceTrackFileExtension, SearchOption.TopDirectoryOnly);
         Debug.Log(fileInfo.Length + " Race Tracks found");
-        oldRaces.Clear();
 
         foreach (var file in fileInfo)
         {
@@ -1528,49 +1490,16 @@ public class RaceManager : MonoBehaviour
                 var stream = bf.Deserialize(fileStream);
                 LoadedTrack.RaceClon race = stream as LoadedTrack.RaceClon;
 
-                if (race == null)
+                if (race != null)
                 {
-                    RaceClon oldRace = stream as RaceClon;
-                    if (oldRace != null) oldRaces.Add(oldRace);
+                    raceList.Add(race);
                 }
-                else raceList.Add(race);
             }
             catch (Exception)
             {
                 Debug.LogError("Something went wrong");
             }
         }
-        if (oldRaces.Count > 0)
-        {
-            Debug.Log("Convertir " + oldRaces.Count);
-            foreach (RaceClon clon in oldRaces)
-            {
-                LoadedTrack.RaceClon race = new LoadedTrack.RaceClon();
-                race.author = clon.author;
-                race.bodyName = clon.bodyName;
-                race.cpList = new CheckPoint.CheckPointClon[clon.cpList.Length];
-                for (int i = 0; i < clon.cpList.Length; i++)
-                {
-                    race.cpList[i] = new CheckPoint.CheckPointClon();
-                    race.cpList[i].body = clon.cpList[i].body;
-                    race.cpList[i].pCoordsX = clon.cpList[i].pCoordsX;
-                    race.cpList[i].pCoordsY = clon.cpList[i].pCoordsY;
-                    race.cpList[i].pCoordsZ = clon.cpList[i].pCoordsZ;
-                    race.cpList[i].rotW = clon.cpList[i].rotW;
-                    race.cpList[i].rotX = clon.cpList[i].rotX;
-                    race.cpList[i].rotY = clon.cpList[i].rotY;
-                    race.cpList[i].rotZ = clon.cpList[i].rotZ;
-                    race.cpList[i].size = clon.cpList[i].size;
-                }
-                race.key = clon.key;
-                race.laps = clon.laps;
-                race.lenght = clon.lenght;
-                race.name = clon.name;
-                race.obList = clon.obList;
-                raceList.Add(race);
-            }
-        }
-
         //y tambien se carga el archivo de tiempos
         loadRecordFile();
     }
@@ -1905,7 +1834,7 @@ public class RaceManager : MonoBehaviour
             cpClon.rotX = loadedTrack.cpList[i].rot.x;
             cpClon.rotY = loadedTrack.cpList[i].rot.y;
             cpClon.rotZ = loadedTrack.cpList[i].rot.z;
-            cpClon.rotW = loadedTrack.cpList[i].rot.w;
+            //cpClon.rotW = loadedTrack.cpList[i].rot.w;
             data.cpList[i] = cpClon;
         }
         data.laps = loadedTrack.laps;
@@ -2023,7 +1952,7 @@ public class Obstacle : MonoBehaviour
         Solid = false;
         pCoords = new Vector3((float)FlightGlobals.ActiveVessel.latitude, (float)FlightGlobals.ActiveVessel.longitude, (float)FlightGlobals.ActiveVessel.altitude);
         body = FlightGlobals.ActiveVessel.mainBody;
-        
+
         if (pCoords.z - body.TerrainAltitude(pCoords.x, pCoords.y) <= 0) pCoords.z = (float)body.TerrainAltitude(pCoords.x, pCoords.y);
         if (pCoords.z > maxAlt) pCoords.z = maxAlt;
         coords = body.GetWorldSurfacePosition(pCoords.x, pCoords.y, pCoords.z);
