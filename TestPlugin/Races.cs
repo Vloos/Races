@@ -1256,6 +1256,7 @@ public class RaceManager : MonoBehaviour
     /// <param name="arg1"></param>
     private void obRot(Quaternion arg1)
     {
+        if (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.LeftCommand)) grot.useAngleSnap = false; else grot.useAngleSnap = true;
         loadedTrack.obList[editionOb].rot = arg1 * grot.HostRot0;
     }
 
@@ -1302,6 +1303,7 @@ public class RaceManager : MonoBehaviour
     /// <param name="arg1"></param>
     private void cpRot(Quaternion arg1)
     {
+        if (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.LeftCommand)) grot.useAngleSnap = false; else grot.useAngleSnap = true;
         loadedTrack.cpList[editionCp].rot = arg1 * grot.HostRot0;
     }
 
@@ -1422,7 +1424,6 @@ public class RaceManager : MonoBehaviour
                 raceList.Clear();
                 GetRacetrackList();
                 trackExist = false;
-                Debug.Log(GUI.GetNameOfFocusedControl());
             }
             if (GUILayout.Button("Cancel")) trackExist = false;
             GUILayout.EndHorizontal();
@@ -1658,7 +1659,7 @@ public class RaceManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Cambia el color de los obstaculos para indicar el que se está editando
+    /// Cambia el color de los obstáculos para indicar el que se está editando
     /// </summary>
     /// <param name="num"></param>
     public void cambiaEditOb(int num)
@@ -1790,7 +1791,6 @@ public class RaceManager : MonoBehaviour
         {
             Debug.LogError("Something went wrong saving records.dat");
         }
-
     }
 
     /// <summary>
@@ -1831,10 +1831,9 @@ public class RaceManager : MonoBehaviour
             cpClon.pCoordsX = loadedTrack.cpList[i].pCoords.x;
             cpClon.pCoordsY = loadedTrack.cpList[i].pCoords.y;
             cpClon.pCoordsZ = loadedTrack.cpList[i].pCoords.z;
-            cpClon.rotX = loadedTrack.cpList[i].rot.x;
-            cpClon.rotY = loadedTrack.cpList[i].rot.y;
-            cpClon.rotZ = loadedTrack.cpList[i].rot.z;
-            //cpClon.rotW = loadedTrack.cpList[i].rot.w;
+            cpClon.rotX = loadedTrack.cpList[i].angleRot.x;
+            cpClon.rotY = loadedTrack.cpList[i].angleRot.y;
+            cpClon.rotZ = loadedTrack.cpList[i].angleRot.z;
             data.cpList[i] = cpClon;
         }
         data.laps = loadedTrack.laps;
@@ -2047,7 +2046,7 @@ public class Obstacle : MonoBehaviour
     {
         public string body;
         public float pCoordsx, pCoordsy, pCoordsz;
-        public float rotx, roty, rotz, rotw;
+        public float rotx, roty, rotz, rotw; //si quito rotw aparecen problemas
         public float scalex, scaley, scalez;
         public bool solid;
     }
@@ -2066,7 +2065,6 @@ public class Obstacle : MonoBehaviour
         clon.rotx = angleRot.x;
         clon.roty = angleRot.y;
         clon.rotz = angleRot.z;
-        //clon.rotw = rot.w;
         clon.scalex = cube.transform.localScale.x;
         clon.scaley = cube.transform.localScale.y;
         clon.scalez = cube.transform.localScale.z;
@@ -2081,7 +2079,6 @@ public class Obstacle : MonoBehaviour
     public void fromClon(ObsClon clon)
     {
         pCoords = new Vector3(clon.pCoordsx, clon.pCoordsy, clon.pCoordsz);
-        //rot = new Quaternion(clon.rotx, clon.roty, clon.rotz, clon.rotw);
         angleRot = new Vector3(clon.rotx, clon.roty, clon.rotz);
         cube.transform.localScale = new Vector3(clon.scalex, clon.scaley, clon.scalez);
         Solid = clon.solid;
