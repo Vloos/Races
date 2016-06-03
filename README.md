@@ -3,6 +3,14 @@ Pequeño mod para Kerbal Space Program en el que se pueden crear circuitos, colo
 
 ## Historial de cambios
 
+* 0.0.8-alpha
+ * Los puntos de control y los obstáculos se pueden mover y rotar con chirimbolos (también conocidos como "guizmos").
+ * De pronto ha aparecido un botón en las ventanas de edición de puntos de control y obstáculos que devuelve el punto de control u obstáculo al suelo.
+ * Arreglado un problema (eso espero) que hacía que tanto los puntos de control como los obstáculos perdieran su orientación con respecto al suelo cuando se revertía el vuelo.
+ * Odio los cuaternios
+ * He añadido el MiniAVC
+ * Los circuitos guardados antes de la versión 0.0.7-alpha ya no son compatibles (utiliza la versión 0.0.7-alpha para convertirlos)
+
 * 0.0.7-alpha
  * Cambio algunos deslizadores por botones, para precisión suprema.
  * Se podrán colocar puntos de control y obstaculos con el raton pulsando Control Derecho y Boton Izquierdo del Ratón. Si la cámara está a demasiada altura puede que aparezcan en el aire.
