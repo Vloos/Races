@@ -618,7 +618,7 @@ public class LoadedTrack
         clon.author = author;
         clon.laps = laps;
         clon.lenght = trackLength;
-        clon.key = trackKey;
+        clon.key = Races.Races.raceMan.genTrackKey();
         clon.cpList = new CheckPoint.CheckPointClon[cpList.Count];
         clon.obList = new Obstacle.ObsClon[obList.Count];
 
@@ -631,8 +631,8 @@ public class LoadedTrack
         {
             clon.obList[i] = obList[i].toClon();
         }
-        return clon;
 
+        return clon;
     }
 
     public void fromClon(RaceClon clon)
@@ -837,6 +837,7 @@ public class RaceManager : MonoBehaviour
 
     public void windowFuction(int id)
     {
+        GUILayout.Label(loadedTrack.trackKey);
         switch (estadoAct)
         {
             case estados.LoadScreen:
@@ -1008,11 +1009,9 @@ public class RaceManager : MonoBehaviour
                         if (grot != null) grot.Detach();
                         if (gofs != null) gofs.Detach();
                     }
-
                     GUILayout.EndVertical();
                 }
                 GUILayout.EndHorizontal();
-
                 break;
             case estados.RaceScreen:
                 GUILayout.Label(loadedTrack.name + " by " + loadedTrack.author);
@@ -1090,7 +1089,7 @@ public class RaceManager : MonoBehaviour
 
                 saveDialog();
 
-                if (GUILayout.Button("Clear Obstacles"))
+                if (loadedTrack.obList.Count > 0 && GUILayout.Button("Clear Obstacles"))
                 {
                     foreach (Obstacle obs in loadedTrack.obList)
                     {
@@ -1452,7 +1451,7 @@ public class RaceManager : MonoBehaviour
         }
         catch (Exception)
         {
-            Debug.LogError("Something went wrong saving the track file");
+            Debug.LogError("[Races!] Something went wrong saving the track file");
         }
     }
 
@@ -1498,7 +1497,7 @@ public class RaceManager : MonoBehaviour
             }
             catch (Exception)
             {
-                Debug.LogError("Something went wrong");
+                Debug.LogError("[Races!] Something went wrong");
             }
         }
         //y tambien se carga el archivo de tiempos
@@ -1789,7 +1788,7 @@ public class RaceManager : MonoBehaviour
         }
         catch (Exception)
         {
-            Debug.LogError("Something went wrong saving records.dat");
+            Debug.LogError("[Races!] Something went wrong saving records.dat");
         }
     }
 
@@ -1837,7 +1836,7 @@ public class RaceManager : MonoBehaviour
             data.cpList[i] = cpClon;
         }
         data.laps = loadedTrack.laps;
-        return MD5Hash(data);
+        return loadedTrack.trackKey = MD5Hash(data);
     }
 
     /// <summary>
