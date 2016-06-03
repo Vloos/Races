@@ -413,7 +413,6 @@ public class CheckPoint : MonoBehaviour
         double vesselRotY = FlightGlobals.ActiveVessel.transform.rotation.eulerAngles.y;
         double vesselRotZ = FlightGlobals.ActiveVessel.transform.rotation.eulerAngles.z;
         angleRot = new Vector3((float)vesselRotX - rot.eulerAngles.x, (float)vesselRotY - rot.eulerAngles.y, (float)vesselRotZ - rot.eulerAngles.z);
-        //rotateRwp(angleRot.x, angleRot.y, angleRot.z);
         rotateRwp();
     }
 
@@ -647,10 +646,7 @@ public class LoadedTrack
         {
             CheckPoint cp = new GameObject().AddComponent<CheckPoint>();
             cp.fromClon(cpClon);
-            Debug.Log("anglerot "+cp.angleRot);
-            //cp.rot = cp.resetRot();
             cp.rotateRwp();
-            Debug.Log("euler despues de rotar" + cp.rot.eulerAngles);
             cp.cpBoxTrigger.GetComponent<BoxCollider>().name = "cp" + cpList.Count;
             cpList.Add(cp);
 
@@ -659,6 +655,7 @@ public class LoadedTrack
         {
             Obstacle ob = new GameObject().AddComponent<Obstacle>();
             ob.fromClon(obClon);
+            ob.rotateOb();
             obList.Add(ob);
         }
     }
@@ -1041,10 +1038,20 @@ public class RaceManager : MonoBehaviour
                         if (grot != null) grot.Detach();
                         if (gofs != null) gofs.Detach();
                     }
-
+                    if (GUILayout.Button("Send to floor"))
+                    {
+                        CheckPoint theCp = loadedTrack.cpList[editionCp];
+                        theCp.pCoords.z = (float)theCp.body.TerrainAltitude(theCp.pCoords.x, theCp.pCoords.y);
+                    }
                     GUILayout.EndVertical();
                 }
                 GUILayout.EndHorizontal();
+
+                if (Input.GetMouseButtonUp(0))
+                {
+                    mousePosition();
+                }
+
                 break;
             case estados.RaceScreen:
                 GUILayout.Label(loadedTrack.name + " by " + loadedTrack.author);
@@ -1167,7 +1174,7 @@ public class RaceManager : MonoBehaviour
                     {
                         if (grot != null) grot.Detach();
                         if (gofs != null) gofs.Detach();
-                        loadedTrack.obList[editionOb].resetRot();
+                        loadedTrack.obList[editionOb].rot = loadedTrack.obList[editionOb].resetRot();
                     }
 
                     GUILayout.BeginHorizontal();
@@ -1187,6 +1194,12 @@ public class RaceManager : MonoBehaviour
                             gofs.transform.rotation = Quaternion.LookRotation(_direction);
                         }
                         else gofs.transform.rotation = loadedTrack.obList[editionOb].rot;
+                    }
+
+                    if (GUILayout.Button("Send to floor"))
+                    {
+                        Obstacle theOb = loadedTrack.obList[editionOb];
+                        theOb.pCoords.z = (float)theOb.body.TerrainAltitude(theOb.pCoords.x, theOb.pCoords.y);
                     }
 
                     if (GUILayout.Button("Hide gizmo"))
@@ -1268,8 +1281,10 @@ public class RaceManager : MonoBehaviour
     /// <param name="arg1"></param>
     private void obRotado(Quaternion arg1)
     {
-        loadedTrack.obList[editionOb].enabled = true;
-        loadedTrack.obList[editionOb].rot = arg1 * grot.HostRot0;
+        Obstacle ob = loadedTrack.obList[editionOb];
+        ob.rot = arg1 * grot.HostRot0;
+        Quaternion reset = ob.resetRot();
+        ob.angleRot = new Vector3(ob.rot.eulerAngles.x - reset.eulerAngles.x, ob.rot.eulerAngles.y - reset.eulerAngles.y, ob.rot.eulerAngles.z - reset.eulerAngles.z);
     }
 
     /// <summary>
@@ -1277,9 +1292,8 @@ public class RaceManager : MonoBehaviour
     /// </summary>
     /// <param name="arg1"></param>
     private void obRot(Quaternion arg1)
-    {
-        loadedTrack.obList[editionOb].enabled = false;
-        loadedTrack.obList[editionOb].transform.localRotation = arg1 * grot.HostRot0;
+    {        
+        loadedTrack.obList[editionOb].rot = arg1 * grot.HostRot0;
     }
 
     /// <summary>
@@ -1411,7 +1425,7 @@ public class RaceManager : MonoBehaviour
             Vector3d mousePos = mousePosition();
             obs.pCoords = new Vector3((float)obs.body.GetLatitude(mousePos), (float)obs.body.GetLongitude(mousePos), (float)obs.body.GetAltitude(mousePos));
         }
-        obs.resetRot();
+        obs.rot = obs.resetRot();
         loadedTrack.obList.Add(obs);
         cambiaEditOb(loadedTrack.obList.Count - 1);
     }
@@ -1950,6 +1964,7 @@ public class Obstacle : MonoBehaviour
     public Vector3 pCoords; //posición del marcador en lon lat alt
     private Vector3 coords;
     public Quaternion rot;  //rotación marcador
+    public Vector3 angleRot;
     public static int maxAlt = 50000;
     public static int maxScale = 100;
     public static int minScale = 1;
@@ -2008,7 +2023,20 @@ public class Obstacle : MonoBehaviour
         Solid = false;
         pCoords = new Vector3((float)FlightGlobals.ActiveVessel.latitude, (float)FlightGlobals.ActiveVessel.longitude, (float)FlightGlobals.ActiveVessel.altitude);
         body = FlightGlobals.ActiveVessel.mainBody;
-        rot = FlightGlobals.ActiveVessel.transform.rotation;
+        
+        if (pCoords.z - body.TerrainAltitude(pCoords.x, pCoords.y) <= 0) pCoords.z = (float)body.TerrainAltitude(pCoords.x, pCoords.y);
+        if (pCoords.z > maxAlt) pCoords.z = maxAlt;
+        coords = body.GetWorldSurfacePosition(pCoords.x, pCoords.y, pCoords.z);
+        rot = resetRot();
+        transform.position = coords;
+        transform.rotation = rot;
+
+        //Esto es para que el punto de control tome la rotación del buque
+        double vesselRotX = FlightGlobals.ActiveVessel.transform.rotation.eulerAngles.x;
+        double vesselRotY = FlightGlobals.ActiveVessel.transform.rotation.eulerAngles.y;
+        double vesselRotZ = FlightGlobals.ActiveVessel.transform.rotation.eulerAngles.z;
+        angleRot = new Vector3((float)vesselRotX - rot.eulerAngles.x, (float)vesselRotY - rot.eulerAngles.y, (float)vesselRotZ - rot.eulerAngles.z);
+        rotateOb();
     }
 
     /// <summary>
@@ -2043,6 +2071,21 @@ public class Obstacle : MonoBehaviour
     {
         rot *= Quaternion.Euler(xAngle, yAngle, zAngle);
     }
+
+    public void rotateOb(Vector3 angles)
+    {
+        rotateOb(angles.x, angles.y, angles.z);
+    }
+
+    /// <summary>
+    /// Reinicia la rotación del obstáculo y luego lo rota segun lo que sea angleRot
+    /// </summary>
+    public void rotateOb()
+    {
+        rot = resetRot();
+        rotateOb(angleRot);
+    }
+
 
     /// <summary>
     /// Translada el obstaculo a lo largo del eje y en la distancia especificada, cada vez que se llama
@@ -2091,10 +2134,10 @@ public class Obstacle : MonoBehaviour
         clon.pCoordsx = pCoords.x;
         clon.pCoordsy = pCoords.y;
         clon.pCoordsz = pCoords.z;
-        clon.rotx = rot.x;
-        clon.roty = rot.y;
-        clon.rotz = rot.z;
-        clon.rotw = rot.w;
+        clon.rotx = angleRot.x;
+        clon.roty = angleRot.y;
+        clon.rotz = angleRot.z;
+        //clon.rotw = rot.w;
         clon.scalex = cube.transform.localScale.x;
         clon.scaley = cube.transform.localScale.y;
         clon.scalez = cube.transform.localScale.z;
@@ -2109,7 +2152,8 @@ public class Obstacle : MonoBehaviour
     public void fromClon(ObsClon clon)
     {
         pCoords = new Vector3(clon.pCoordsx, clon.pCoordsy, clon.pCoordsz);
-        rot = new Quaternion(clon.rotx, clon.roty, clon.rotz, clon.rotw);
+        //rot = new Quaternion(clon.rotx, clon.roty, clon.rotz, clon.rotw);
+        angleRot = new Vector3(clon.rotx, clon.roty, clon.rotz);
         cube.transform.localScale = new Vector3(clon.scalex, clon.scaley, clon.scalez);
         Solid = clon.solid;
     }
@@ -2119,7 +2163,6 @@ public class Obstacle : MonoBehaviour
         //http://answers.unity3d.com/questions/254130/how-do-i-rotate-an-object-towards-a-vector3-point.html
         Vector3 _direction = (body.position - transform.position).normalized;
         Quaternion _lookRotation = Quaternion.LookRotation(_direction);
-        rot = _lookRotation;
         return _lookRotation;
     }
 }
