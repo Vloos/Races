@@ -13,12 +13,12 @@ Pequeño mod para Kerbal Space Program en el que se pueden crear circuitos, colo
 
 * 0.0.7-alpha
  * Cambio algunos deslizadores por botones, para precisión suprema.
- * Se podrán colocar puntos de control y obstaculos con el raton pulsando Control Derecho y Boton Izquierdo del Ratón. Si la cámara está a demasiada altura puede que aparezcan en el aire.
- * Los archivos krt (Kerbal Race Track) se guardan de forma diferente. Carga un circuito, edítalo y guardalo (no hace falta modificarlo) para guardarlo correctamente (quiero elimminar esa capacidad de convertir los circuito de un formato a otro en el próximo lanzamiento)
+ * Se podrán colocar puntos de control y obstáculos con el ratón pulsando Control Derecho y Botón Izquierdo del Ratón. Si la cámara está a demasiada altura puede que aparezcan en el aire.
+ * Los archivos krt (Kerbal Race Track) se guardan de forma diferente. Carga un circuito, edítalo y guárdalo (no hace falta modificarlo) para guardarlo correctamente (quiero eliminar esa capacidad de convertir los circuito de un formato a otro en el próximo lanzamiento)
  * Le he toqueteado alguna que otra cosa a la interfaz gráfica de usuario, en especial al dialogo de confirmación de guardado de un circuito existente. Puede que funcione un poco menos mal que antes.
- 
+
 * 0.0.6-alpha
- * Se pueden poner obstaculos simples y estáticos, formados por aburridos cubos grises reescalables.
+ * Se pueden poner obstáculos simples y estáticos, formados por aburridos cubos grises reescalables.
 
 * 0.0.5-alpha
  * Puntos de control un poco menos feos
@@ -39,11 +39,11 @@ Pequeño mod para Kerbal Space Program en el que se pueden crear circuitos, colo
   * Más información en los botones que se encargan de cargar los circuitos.
   * Se puede ver la longitud total del circuito en los botones y en la ventana de edición.
   * También hay algo más de información sobre los puntos de control en la ventana de edición.
-  * El boton para empezar la carrera no aparece cuando solo hay un punto de control, cosa que nunca debería haber sucedido.
- * Al poner puntos de control en un circuito los puntos de control nuevos reciven nombre. Antes no tenian nombre y al entrar en contacto con uno se activaban todos.
+  * El botón para empezar la carrera no aparece cuando solo hay un punto de control, cosa que nunca debería haber sucedido.
+ * Al poner puntos de control en un circuito los puntos de control nuevos reciben nombre. Antes no tenían nombre y al entrar en contacto con uno se activaban todos.
  * El tiempo en el cronometro se muestra en formato HH:MM:SS.CC
  * Los puntos de control no deberían poder estar por debajo del suelo.
- * Los puntos de control se activan cuando la parte raiz los cruza
+ * Los puntos de control se activan cuando la parte raíz los cruza
 
 * 0.0.2-alpha
  * Se pueden hacer circuitos de varias vueltas
