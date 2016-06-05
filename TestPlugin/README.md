@@ -3,6 +3,11 @@ Pequeño mod para Kerbal Space Program en el que se pueden crear circuitos, colo
 
 ## Historial de cambios
 
+* 0.0.9-alpha
+ * Los circuitos pueden tener como mínimo 1 vuelta, de forma que la carrera empieza y termina en el mismo punto de control, o pueden ser de recorrido, empezando y terminando en puntos de control diferentes.
+ * Un problema que surgía al intentar guardar el circuito varias veces en un corto intervalo de tiempo. Intentaba abrir y escribir en un archivo en el que ya estaba escribiendo. Parece ser que eso hace enloquecer al sistema de archivos y todo dejaba de funcionar. Ahora aparece un aviso "Busy" y da la oportunidad de seguir esperando, o no. De eso se trata.
+ * Puntos de control y obstáculos no guardaban correctamente su orientación cuando se guardaban con la orientación reiniciada. Al cargar un circuito estos elementos aparecían con la orientación del vehículo en el momento de crearlos. O con otra orientación. No lo sé. El caso es que ahora funciona correctamente.
+
 * 0.0.8-alpha
  * Los puntos de control y los obstáculos se pueden mover y rotar con chirimbolos (también conocidos como "guizmos").
  * De pronto ha aparecido un botón en las ventanas de edición de puntos de control y obstáculos que devuelve el punto de control u obstáculo al suelo.

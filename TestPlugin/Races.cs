@@ -153,7 +153,7 @@ public class CheckPoint : MonoBehaviour
     public Vector3 pCoords; //posición del marcador en lon lat alt
     private Vector3 coords;
     public Quaternion rot;  //rotación marcador
-    public Vector3 angleRot; //rotación, en grados euler, del punto de cotrol. Aquí se guardan despues de restar a cada uno el resultado de resetrwp
+    public Vector3 angleRot; //rotación, en grados euler, del punto de cotrol. Aquí se guardan despues de restar a cada uno el resultado de resetrwp.
     public static int maxAlt = 50000;
     public GameObject cpBoxTrigger = GameObject.CreatePrimitive(PrimitiveType.Cube); //Esto detecta el buque pasar, para validar el punto de control
     private bool solid, penalization;
@@ -408,11 +408,11 @@ public class CheckPoint : MonoBehaviour
         transform.rotation = rot;
 
         //Esto es para que el punto de control tome la rotación del buque
-        double vesselRotX = FlightGlobals.ActiveVessel.transform.rotation.eulerAngles.x;
-        double vesselRotY = FlightGlobals.ActiveVessel.transform.rotation.eulerAngles.y;
-        double vesselRotZ = FlightGlobals.ActiveVessel.transform.rotation.eulerAngles.z;
-        angleRot = new Vector3((float)vesselRotX - rot.eulerAngles.x, (float)vesselRotY - rot.eulerAngles.y, (float)vesselRotZ - rot.eulerAngles.z);
-        rotateRwp();
+        Quaternion vesselRelativeRotation = Quaternion.Inverse(rot) * FlightGlobals.ActiveVessel.GetTransform().rotation;
+
+        angleRot = new Vector3(vesselRelativeRotation.eulerAngles.x, vesselRelativeRotation.eulerAngles.y, vesselRelativeRotation.eulerAngles.z);
+
+        rotateCp();
     }
 
     /// <summary>
@@ -450,23 +450,23 @@ public class CheckPoint : MonoBehaviour
     /// <param name="xAngle"></param>
     /// <param name="yAngle"></param>
     /// <param name="zAngle"></param>
-    public void rotateRwp(float xAngle, float yAngle, float zAngle)
+    public void rotateCp(float xAngle, float yAngle, float zAngle)
     {
         rot *= Quaternion.Euler(xAngle, yAngle, zAngle);
     }
 
-    public void rotateRwp(Vector3 angles)
+    public void rotateCp(Vector3 angles)
     {
-        rotateRwp(angles.x, angles.y, angles.z);
+        rotateCp(angles.x, angles.y, angles.z);
     }
 
     /// <summary>
     /// Reinicia la rotación del punto de control y luego lo rota segun lo que sea angleRot
     /// </summary>
-    public void rotateRwp()
+    public void rotateCp()
     {
         rot = resetRot();
-        rotateRwp(angleRot);
+        rotateCp(angleRot);
     }
 
     /// <summary>
@@ -623,7 +623,7 @@ public class LoadedTrack
         {
             CheckPoint cp = new GameObject().AddComponent<CheckPoint>();
             cp.fromClon(cpClon);
-            cp.rotateRwp();
+            cp.rotateCp();
             cp.cpBoxTrigger.GetComponent<BoxCollider>().name = "cp" + cpList.Count;
             cpList.Add(cp);
         }
@@ -689,8 +689,6 @@ public class RaceManager : MonoBehaviour
     public float nameTextWidth = 150f;
     public float cardLabelWidth = 35f;
     public float obScaleInfoLabelWidth = 27;
-
-    public bool saving = false;
 
     void Awake()
     {
@@ -761,6 +759,8 @@ public class RaceManager : MonoBehaviour
                 break;
             case estados.RaceScreen:
                 prepCp(true);
+                loadedTrack.trackKey = genTrackKey();
+                loadedTrack.trackTime = (records.ContainsKey(loadedTrack.trackKey)) ? records[loadedTrack.trackKey] : 0;
                 if (grot != null) grot.Detach();
                 if (gofs != null) gofs.Detach();
                 loadedTrack.cpList[0].cpBoxTrigger.GetComponent<BoxCollider>().enabled = true;
@@ -807,8 +807,6 @@ public class RaceManager : MonoBehaviour
 
     public void windowFuction(int id)
     {
-        GUILayout.Label(saving.ToString());
-        GUILayout.Label(loadedTrack.trackKey);
         switch (estadoAct)
         {
             case estados.LoadScreen:
@@ -822,12 +820,12 @@ public class RaceManager : MonoBehaviour
                 {
                     if (race.bodyName == FlightGlobals.ActiveVessel.mainBody.name)
                     {
-                        if (GUILayout.Button(race.name + " by " + race.author + "\n" + race.laps + " Laps, " + race.lenght.ToString("0.00") + " meters", GUILayout.MaxWidth(170)))
+                        string names = ((race.name + " by " + race.author).Length > 20) ? race.name + "\nby " + race.author : race.name + " by " + race.author;
+                        if (GUILayout.Button(names + "\n" + race.laps + " Laps, " + race.lenght.ToString("0.00") + " meters", GUILayout.MaxWidth(170)))
                         {
                             newRaceTrack();
                             LoadRaceTrack(race);
                             prepCp(false);
-                            //trackLength = loadedTrack.trackLength; //Esto no va...
                             trackLength = race.lenght;
                             loadedTrack.trackTime = (records.ContainsKey(loadedTrack.trackKey)) ? records[loadedTrack.trackKey] : 0;
                         }
@@ -877,9 +875,9 @@ public class RaceManager : MonoBehaviour
                 GUILayout.EndHorizontal();
                 GUILayout.Label("Laps");
                 GUILayout.BeginHorizontal();
-                if (GUILayout.Button("1")) loadedTrack.laps = 1;
+                if (GUILayout.Button("Sprint")) loadedTrack.laps = 0;
                 if (GUILayout.Button("-") && loadedTrack.laps > 1) loadedTrack.laps--;
-                GUILayout.Label(loadedTrack.laps.ToString());
+                GUILayout.Label((loadedTrack.laps == 0)? "Sprint": loadedTrack.laps.ToString());
                 if (GUILayout.Button("+")) loadedTrack.laps++;
 
                 GUILayout.EndHorizontal();
@@ -900,17 +898,9 @@ public class RaceManager : MonoBehaviour
                 }
 
                 if (GUILayout.Button("Edit Obstacles")) cambiaEstado(estados.ObsScreen);
-
                 saveDialog();
-
                 if (GUILayout.Button("New Race Track")) newRaceTrack();
-
-                if (loadedTrack.cpList.Count > 1 && GUILayout.Button("Start Race!"))
-                {
-                    loadedTrack.trackKey = genTrackKey();
-                    cambiaEstado(estados.RaceScreen);
-                }
-
+                if (loadedTrack.cpList.Count > 1 && GUILayout.Button("Start Race!")) cambiaEstado(estados.RaceScreen);
                 if (GUILayout.Button("Load Racetrack")) cambiaEstado(estados.LoadScreen);
 
                 GUILayout.EndVertical();
@@ -948,6 +938,7 @@ public class RaceManager : MonoBehaviour
                         if (grot != null) grot.Detach();
                         if (gofs != null) gofs.Detach();
                         loadedTrack.cpList[editionCp].rot = loadedTrack.cpList[editionCp].resetRot();
+                        loadedTrack.cpList[editionCp].angleRot = Vector3.zero;
                     }
 
                     GUILayout.BeginHorizontal();
@@ -999,6 +990,7 @@ public class RaceManager : MonoBehaviour
                 }
                 else
                 {
+                    GUILayout.Label("Best time: " + tiempo(loadedTrack.trackTime));
                     if (loadedTrack.laps > 0) GUILayout.Label(loadedTrack.laps + " Laps");
                     GUILayout.Label("Cross first checkpoint (white) to start race!");
                     if (GUILayout.Button("Edit Track")) cambiaEstado(estados.EditScreen);
@@ -1069,12 +1061,7 @@ public class RaceManager : MonoBehaviour
                     loadedTrack.obList.Clear();
                 }
 
-                if (loadedTrack.cpList.Count > 1 && GUILayout.Button("Start Race!"))
-                {
-                    loadedTrack.trackKey = genTrackKey();
-                    cambiaEstado(estados.RaceScreen);
-                }
-
+                if (loadedTrack.cpList.Count > 1 && GUILayout.Button("Start Race!")) cambiaEstado(estados.RaceScreen);
                 if (GUILayout.Button("Load Racetrack")) cambiaEstado(estados.LoadScreen);
 
                 GUILayout.EndVertical();
@@ -1106,6 +1093,7 @@ public class RaceManager : MonoBehaviour
                         if (grot != null) grot.Detach();
                         if (gofs != null) gofs.Detach();
                         loadedTrack.obList[editionOb].rot = loadedTrack.obList[editionOb].resetRot();
+                        loadedTrack.obList[editionOb].angleRot = Vector3.zero;
                     }
 
                     GUILayout.BeginHorizontal();
@@ -1264,7 +1252,7 @@ public class RaceManager : MonoBehaviour
         cp.angleRot = new Vector3(cp.rot.eulerAngles.x - reset.eulerAngles.x, cp.rot.eulerAngles.y - reset.eulerAngles.y, cp.rot.eulerAngles.z - reset.eulerAngles.z);
         //reinicia la rotación y rota el punto de control hasta la rotación rotada anteriormente. Totalmente innecesario. Para pruebas
         //cp.rot = reset;
-        //cp.rotateRwp();
+        //cp.rotateCp();
     }
 
     /// <summary>
@@ -1342,6 +1330,7 @@ public class RaceManager : MonoBehaviour
             Vector3d mousePos = mousePosition();
             cp.pCoords = new Vector3((float)cp.body.GetLatitude(mousePos), (float)cp.body.GetLongitude(mousePos), (float)cp.body.GetAltitude(mousePos));
             cp.rot = cp.resetRot();
+            cp.angleRot = Vector3.zero;
         }
         loadedTrack.cpList.Add(cp);
         cambiaEditCp(loadedTrack.cpList.Count - 1);
@@ -1361,6 +1350,7 @@ public class RaceManager : MonoBehaviour
             obs.pCoords = new Vector3((float)obs.body.GetLatitude(mousePos), (float)obs.body.GetLongitude(mousePos), (float)obs.body.GetAltitude(mousePos));
         }
         obs.rot = obs.resetRot();
+        obs.angleRot = Vector3.zero;
         loadedTrack.obList.Add(obs);
         cambiaEditOb(loadedTrack.obList.Count - 1);
     }
@@ -1425,7 +1415,7 @@ public class RaceManager : MonoBehaviour
                 }
                 else
                 {
-                    Debug.LogWarning("[Races!] bussy");
+                    Debug.LogWarning("[Races!] Busy");
                 }
             }
             if (GUILayout.Button("Cancel")) trackExist = false;
@@ -1451,7 +1441,7 @@ public class RaceManager : MonoBehaviour
             FileStream file = File.Create(Races.Races.RaceTrackFolder + filename + Races.Races.RaceTrackFileExtension);
             bf.Serialize(file, raceClon);
             file.Close();
-            Debug.Log("Saved: " + raceClon.name + " - " + raceClon.author);
+            Debug.Log("[Races!] Saved: " + raceClon.name + " - " + raceClon.author);
         }
         catch (Exception)
         {
@@ -1467,7 +1457,7 @@ public class RaceManager : MonoBehaviour
         loadedTrack = new LoadedTrack();
         loadedTrack.fromClon(raceClon);
         lastLoadedTrack = raceClon;         //Esto supongo que valdrá para volver a cargar el circuito cuando se revierte el vuelo
-        Debug.Log("Race track loaded: " + loadedTrack.name + " by " + loadedTrack.author);
+        Debug.Log("[Races!] Race track loaded: " + loadedTrack.name + " by " + loadedTrack.author);
     }
 
     /// <summary>
@@ -1483,7 +1473,7 @@ public class RaceManager : MonoBehaviour
         }
         var info = new DirectoryInfo(Races.Races.RaceTrackFolder);
         var fileInfo = info.GetFiles("*" + Races.Races.RaceTrackFileExtension, SearchOption.TopDirectoryOnly);
-        Debug.Log(fileInfo.Length + " Race Tracks found");
+        Debug.Log("[Races!] " + fileInfo.Length + " Race Tracks found");
 
         foreach (var file in fileInfo)
         {
@@ -1525,12 +1515,14 @@ public class RaceManager : MonoBehaviour
                         tiempoIni = Planetarium.GetUniversalTime();
                     }
                     loadedTrack.cpList[pActivo].cpColor = CheckPoint.colorPasado;
-                    if (loadedTrack.laps > 1 && curLap != 0)
+                    if (loadedTrack.laps > 0 && curLap != 0)
                     {
                         ScreenMessages.PostScreenMessage("Lap " + curLap + " Checkpoint " + pActivo + "\n" + tiempo((float)tiempoAct), 15);
                     }
-                    curLap++;
-                    if (loadedTrack.laps > 1 && curLap == loadedTrack.laps)
+                    if(loadedTrack.laps > 0) { 
+                        curLap++;
+                    }
+                    if (loadedTrack.laps > 0 && curLap == loadedTrack.laps)
                     {
                         loadedTrack.cpList[0].tipoCp = CheckPoint.Types.FINISH;
                     }
@@ -1602,7 +1594,7 @@ public class RaceManager : MonoBehaviour
                 obs.ObColor = Obstacle.colorNormal;
             }
 
-            if (loadedTrack.laps == 1)
+            if (loadedTrack.laps == 0)
             {
                 loadedTrack.cpList[loadedTrack.cpList.Count - 1].tipoCp = CheckPoint.Types.FINISH;
             }
@@ -1925,6 +1917,7 @@ public class Obstacle : MonoBehaviour
         {
             solid = value;
             cubeCol.enabled = solid;
+            cube.GetComponent<Renderer>().material = (!solid) ? new Material(Shader.Find("Transparent/Diffuse")) : null;
             ObColor = obColor;
         }
     }
@@ -1950,7 +1943,7 @@ public class Obstacle : MonoBehaviour
         cubeCol = cube.gameObject.GetComponent<BoxCollider>();
         ObColor = colorEdit;
         cubeCol.enabled = false;
-        cube.GetComponent<Renderer>().material = new Material(Shader.Find("Transparent/Diffuse"));
+        cube.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         Solid = false;
         pCoords = new Vector3((float)FlightGlobals.ActiveVessel.latitude, (float)FlightGlobals.ActiveVessel.longitude, (float)FlightGlobals.ActiveVessel.altitude);
         body = FlightGlobals.ActiveVessel.mainBody;
@@ -1963,10 +1956,10 @@ public class Obstacle : MonoBehaviour
         transform.rotation = rot;
 
         //Esto es para que el punto de control tome la rotación del buque
-        double vesselRotX = FlightGlobals.ActiveVessel.transform.rotation.eulerAngles.x;
-        double vesselRotY = FlightGlobals.ActiveVessel.transform.rotation.eulerAngles.y;
-        double vesselRotZ = FlightGlobals.ActiveVessel.transform.rotation.eulerAngles.z;
-        angleRot = new Vector3((float)vesselRotX - rot.eulerAngles.x, (float)vesselRotY - rot.eulerAngles.y, (float)vesselRotZ - rot.eulerAngles.z);
+        Quaternion vesselRelativeRotation = Quaternion.Inverse(rot) * FlightGlobals.ActiveVessel.GetTransform().rotation;
+
+        angleRot = new Vector3(vesselRelativeRotation.eulerAngles.x, vesselRelativeRotation.eulerAngles.y, vesselRelativeRotation.eulerAngles.z);
+
         rotateOb();
     }
 
@@ -2016,7 +2009,6 @@ public class Obstacle : MonoBehaviour
         rot = resetRot();
         rotateOb(angleRot);
     }
-
 
     /// <summary>
     /// Translada el obstaculo a lo largo del eje y en la distancia especificada, cada vez que se llama
