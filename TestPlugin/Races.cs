@@ -354,6 +354,7 @@ public class CheckPoint : MonoBehaviour
             //cubo.GetComponent<MeshRenderer>().material = new Material(Shader.Find("KSP/Emissive/Diffuse"));
             cubo.GetComponent<BoxCollider>().isTrigger = true;
             cubo.GetComponent<BoxCollider>().enabled = true;
+            cubo.GetComponent<BoxCollider>().name = "[Races!]cp" + (Races.Races.raceMan.loadedTrack.cpList.Count).ToString();
         }
 
         void OnDestroy()
@@ -624,7 +625,7 @@ public class LoadedTrack
             CheckPoint cp = new GameObject().AddComponent<CheckPoint>();
             cp.fromClon(cpClon);
             cp.rotateCp();
-            cp.cpBoxTrigger.GetComponent<BoxCollider>().name = "cp" + cpList.Count;
+            cp.cpBoxTrigger.GetComponent<BoxCollider>().name = "[Races!]cp" + cpList.Count;
             cpList.Add(cp);
         }
         foreach (Obstacle.ObsClon obClon in clon.obList)
@@ -661,7 +662,7 @@ public class RaceManager : MonoBehaviour
     public estados estadoAct = estados.LoadScreen;
     public List<LoadedTrack.RaceClon> raceList = new List<LoadedTrack.RaceClon>(); //Lista de carreras disponibles en el directorio
     public LoadedTrack loadedTrack = new LoadedTrack();  //Carrera que se va a usar para correr o editar.
-    private int editionCp, editionOb = 0;
+    private int editionCp , editionOb = 0;
     public LoadedTrack.RaceClon lastLoadedTrack = new LoadedTrack.RaceClon(); //Esto valdrá (supongo) para cargar de nuevo un circuito al volver a la escena de vuelo
     public Dictionary<string, float> records = new Dictionary<string, float>() { { "0", 0 } };
     public EditorGizmos.GizmoRotate grot;
@@ -721,10 +722,37 @@ public class RaceManager : MonoBehaviour
             }
         }
 
-        if (Input.GetMouseButtonUp(0) && (Input.GetKey(KeyCode.RightControl) || Input.GetKey(KeyCode.RightCommand)))
+        if (Input.GetMouseButtonUp(0) && (estadoAct == estados.EditScreen || estadoAct == estados.ObsScreen))
         {
-            if (estadoAct == estados.EditScreen) newCheckpoint(true);
-            if (estadoAct == estados.ObsScreen) newObstacle(true);
+            if (Input.GetKey(KeyCode.RightControl) || Input.GetKey(KeyCode.RightCommand))
+            {
+                if (estadoAct == estados.EditScreen) newCheckpoint(true);
+                if (estadoAct == estados.ObsScreen) newObstacle(true);
+            }else
+            {
+                try
+                {
+                    string obj = mouseRayHit().collider.name;
+                    string type = obj.Substring(0, 10);
+                    if (type == "[Races!]cp")
+                    {
+                        cambiaEstado(estados.EditScreen);
+                        int num = int.Parse(obj.Substring(10));
+                        cambiaEditCp(num);
+                    }
+                    if (type == "[Races!]ob")
+                    {
+                        cambiaEstado(estados.ObsScreen);
+                        int num = int.Parse(obj.Substring(10));
+                        cambiaEditOb(num);
+                    }
+                }
+                catch (Exception)
+                {
+
+                }
+                
+            }   
         }
     }
 
@@ -738,8 +766,14 @@ public class RaceManager : MonoBehaviour
                 enCarrera = false;
                 loadedTrack.trackKey = genTrackKey();
                 loadedTrack.trackTime = (records.ContainsKey(loadedTrack.trackKey)) ? records[loadedTrack.trackKey] : 0;
+                if (loadedTrack.obList.Count > 0)
+                {
+                    loadedTrack.obList[editionOb].ObColor = Obstacle.colorNormal;
+                    loadedTrack.obList[editionOb].cubeCol.enabled = true;
+                }
                 if (grot != null) grot.Detach();
                 if (gofs != null) gofs.Detach();
+                editionOb = 0;
                 break;
             case estados.EditScreen:
                 estadoAct = estados.EditScreen;
@@ -754,6 +788,7 @@ public class RaceManager : MonoBehaviour
                 if (loadedTrack.obList.Count > 0)
                 {
                     loadedTrack.obList[editionOb].ObColor = Obstacle.colorNormal;
+                    loadedTrack.obList[editionOb].cubeCol.enabled = true;
                 }
                 editionOb = 0;
                 break;
@@ -771,6 +806,11 @@ public class RaceManager : MonoBehaviour
                 if (loadedTrack.cpList[1].tipoCp != CheckPoint.Types.FINISH)
                 {
                     loadedTrack.cpList[1].cpColor = CheckPoint.colorCheckP;
+                }
+                if (loadedTrack.obList.Count > 0)
+                {
+                    loadedTrack.obList[editionOb].ObColor = Obstacle.colorNormal;
+                    loadedTrack.obList[editionOb].cubeCol.enabled = true;
                 }
                 break;
             case estados.EndScreen:
@@ -821,7 +861,7 @@ public class RaceManager : MonoBehaviour
                     if (race.bodyName == FlightGlobals.ActiveVessel.mainBody.name)
                     {
                         string names = ((race.name + " by " + race.author).Length > 20) ? race.name + "\nby " + race.author : race.name + " by " + race.author;
-                        if (GUILayout.Button(names + "\n" + race.laps + " Laps, " + race.lenght.ToString("0.00") + " meters", GUILayout.MaxWidth(170)))
+                        if (GUILayout.Button(names + "\n" + ((race.laps == 0)? "Sprint, ":(race.laps + " Laps, ")) + race.lenght.ToString("0.00") + " meters", GUILayout.MaxWidth(170)))
                         {
                             newRaceTrack();
                             LoadRaceTrack(race);
@@ -844,7 +884,7 @@ public class RaceManager : MonoBehaviour
                 if (loadedTrack.cpList.Count > 0)
                 {
                     // Información del circuito cargado. No se asusten.
-                    GUILayout.Label(loadedTrack.name + " by " + loadedTrack.author + "\n" + loadedTrack.cpList.Count + " Checkpoints\n" + loadedTrack.laps + " Laps\n" + trackLength.ToString("0.00") + " Meters\nBest time: " + tiempo(loadedTrack.trackTime));
+                    GUILayout.Label(loadedTrack.name + " by " + loadedTrack.author + "\n" + loadedTrack.cpList.Count + " Checkpoints\n" + ((loadedTrack.laps == 0) ? "Sprint" : (loadedTrack.laps + " Laps")) + trackLength.ToString("0.00") + " Meters\nBest time: " + tiempo(loadedTrack.trackTime));
                     GUILayout.Label("Starting point:\n" + "Latitude: " + loadedTrack.cpList[0].pCoords.x + "\nLongitude: " + loadedTrack.cpList[0].pCoords.y + "\nAltitude: " + loadedTrack.cpList[0].pCoords.z + "\nDistance: " + Vector3.Distance(loadedTrack.cpList[0].Coords, FlightGlobals.ActiveVessel.CoM).ToString("0.00"));
                     if (loadedTrack.cpList.Count > 1 && GUILayout.Button("Start Race")) cambiaEstado(estados.RaceScreen);
                 }
@@ -1324,11 +1364,15 @@ public class RaceManager : MonoBehaviour
             }
             cp.tipoCp = CheckPoint.Types.FINISH;
         }
-        cp.cpBoxTrigger.GetComponent<BoxCollider>().name = "cp" + loadedTrack.cpList.Count;
+        cp.cpBoxTrigger.GetComponent<BoxCollider>().name = "[Races!]cp" + loadedTrack.cpList.Count;
         if (enCursor)
         {
-            Vector3d mousePos = mousePosition();
-            cp.pCoords = new Vector3((float)cp.body.GetLatitude(mousePos), (float)cp.body.GetLongitude(mousePos), (float)cp.body.GetAltitude(mousePos));
+            try
+            {
+                Vector3d mousePos = mouseRayHit().point;
+                cp.pCoords = new Vector3((float)cp.body.GetLatitude(mousePos), (float)cp.body.GetLongitude(mousePos), (float)cp.body.GetAltitude(mousePos));
+            }
+            catch (Exception) { }
             cp.rot = cp.resetRot();
             cp.angleRot = Vector3.zero;
         }
@@ -1346,7 +1390,7 @@ public class RaceManager : MonoBehaviour
         obs.cube.transform.localScale = new Vector3(Obstacle.maxScale / 2, Obstacle.maxScale / 2, Obstacle.maxScale / 2);
         if (enCursor)
         {
-            Vector3d mousePos = mousePosition();
+            Vector3d mousePos = mouseRayHit().point;
             obs.pCoords = new Vector3((float)obs.body.GetLatitude(mousePos), (float)obs.body.GetLongitude(mousePos), (float)obs.body.GetAltitude(mousePos));
         }
         obs.rot = obs.resetRot();
@@ -1675,8 +1719,10 @@ public class RaceManager : MonoBehaviour
             {
                 loadedTrack.obList[editionOb].ObColor = Obstacle.colorNormal;
             }
+            loadedTrack.obList[editionOb].cubeCol.enabled = true;
             editionOb = num;
             loadedTrack.obList[editionOb].ObColor = Obstacle.colorEdit;
+            loadedTrack.obList[editionOb].cubeCol.enabled = false;
         }
         else
         {
@@ -1836,16 +1882,16 @@ public class RaceManager : MonoBehaviour
     }
 
     /// <summary>
-    /// con un rayo calcula la posición del cursor relativa a las coordenadas del mundo
+    /// Desde el cursor del ratón proyecta un rayo que toca cosas.
     /// </summary>
-    /// <returns>las coordenadas del mundo donde estaría el cursor, visto desde la cámara</returns>
-    public Vector3d mousePosition()
+    /// <returns>información sobre las cosas que toca</returns>
+    public RaycastHit mouseRayHit()
     {
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
         RaycastHit hit;
         // Casts the ray and get the first game object hit
         Physics.Raycast(ray, out hit);
-        return hit.point;
+        return hit;
     }
 }
 
@@ -1916,7 +1962,7 @@ public class Obstacle : MonoBehaviour
         set
         {
             solid = value;
-            cubeCol.enabled = solid;
+            cubeCol.isTrigger = !solid;
             cube.GetComponent<Renderer>().material = (!solid) ? new Material(Shader.Find("Transparent/Diffuse")) : null;
             ObColor = obColor;
         }
@@ -1943,6 +1989,8 @@ public class Obstacle : MonoBehaviour
         cubeCol = cube.gameObject.GetComponent<BoxCollider>();
         ObColor = colorEdit;
         cubeCol.enabled = false;
+        cubeCol.isTrigger = true;
+        cubeCol.name = "[Races!]ob" + (Races.Races.raceMan.loadedTrack.obList.Count).ToString();
         cube.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         Solid = false;
         pCoords = new Vector3((float)FlightGlobals.ActiveVessel.latitude, (float)FlightGlobals.ActiveVessel.longitude, (float)FlightGlobals.ActiveVessel.altitude);
