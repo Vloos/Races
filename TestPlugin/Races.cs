@@ -351,7 +351,6 @@ public class CheckPoint : MonoBehaviour
             cubo.AddComponent<timePenalization>();
             cubo.gameObject.GetComponent<timePenalization>().enabled = false;
             cubo.transform.parent = transform;
-            //cubo.GetComponent<MeshRenderer>().material = new Material(Shader.Find("KSP/Emissive/Diffuse"));
             cubo.GetComponent<BoxCollider>().isTrigger = true;
             cubo.GetComponent<BoxCollider>().enabled = true;
             cubo.GetComponent<BoxCollider>().name = "[Races!]cp" + (Races.Races.raceMan.loadedTrack.cpList.Count).ToString();
@@ -847,6 +846,10 @@ public class RaceManager : MonoBehaviour
 
     public void windowFuction(int id)
     {
+        if (GUILayout.Button("test"))
+        {
+            Races.CheckPointComponent lol = new GameObject().AddComponent<Races.CheckPointComponent>();
+        }
         switch (estadoAct)
         {
             case estados.LoadScreen:
