@@ -86,6 +86,7 @@ namespace Races
                 if (raceMan.grot != null) raceMan.grot.Detach();
                 if (raceMan.gofs != null) raceMan.gofs.Detach();
                 raceMan.lastLoadedTrack = raceMan.loadedTrack.toClon();
+                raceMan.newRaceTrack();
                 raceMan.cambiaEstado(RaceManager.estados.LoadScreen);
             }
             if (data.to != GameScenes.FLIGHT) GUIoff();
@@ -147,7 +148,6 @@ public class RaceComponent : MonoBehaviour
     public CelestialBody body;
     private Vector3d coords; //coordenadas relativas al planeta
     public Quaternion rot;  //rotación relativa a la superficie
-    public bool onMouse = false;
     public static int maxAlt = 50000;
 
     public Vector3 Coords
@@ -193,7 +193,7 @@ public class RaceComponent : MonoBehaviour
 
     public void move()
     {
-        transform.position = Coords + body.position;
+        transform.localPosition = Coords;// + body.position;
     }
 
     [Serializable]
@@ -974,8 +974,8 @@ public class RaceManager : MonoBehaviour
                 {
                     // Información del circuito cargado. No se asusten.
                     Vector3d pCoords = loadedTrack.cpList[0].getBodyCoords();
-                    GUILayout.Label(loadedTrack.name + " by " + loadedTrack.author + "\n" + loadedTrack.cpList.Count + " Checkpoints\n" + ((loadedTrack.laps == 0) ? "Sprint" : (loadedTrack.laps + " Laps")) + trackLength.ToString("0.00") + " Meters\nBest time: " + tiempo(loadedTrack.trackTime));
-                    GUILayout.Label("Starting point:\n" + "Latitude: " + pCoords.x + "\nLongitude: " + pCoords.y + "\nAltitude: " + pCoords.z + "\nDistance: " + Vector3.Distance(loadedTrack.cpList[0].Coords, FlightGlobals.ActiveVessel.CoM).ToString("0.00"));
+                    GUILayout.Label(loadedTrack.name + " by " + loadedTrack.author + "\n" + loadedTrack.cpList.Count + " Checkpoints\n" + ((loadedTrack.laps == 0) ? "Sprint " : (loadedTrack.laps + " Laps ")) + trackLength.ToString("0.00") + " Meters\nBest time: " + tiempo(loadedTrack.trackTime));
+                    GUILayout.Label("Starting point:\n" + "Latitude: " + pCoords.x.ToString("0.00") + "\nLongitude: " + pCoords.y.ToString("0.00") + "\nAltitude: " + (pCoords.z/1000).ToString("0.00") + "\nDistance: " + Vector3.Distance(loadedTrack.cpList[0].transform.position, FlightGlobals.ActiveVessel.transform.position).ToString("0.00"));
                     if (loadedTrack.cpList.Count > 1 && GUILayout.Button("Start Race")) cambiaEstado(estados.RaceScreen);
                 }
 
@@ -1060,7 +1060,7 @@ public class RaceManager : MonoBehaviour
                     {
                         if (grot != null) grot.Detach();
                         if (gofs != null) gofs.Detach();
-                        grot = EditorGizmos.GizmoRotate.Attach(loadedTrack.cpList[editionCp].transform, loadedTrack.cpList[editionCp].transform.position, cpRot, cpRot);
+                        grot = EditorGizmos.GizmoRotate.Attach(loadedTrack.cpList[editionCp].transform, loadedTrack.cpList[editionCp].transform.position, rCompRot, rCompRot);
                     }
 
                     if (GUILayout.Button("Reset Rotation"))
@@ -1079,7 +1079,7 @@ public class RaceManager : MonoBehaviour
                     {
                         if (grot != null) grot.Detach();
                         if (gofs != null) gofs.Detach();
-                        gofs = EditorGizmos.GizmoOffset.Attach(loadedTrack.cpList[editionCp].transform, cpTran, cpTrEnd);
+                        gofs = EditorGizmos.GizmoOffset.Attach(loadedTrack.cpList[editionCp].transform, rCompTran, rCompTran);
                         if (abs)
                         {
                             Vector3 _direction = (loadedTrack.cpList[editionCp].body.position - transform.position).normalized;
@@ -1213,7 +1213,7 @@ public class RaceManager : MonoBehaviour
                     {
                         if (grot != null) grot.Detach();
                         if (gofs != null) gofs.Detach();
-                        grot = EditorGizmos.GizmoRotate.Attach(loadedTrack.obList[editionOb].transform, loadedTrack.obList[editionOb].transform.position, obRot, obRotado);
+                        grot = EditorGizmos.GizmoRotate.Attach(loadedTrack.obList[editionOb].transform, loadedTrack.obList[editionOb].transform.position, rCompRot, rCompRot);
                     }
 
                     if (GUILayout.Button("Reset Rotation"))
@@ -1233,7 +1233,7 @@ public class RaceManager : MonoBehaviour
                     {
                         if (grot != null) grot.Detach();
                         if (gofs != null) gofs.Detach();
-                        gofs = EditorGizmos.GizmoOffset.Attach(loadedTrack.obList[editionOb].transform, obTran, obTrEnd);
+                        gofs = EditorGizmos.GizmoOffset.Attach(loadedTrack.obList[editionOb].transform, rCompTran, rCompTran);
                         if (abs)
                         {
                             Vector3 _direction = (loadedTrack.obList[editionOb].body.position - transform.position).normalized;
@@ -1300,82 +1300,20 @@ public class RaceManager : MonoBehaviour
         GUI.DragWindow();
     }
 
-    /// <summary>
-    /// llamado cuando se suelta el chirimbolo de translación de obstáculos
-    /// </summary>
-    /// <param name="arg1"></param>
-    private void obTrEnd(Vector3 arg1)
-    {
-        Obstacle ob = loadedTrack.obList[editionOb];
-        loadedTrack.obList[editionOb].Coords = arg1 - loadedTrack.obList[editionOb].body.position;
-        loadedTrack.obList[editionOb].move();
-    }
-
-    /// <summary>
-    /// llamado mientras se agarra el chirimbolo de translación de obstáculos
-    /// </summary>
-    /// <param name="arg1"></param>
-    private void obTran(Vector3 arg1)
-    {
-        loadedTrack.obList[editionOb].transform.position = gofs.transform.position;
-    }
-
-    /// <summary>
-    /// llamado cuando se suelta el chirimbolo de rotación de obstáculos
-    /// </summary>
-    /// <param name="arg1"></param>
-    private void obRotado(Quaternion arg1)
-    {
-        Obstacle ob = loadedTrack.obList[editionOb];
-        ob.rot = Quaternion.Inverse(ob.rotZero()) * (arg1 * grot.HostRot0);
-        ob.rotate();
-    }
-
-    /// <summary>
-    /// llamado cuando mientras se agarra el chirimbolo de rotación de obstáculos
-    /// </summary>
-    /// <param name="arg1"></param>
-    private void obRot(Quaternion arg1)
-    {
-        grot.useAngleSnap = !(Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.LeftCommand));
-        Obstacle ob = loadedTrack.obList[editionOb];
-        ob.rot = Quaternion.Inverse(ob.rotZero()) * (arg1 * grot.HostRot0);
-        ob.rotate();
-    }
-
-    /// <summary>
-    /// llamado cuando se suelta el chirimbolo de translación de puntos de control
-    /// </summary>
-    /// <param name="arg1"></param>
-    private void cpTrEnd(Vector3 arg1)
-    {
-        CheckPoint cp = loadedTrack.cpList[editionCp];
-        cp.Coords = gofs.transform.position - cp.body.position;
-        cp.move();
-    }
-
-    /// <summary>
-    /// llamado mientras se agarra el chirimbolo de translación de puntos de control
-    /// </summary>
-    /// <param name="arg1"></param>
-    private void cpTran(Vector3 arg1)
+    private void rCompTran(Vector3 arg1)
     {
         gofs.useGrid = !(Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.LeftCommand));
-        CheckPoint cp = loadedTrack.cpList[editionCp];
-        cp.Coords = gofs.transform.position - cp.body.position;
-        cp.move();
+        RaceComponent rc = (estadoAct == estados.EditScreen) ? loadedTrack.cpList[editionCp] as RaceComponent : loadedTrack.obList[editionOb] as RaceComponent;
+        rc.Coords = rc.body.GetTransform().InverseTransformPoint(gofs.transform.position);
+        rc.move();
     }
 
-    /// <summary>
-    /// llamado mientras se agarra el chirimbolo de rotación de puntos de control
-    /// </summary>
-    /// <param name="arg1"></param>
-    private void cpRot(Quaternion arg1)
+    private void rCompRot(Quaternion arg1)
     {
-        if (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.LeftCommand)) grot.useAngleSnap = false; else grot.useAngleSnap = true;
-        CheckPoint cp = loadedTrack.cpList[editionCp];
-        cp.rot = Quaternion.Inverse(cp.rotZero()) * (arg1 * grot.HostRot0);
-        cp.rotate();
+        grot.useAngleSnap = !(Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.LeftCommand));
+        RaceComponent rc = (estadoAct == estados.EditScreen)? loadedTrack.cpList[editionCp] as RaceComponent : loadedTrack.obList[editionOb] as RaceComponent;
+        rc.rot = Quaternion.Inverse(rc.rotZero()) * (arg1 * grot.HostRot0);
+        rc.rotate();
     }
 
     /// <summary>
@@ -1424,7 +1362,6 @@ public class RaceManager : MonoBehaviour
         if (grot != null) grot.Detach();
         if (gofs != null) gofs.Detach();
         CheckPoint cp = new GameObject().AddComponent<CheckPoint>();
-        cp.onMouse = enCursor;
         cp.name += loadedTrack.cpList.Count;
         if (loadedTrack.cpList.Count == 1)
         {
@@ -1445,15 +1382,16 @@ public class RaceManager : MonoBehaviour
             try
             {
                 Vector3d mousePos = mouseRayHit().point;
-                cp.Coords = mousePos - cp.body.position;
+                cp.Coords = cp.body.transform.InverseTransformPoint(mousePos);
             }
             catch (Exception) { }
             cp.resetRot();
         }
         else
         {
-            cp.Coords = FlightGlobals.ActiveVessel.GetTransform().position - cp.body.position;
+            cp.Coords = cp.body.transform.InverseTransformPoint(FlightGlobals.ActiveVessel.GetTransform().position);
             cp.rot = Quaternion.Inverse(cp.rotZero()) * FlightGlobals.ActiveVessel.GetTransform().rotation;
+            
         }
         Debug.Log(cp.name);
         loadedTrack.cpList.Add(cp);
@@ -1470,11 +1408,18 @@ public class RaceManager : MonoBehaviour
         obs.cube.transform.localScale = new Vector3(Obstacle.maxScale / 2, Obstacle.maxScale / 2, Obstacle.maxScale / 2);
         if (enCursor)
         {
-            Vector3d mousePos = mouseRayHit().point;
-            obs.Coords = mousePos;
+            try
+            {
+                Vector3d mousePos = mouseRayHit().point;
+                obs.Coords = mousePos - obs.body.position;
+            }
+            catch (Exception) { }
+
+        }else
+        {
+            obs.Coords = FlightGlobals.ActiveVessel.GetTransform().position - obs.body.position;
         }
-        obs.rot = obs.rotZero();
-        obs.rotate();
+        obs.resetRot();
         loadedTrack.obList.Add(obs);
         cambiaEditOb(loadedTrack.obList.Count - 1);
     }
