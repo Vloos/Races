@@ -147,6 +147,7 @@ public class RaceComponent : MonoBehaviour
     public CelestialBody body;
     private Vector3d coords; //coordenadas relativas al planeta
     public Quaternion rot;  //rotación relativa a la superficie
+    public bool onMouse = false;
     public static int maxAlt = 50000;
 
     public Vector3 Coords
@@ -162,12 +163,9 @@ public class RaceComponent : MonoBehaviour
         }
     }
 
-    void Start()
+    public void Start()
     {
-        Coords = FlightGlobals.ActiveVessel.GetTransform().position - body.position;
         move();
-        Quaternion rotZero = resetRot();
-        rot = Quaternion.Inverse(rotZero) * FlightGlobals.ActiveVessel.GetTransform().rotation;
         rotate();
     }
 
@@ -190,7 +188,7 @@ public class RaceComponent : MonoBehaviour
 
     public void rotate()
     {
-        transform.rotation = resetRot() * rot;
+        transform.rotation = rotZero() * rot;
     }
 
     public void move()
@@ -234,12 +232,18 @@ public class RaceComponent : MonoBehaviour
         rot = new QuaternionD(clon.rotX, clon.rotY, clon.rotZ, clon.rotW);
     }
 
-    internal Quaternion resetRot()
+    public Quaternion rotZero()
     {
         //http://answers.unity3d.com/questions/254130/how-do-i-rotate-an-object-towards-a-vector3-point.html
         Vector3 _direction = (body.position - transform.position).normalized;
         Quaternion _lookRotation = Quaternion.LookRotation(_direction);
         return _lookRotation;
+    }
+
+    public void resetRot()
+    {
+        rot = Quaternion.Inverse(rotZero()) * rotZero();
+        rotate();
     }
 
     public Vector3d getBodyCoords()
@@ -443,7 +447,7 @@ public class CheckPoint : RaceComponent
 
     void Awake()
     {
-        name = "[Races!]RC-";
+        name = "[Races!]CP-";
         body = FlightGlobals.ActiveVessel.mainBody;
         transform.parent = body.transform;
 
@@ -476,6 +480,16 @@ public class CheckPoint : RaceComponent
         cuLe.transform.localScale = new Vector3(sizes[Size].x, sizes[Size].x, sizes[Size].z - sizes[Size].x);
     }
 
+    public void destroy()
+    {
+        Destroy(cuUp);
+        Destroy(cuDown);
+        Destroy(cuLe);
+        Destroy(cuRi);
+        Destroy(cpBoxTrigger);
+        Destroy(this);
+    }
+
     [Serializable]
     public class CheckPointClon
     {
@@ -486,7 +500,7 @@ public class CheckPoint : RaceComponent
     public CheckPointClon toCpClon()
     {
         CheckPointClon cpClon = new CheckPointClon();
-        size = Size;
+        cpClon.size = Size;
         cpClon.clon = toClon();
         return cpClon;
     }
@@ -554,7 +568,7 @@ public class Obstacle : RaceComponent
 
     void Awake()
     {
-        name = "[Races!]RC-";
+        name = "[Races!]OB-";
         body = FlightGlobals.ActiveVessel.mainBody;
         transform.parent = body.transform;
 
@@ -917,6 +931,11 @@ public class RaceManager : MonoBehaviour
 
     public void windowFuction(int id)
     {
+        GUILayout.Label(loadedTrack.trackKey);
+        if (GUILayout.Button("key"))
+        {
+            loadedTrack.trackKey = genTrackKey();
+        }
         switch (estadoAct)
         {
             case estados.LoadScreen:
@@ -1003,7 +1022,7 @@ public class RaceManager : MonoBehaviour
 
                 if (loadedTrack.cpList.Count > 0 && GUILayout.Button("Remove Checkpoint"))
                 {
-                    Destroy(loadedTrack.cpList[editionCp]);
+                    loadedTrack.cpList[editionCp].destroy();
                     loadedTrack.cpList.RemoveAt(editionCp);
                     cambiaEditCp(editionCp);
                 }
@@ -1041,15 +1060,14 @@ public class RaceManager : MonoBehaviour
                     {
                         if (grot != null) grot.Detach();
                         if (gofs != null) gofs.Detach();
-                        grot = EditorGizmos.GizmoRotate.Attach(loadedTrack.cpList[editionCp].transform, loadedTrack.cpList[editionCp].transform.position, cpRot, cpRotado);
+                        grot = EditorGizmos.GizmoRotate.Attach(loadedTrack.cpList[editionCp].transform, loadedTrack.cpList[editionCp].transform.position, cpRot, cpRot);
                     }
 
                     if (GUILayout.Button("Reset Rotation"))
                     {
                         if (grot != null) grot.Detach();
                         if (gofs != null) gofs.Detach();
-                        loadedTrack.cpList[editionCp].rot = Quaternion.Inverse(loadedTrack.cpList[editionCp].resetRot()) * loadedTrack.cpList[editionCp].resetRot();
-                        loadedTrack.cpList[editionCp].rotate();
+                        loadedTrack.cpList[editionCp].resetRot();
                     }
 
                     GUILayout.BeginHorizontal();
@@ -1202,8 +1220,7 @@ public class RaceManager : MonoBehaviour
                     {
                         if (grot != null) grot.Detach();
                         if (gofs != null) gofs.Detach();
-                        loadedTrack.obList[editionOb].rot = Quaternion.Inverse(loadedTrack.obList[editionOb].resetRot()) * loadedTrack.obList[editionOb].resetRot();
-                        loadedTrack.obList[editionOb].rotate();
+                        loadedTrack.obList[editionOb].resetRot();
                     }
 
                     GUILayout.BeginHorizontal();
@@ -1310,7 +1327,7 @@ public class RaceManager : MonoBehaviour
     private void obRotado(Quaternion arg1)
     {
         Obstacle ob = loadedTrack.obList[editionOb];
-        ob.rot = Quaternion.Inverse(ob.resetRot()) * (arg1 * grot.HostRot0);
+        ob.rot = Quaternion.Inverse(ob.rotZero()) * (arg1 * grot.HostRot0);
         ob.rotate();
     }
 
@@ -1322,7 +1339,7 @@ public class RaceManager : MonoBehaviour
     {
         grot.useAngleSnap = !(Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.LeftCommand));
         Obstacle ob = loadedTrack.obList[editionOb];
-        ob.rot = Quaternion.Inverse(ob.resetRot()) * (arg1 * grot.HostRot0);
+        ob.rot = Quaternion.Inverse(ob.rotZero()) * (arg1 * grot.HostRot0);
         ob.rotate();
     }
 
@@ -1350,17 +1367,6 @@ public class RaceManager : MonoBehaviour
     }
 
     /// <summary>
-    /// llamado cuando se suelta el chirimbolo de rotación de puntos de control
-    /// </summary>
-    /// <param name="arg1"></param>
-    private void cpRotado(Quaternion arg1)
-    {
-        CheckPoint cp = loadedTrack.cpList[editionCp];
-        cp.rot = Quaternion.Inverse(cp.resetRot()) * (arg1 * grot.HostRot0);
-        cp.rotate();
-    }
-
-    /// <summary>
     /// llamado mientras se agarra el chirimbolo de rotación de puntos de control
     /// </summary>
     /// <param name="arg1"></param>
@@ -1368,7 +1374,7 @@ public class RaceManager : MonoBehaviour
     {
         if (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.LeftCommand)) grot.useAngleSnap = false; else grot.useAngleSnap = true;
         CheckPoint cp = loadedTrack.cpList[editionCp];
-        cp.rot = Quaternion.Inverse(cp.resetRot()) * (arg1 * grot.HostRot0);
+        cp.rot = Quaternion.Inverse(cp.rotZero()) * (arg1 * grot.HostRot0);
         cp.rotate();
     }
 
@@ -1383,7 +1389,7 @@ public class RaceManager : MonoBehaviour
             {
                 foreach (CheckPoint cp in loadedTrack.cpList)
                 {
-                    Destroy(cp);
+                    cp.destroy();
                 }
                 loadedTrack.cpList.Clear();
             }
@@ -1415,9 +1421,11 @@ public class RaceManager : MonoBehaviour
     /// <param name="enCursor"></param>
     public void newCheckpoint(bool enCursor)
     {
-        CheckPoint cp = new GameObject().AddComponent<CheckPoint>();
         if (grot != null) grot.Detach();
         if (gofs != null) gofs.Detach();
+        CheckPoint cp = new GameObject().AddComponent<CheckPoint>();
+        cp.onMouse = enCursor;
+        cp.name += loadedTrack.cpList.Count;
         if (loadedTrack.cpList.Count == 1)
         {
             cp.tipoCp = CheckPoint.Types.START;
@@ -1431,18 +1439,23 @@ public class RaceManager : MonoBehaviour
             }
             cp.tipoCp = CheckPoint.Types.FINISH;
         }
-        cp.cpBoxTrigger.GetComponent<BoxCollider>().name = "[Races!]cp" + loadedTrack.cpList.Count;
+        cp.cpBoxTrigger.GetComponent<BoxCollider>().name = cp.name;
         if (enCursor)
         {
             try
             {
                 Vector3d mousePos = mouseRayHit().point;
-                cp.Coords = mousePos;
+                cp.Coords = mousePos - cp.body.position;
             }
             catch (Exception) { }
-            cp.rot = cp.resetRot();
-            cp.rotate();
+            cp.resetRot();
         }
+        else
+        {
+            cp.Coords = FlightGlobals.ActiveVessel.GetTransform().position - cp.body.position;
+            cp.rot = Quaternion.Inverse(cp.rotZero()) * FlightGlobals.ActiveVessel.GetTransform().rotation;
+        }
+        Debug.Log(cp.name);
         loadedTrack.cpList.Add(cp);
         cambiaEditCp(loadedTrack.cpList.Count - 1);
     }
@@ -1460,7 +1473,7 @@ public class RaceManager : MonoBehaviour
             Vector3d mousePos = mouseRayHit().point;
             obs.Coords = mousePos;
         }
-        obs.rot = obs.resetRot();
+        obs.rot = obs.rotZero();
         obs.rotate();
         loadedTrack.obList.Add(obs);
         cambiaEditOb(loadedTrack.obList.Count - 1);
@@ -1934,17 +1947,7 @@ public class RaceManager : MonoBehaviour
         data.cpList = new CheckPoint.CheckPointClon[loadedTrack.cpList.Count];
         for (int i = 0; i < loadedTrack.cpList.Count; i++)
         {
-            CheckPoint.CheckPointClon cpClon = new CheckPoint.CheckPointClon();
-            cpClon.clon.body = loadedTrack.cpList[i].body.name;
-            cpClon.size = loadedTrack.cpList[i].Size;
-            cpClon.clon.posX = loadedTrack.cpList[i].Coords.x;
-            cpClon.clon.posY = loadedTrack.cpList[i].Coords.y;
-            cpClon.clon.posZ = loadedTrack.cpList[i].Coords.z;
-            cpClon.clon.rotX = loadedTrack.cpList[i].rot.x;
-            cpClon.clon.rotY = loadedTrack.cpList[i].rot.y;
-            cpClon.clon.rotZ = loadedTrack.cpList[i].rot.z;
-            cpClon.clon.rotW = loadedTrack.cpList[i].rot.w;
-            data.cpList[i] = cpClon;
+            data.cpList[i] = loadedTrack.cpList[i].toCpClon();
         }
         data.laps = loadedTrack.laps;
         return loadedTrack.trackKey = MD5Hash(data);
