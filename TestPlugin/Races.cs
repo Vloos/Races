@@ -142,21 +142,124 @@ namespace Races
     }
 }
 
-/// <summary>
-/// Punto de control con primitivos
-/// </summary>
-public class CheckPoint : MonoBehaviour
+public class RaceComponent : MonoBehaviour
+{
+    public CelestialBody body;
+    private Vector3d coords; //coordenadas relativas al planeta
+    public Quaternion rot;  //rotación relativa a la superficie
+    public static int maxAlt = 50000;
+
+    public Vector3 Coords
+    {
+        get
+        {
+            return coords;
+        }
+
+        set
+        {
+            coords = value;
+        }
+    }
+
+    void Start()
+    {
+        Coords = FlightGlobals.ActiveVessel.GetTransform().position - body.position;
+        move();
+        Quaternion rotZero = resetRot();
+        rot = Quaternion.Inverse(rotZero) * FlightGlobals.ActiveVessel.GetTransform().rotation;
+        rotate();
+    }
+
+    /// <summary>
+    /// Rota el obstáculo alrededor de los ejes y en la cantidad de grados especificados, cada vez que se llama.
+    /// </summary>
+    /// <param name="xAngle"></param>
+    /// <param name="yAngle"></param>
+    /// <param name="zAngle"></param>
+    public void rotate(float xAngle, float yAngle, float zAngle)
+    {
+        rot *= Quaternion.Euler(xAngle, yAngle, zAngle);
+        transform.rotation = rot;
+    }
+
+    public void rotate(Vector3 angles)
+    {
+        rotate(angles.x, angles.y, angles.z);
+    }
+
+    public void rotate()
+    {
+        transform.rotation = resetRot() * rot;
+    }
+
+    public void move()
+    {
+        transform.position = Coords + body.position;
+    }
+
+    [Serializable]
+    public class Clon
+    {
+        public string body;
+        public double posX, posY, posZ;
+        public float rotX, rotY, rotZ, rotW;
+    }
+
+    /// <summary>
+    /// Escupe una clase serializable que contiene los datos del obstáculo
+    /// </summary>
+    /// <returns></returns>
+    public Clon toClon()
+    {
+        Clon clon = new Clon();
+        clon.body = body.name;
+        clon.posX = Coords.x;
+        clon.posY = Coords.y;
+        clon.posZ = Coords.z;
+        clon.rotX = rot.x;
+        clon.rotY = rot.y;
+        clon.rotZ = rot.z;
+        clon.rotW = rot.w;
+        return clon;
+    }
+
+    /// <summary>
+    /// toma los datos de un ObsClon
+    /// </summary>
+    /// <param name="clon"></param>
+    public void fromClon(Clon clon)
+    {
+        Coords = new Vector3d(clon.posX, clon.posY, clon.posZ);
+        rot = new QuaternionD(clon.rotX, clon.rotY, clon.rotZ, clon.rotW);
+    }
+
+    internal Quaternion resetRot()
+    {
+        //http://answers.unity3d.com/questions/254130/how-do-i-rotate-an-object-towards-a-vector3-point.html
+        Vector3 _direction = (body.position - transform.position).normalized;
+        Quaternion _lookRotation = Quaternion.LookRotation(_direction);
+        return _lookRotation;
+    }
+
+    public Vector3d getBodyCoords()
+    {
+        return new Vector3d (body.GetLongitude(coords), body.GetLatitude(coords), body.GetAltitude(coords));
+    }
+
+    public void toFloor()
+    {
+        coords = body.GetWorldSurfacePosition(body.GetLatitude(coords), body.GetLongitude(coords), body.TerrainAltitude(body.GetLatitude(coords), body.GetLongitude(coords)));
+        transform.position = coords;
+    }
+}
+
+public class CheckPoint : RaceComponent
 {
     public enum Types { START, CHECKPOINT, FINISH };
     public Types cpType;
-    public CelestialBody body;
-    public Vector3 pCoords; //posición del marcador en lon lat alt
-    private Vector3 coords;
-    public Quaternion rot;  //rotación marcador
-    public Vector3 angleRot; //rotación, en grados euler, del punto de cotrol. Aquí se guardan despues de restar a cada uno el resultado de resetrwp.
-    public static int maxAlt = 50000;
     public GameObject cpBoxTrigger = GameObject.CreatePrimitive(PrimitiveType.Cube); //Esto detecta el buque pasar, para validar el punto de control
-    private bool solid, penalization;
+    private bool penalization;
     private int size;
     private Color wpColor;
     public Qub cuUp, cuDown, cuLe, cuRi;
@@ -169,12 +272,12 @@ public class CheckPoint : MonoBehaviour
     public static Material pasado = new Material(Shader.Find("Transparent/Diffuse"));
     public static Material listo = new Material(Shader.Find("KSP/Emissive/Diffuse"));
     public static Dictionary<int, Vector3> sizes = new Dictionary<int, Vector3>() {
-        {0, new Vector3(1f, 16f, 9f)}, //Grosor de la linea, ancho del rectángulo, alto del rectángulo
-        {1, new Vector3(2f, 32f, 18f)},
-        {2, new Vector3(3f, 48f, 27f)},
-        {3, new Vector3(4F, 64f, 36f)},
-        {4, new Vector3(5F, 80f, 45f)}
-    };
+            {0, new Vector3(1f, 16f, 9f)}, //Grosor de la linea, ancho del rectángulo, alto del rectángulo
+            {1, new Vector3(2f, 32f, 18f)},
+            {2, new Vector3(3f, 48f, 27f)},
+            {3, new Vector3(4F, 64f, 36f)},
+            {4, new Vector3(5F, 80f, 45f)}
+        };
 
     /// <summary>
     /// Da color a las lineas del punto de control
@@ -268,31 +371,6 @@ public class CheckPoint : MonoBehaviour
         }
     }
 
-    public Vector3 Coords
-    {
-        get
-        {
-            return coords;
-        }
-    }
-
-    public bool Solid
-    {
-        get
-        {
-            return solid;
-        }
-
-        set
-        {
-            solid = value;
-            cuUp.cubo.gameObject.GetComponent<BoxCollider>().isTrigger = !solid;
-            cuDown.cubo.gameObject.GetComponent<BoxCollider>().isTrigger = !solid;
-            cuLe.cubo.gameObject.GetComponent<BoxCollider>().isTrigger = !solid;
-            cuRi.cubo.gameObject.GetComponent<BoxCollider>().isTrigger = !solid;
-        }
-    }
-
     public bool Penalization
     {
         get
@@ -307,6 +385,40 @@ public class CheckPoint : MonoBehaviour
             cuDown.cubo.GetComponent<timePenalization>().enabled = penalization;
             cuLe.cubo.GetComponent<timePenalization>().enabled = penalization;
             cuRi.cubo.GetComponent<timePenalization>().enabled = penalization;
+        }
+    }
+
+    public class Qub : MonoBehaviour
+    {
+        public GameObject cubo = GameObject.CreatePrimitive(PrimitiveType.Cube);
+
+        void Awake()
+        {
+            cubo.AddComponent<timePenalization>();
+            cubo.gameObject.GetComponent<timePenalization>().enabled = false;
+            cubo.transform.parent = transform;
+            cubo.GetComponent<BoxCollider>().isTrigger = true;
+            cubo.GetComponent<BoxCollider>().enabled = true;
+            cubo.GetComponent<BoxCollider>().name = name + "cp-" + (Races.Races.raceMan.loadedTrack.cpList.Count).ToString();
+        }
+
+        void OnDestroy()
+        {
+            Destroy(cubo);
+            Destroy(this);
+        }
+    }
+
+    public class timePenalization : MonoBehaviour
+    {
+        void OnTriggerEnter()
+        {
+            if (enabled)
+            {
+                Races.Races.raceMan.penTime += 10;
+                ScreenMessages.PostScreenMessage("+10 sec penalty", 5);
+                Races.Races.raceMan.loadedTrack.cpList[Races.Races.raceMan.pActivo].Penalization = false;
+            }
         }
     }
 
@@ -329,49 +441,12 @@ public class CheckPoint : MonoBehaviour
         }
     }
 
-    public class timePenalization : MonoBehaviour
-    {
-        void OnTriggerEnter()
-        {
-            if (enabled)
-            {
-                Races.Races.raceMan.penTime += 10;
-                ScreenMessages.PostScreenMessage("+10 sec penalty", 5);
-                Races.Races.raceMan.loadedTrack.cpList[Races.Races.raceMan.pActivo].Penalization = false;
-            }
-        }
-    }
-
-    public class Qub : MonoBehaviour
-    {
-        public GameObject cubo = GameObject.CreatePrimitive(PrimitiveType.Cube);
-
-        void Awake()
-        {
-            cubo.AddComponent<timePenalization>();
-            cubo.gameObject.GetComponent<timePenalization>().enabled = false;
-            cubo.transform.parent = transform;
-            cubo.GetComponent<BoxCollider>().isTrigger = true;
-            cubo.GetComponent<BoxCollider>().enabled = true;
-            cubo.GetComponent<BoxCollider>().name = "[Races!]cp" + (Races.Races.raceMan.loadedTrack.cpList.Count).ToString();
-        }
-
-        void OnDestroy()
-        {
-            Destroy(cubo);
-            Destroy(this);
-        }
-    }
-
     void Awake()
     {
-        //Donde está el buque en el momento de crear el punto de control
+        name = "[Races!]RC-";
         body = FlightGlobals.ActiveVessel.mainBody;
-        pCoords = new Vector3((float)FlightGlobals.ActiveVessel.latitude, (float)FlightGlobals.ActiveVessel.longitude, (float)FlightGlobals.ActiveVessel.altitude);
-        size = 0;
-        wpColor = colorCheckP;
+        transform.parent = body.transform;
 
-        //colisionador
         cpBoxTrigger.GetComponent<BoxCollider>().gameObject.AddComponent<colision>();
         cpBoxTrigger.transform.parent = transform;
         cpBoxTrigger.GetComponent<BoxCollider>().isTrigger = true;
@@ -399,138 +474,133 @@ public class CheckPoint : MonoBehaviour
         cuDown.transform.localScale = new Vector3(sizes[Size].y + sizes[Size].x, sizes[Size].x, sizes[Size].x);
         cuRi.transform.localScale = new Vector3(sizes[Size].x, sizes[Size].x, sizes[Size].z - sizes[Size].x);
         cuLe.transform.localScale = new Vector3(sizes[Size].x, sizes[Size].x, sizes[Size].z - sizes[Size].x);
-
-        if (pCoords.z - body.TerrainAltitude(pCoords.x, pCoords.y) <= 0) pCoords.z = (float)body.TerrainAltitude(pCoords.x, pCoords.y);
-        if (pCoords.z > maxAlt) pCoords.z = maxAlt;
-        coords = body.GetWorldSurfacePosition(pCoords.x, pCoords.y, pCoords.z);
-        rot = resetRot();
-        transform.position = coords;
-        transform.rotation = rot;
-
-        //Esto es para que el punto de control tome la rotación del buque
-        Quaternion vesselRelativeRotation = Quaternion.Inverse(rot) * FlightGlobals.ActiveVessel.GetTransform().rotation;
-
-        angleRot = new Vector3(vesselRelativeRotation.eulerAngles.x, vesselRelativeRotation.eulerAngles.y, vesselRelativeRotation.eulerAngles.z);
-
-        rotateCp();
-    }
-
-    /// <summary>
-    /// Coloca el punto de control. Todo el rato.
-    /// </summary>
-    void Update()
-    {
-        //que el punto de control no se meta por debajo del suelo
-        if (pCoords.z - body.TerrainAltitude(pCoords.x, pCoords.y) <= 0)
-        {
-            pCoords.z = (float)body.TerrainAltitude(pCoords.x, pCoords.y);
-        }
-        if (pCoords.z > maxAlt) pCoords.z = maxAlt;
-        //Como el origen del mundo se mueve con el buque, esto mantiene el punto de control en una posicion fija respecto al planeta.
-        coords = body.GetWorldSurfacePosition(pCoords.x, pCoords.y, pCoords.z);
-
-        transform.position = coords;
-        transform.rotation = rot;
-    }
-
-    public void destroy()
-    {
-        Destroy(cuUp);
-        Destroy(cuDown);
-        Destroy(cuLe);
-        Destroy(cuRi);
-        Destroy(cpBoxTrigger);
-        cpBoxTrigger = null;
-        Destroy(this);
-    }
-
-    /// <summary>
-    /// Rota el punto de cotrol alrededor de los ejes y en la cantidad de grados especificados, cada vez que se llama.
-    /// </summary>
-    /// <param name="xAngle"></param>
-    /// <param name="yAngle"></param>
-    /// <param name="zAngle"></param>
-    public void rotateCp(float xAngle, float yAngle, float zAngle)
-    {
-        rot *= Quaternion.Euler(xAngle, yAngle, zAngle);
-    }
-
-    public void rotateCp(Vector3 angles)
-    {
-        rotateCp(angles.x, angles.y, angles.z);
-    }
-
-    /// <summary>
-    /// Reinicia la rotación del punto de control y luego lo rota segun lo que sea angleRot
-    /// </summary>
-    public void rotateCp()
-    {
-        rot = resetRot();
-        rotateCp(angleRot);
-    }
-
-    /// <summary>
-    /// Translada el punto de control, a lo largo del eje y en la distancia especificada, cada vez que se llama
-    /// </summary>
-    /// <param name="lat"></param>
-    /// <param name="lon"></param>
-    /// <param name="alt"></param>
-    public void moveCp(float lat, float lon, float alt)
-    {
-        pCoords.x += lat;
-        pCoords.y += lon;
-        pCoords.z += alt;
-    }
-
-    /// <summary>
-    /// Alinea el punto de control con el ecuador
-    /// </summary>
-    internal Quaternion resetRot()
-    {
-        //http://answers.unity3d.com/questions/254130/how-do-i-rotate-an-object-towards-a-vector3-point.html
-        Vector3 _direction = (body.position - transform.position).normalized;
-        Quaternion _lookRotation = Quaternion.LookRotation(_direction);
-        return _lookRotation;
     }
 
     [Serializable]
     public class CheckPointClon
     {
-        public string body;  //¿Conmo convertir un string a un celestialbody?
         public int size;
-        //posición del marcador lon lat alt
-        public float pCoordsX;
-        public float pCoordsY;
-        public float pCoordsZ;
-        //rotación del marcador pitch roll yaw ¿w?
-        public float rotX;
-        public float rotY;
-        public float rotZ;
-        public float rotW;
+        public Clon clon;
     }
 
-    internal CheckPointClon toClon()
+    public CheckPointClon toCpClon()
     {
-        CheckPointClon clon = new CheckPointClon();
-        clon.body = body.name;
-        clon.size = Size;
-        clon.pCoordsX = pCoords.x;
-        clon.pCoordsY = pCoords.y;
-        clon.pCoordsZ = pCoords.z;
-        clon.rotX = angleRot.x;
-        clon.rotY = angleRot.y;
-        clon.rotZ = angleRot.z;
-        //clon.rotW = null;
-
-        return clon;
+        CheckPointClon cpClon = new CheckPointClon();
+        size = Size;
+        cpClon.clon = toClon();
+        return cpClon;
     }
 
-    public void fromClon(CheckPointClon clon)
+    public void fromCpClon(CheckPointClon cpClon)
     {
-        pCoords = new Vector3(clon.pCoordsX, clon.pCoordsY, clon.pCoordsZ);
-        //rot = new Quaternion(clon.rotX, clon.rotY, clon.rotZ, clon.rotW);
-        angleRot = new Vector3(clon.rotX, clon.rotY, clon.rotZ);
-        Size = clon.size;
+        Size = cpClon.size;
+        fromClon(cpClon.clon);
+    }
+}
+
+public class Obstacle : RaceComponent
+{
+    public static int maxScale = 100;
+    public static int minScale = 1;
+    public GameObject cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+    public BoxCollider cubeCol;
+    private bool solid;
+    public static Color colorNormal = new Color(0.75f, 0.75f, 0.75f);
+    public static Color colorEdit = new Color(1f, 0f, 1f);
+    private Color obColor;
+
+    public bool Solid
+    {
+        get
+        {
+            return solid;
+        }
+
+        set
+        {
+            solid = value;
+            cubeCol.isTrigger = !solid;
+            cube.GetComponent<Renderer>().material = (!solid) ? new Material(Shader.Find("Transparent/Diffuse")) : null;
+            ObColor = obColor;
+        }
+    }
+
+    public Color ObColor
+    {
+        get
+        {
+            return obColor;
+        }
+
+        set
+        {
+            obColor = value;
+            cube.GetComponent<Renderer>().material.color = new Color(obColor.r, obColor.g, obColor.b, (solid) ? 1 : 0.5f);
+        }
+    }
+
+    public void scaleOb(float x, float y, float z)
+    {
+        float sx = cube.transform.localScale.x + x;
+        float sy = cube.transform.localScale.y + y;
+        float sz = cube.transform.localScale.z + z;
+
+        if (sx < minScale) sx = minScale; else if (sx > maxScale) sx = maxScale;
+        if (sy < minScale) sy = minScale; else if (sy > maxScale) sy = maxScale;
+        if (sz < minScale) sz = minScale; else if (sz > maxScale) sz = maxScale;
+
+        cube.transform.localScale = new Vector3((float)Math.Round(sx, 2), (float)Math.Round(sy, 2), (float)Math.Round(sz, 2));
+    }
+
+    void Awake()
+    {
+        name = "[Races!]RC-";
+        body = FlightGlobals.ActiveVessel.mainBody;
+        transform.parent = body.transform;
+
+        cube.transform.parent = transform;
+        cubeCol = cube.gameObject.GetComponent<BoxCollider>();
+        ObColor = colorEdit;
+        cubeCol.enabled = false;
+        cubeCol.isTrigger = true;
+        cubeCol.name = "[Races!]ob" + (Races.Races.raceMan.loadedTrack.obList.Count).ToString();
+        cube.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        Solid = false;
+    }
+
+    [Serializable]
+    public class ObClon
+    {
+        public Clon clon;
+        public float scalex, scaley, scalez;
+        public bool solid;
+    }
+
+    /// <summary>
+    /// Escupe una clase serializable que contiene los datos del obstáculo
+    /// </summary>
+    /// <returns></returns>
+    public ObClon toObClon()
+    {
+
+        ObClon obClon = new ObClon();
+        obClon.clon = toClon();
+        obClon.scalex = cube.transform.localScale.x;
+        obClon.scaley = cube.transform.localScale.y;
+        obClon.scalez = cube.transform.localScale.z;
+        obClon.solid = Solid;
+        return obClon;
+    }
+
+    /// <summary>
+    /// toma los datos de un ObsClon
+    /// </summary>
+    /// <param name="clon"></param>
+    public void fromObClon(ObClon obClon)
+    {
+        fromClon(obClon.clon);
+        cube.transform.localScale = new Vector3(obClon.scalex, obClon.scaley, obClon.scalez);
+        Solid = obClon.solid;
     }
 }
 
@@ -583,7 +653,7 @@ public class LoadedTrack
         public float lenght;
         public string key;
         public CheckPoint.CheckPointClon[] cpList;
-        public Obstacle.ObsClon[] obList;
+        public Obstacle.ObClon[] obList;
     }
 
     public RaceClon toClon()
@@ -597,16 +667,16 @@ public class LoadedTrack
         clon.lenght = trackLength;
         clon.key = Races.Races.raceMan.genTrackKey();
         clon.cpList = new CheckPoint.CheckPointClon[cpList.Count];
-        clon.obList = new Obstacle.ObsClon[obList.Count];
+        clon.obList = new Obstacle.ObClon[obList.Count];
 
         for (int i = 0; i < cpList.Count; i++)
         {
-            clon.cpList[i] = cpList[i].toClon();
+            clon.cpList[i] = cpList[i].toCpClon();
         }
 
         for (int i = 0; i < obList.Count; i++)
         {
-            clon.obList[i] = obList[i].toClon();
+            clon.obList[i] = obList[i].toObClon();
         }
 
         return clon;
@@ -622,16 +692,16 @@ public class LoadedTrack
         foreach (CheckPoint.CheckPointClon cpClon in clon.cpList)
         {
             CheckPoint cp = new GameObject().AddComponent<CheckPoint>();
-            cp.fromClon(cpClon);
-            cp.rotateCp();
+            cp.fromCpClon(cpClon);
+            cp.rotate();
             cp.cpBoxTrigger.GetComponent<BoxCollider>().name = "[Races!]cp" + cpList.Count;
             cpList.Add(cp);
         }
-        foreach (Obstacle.ObsClon obClon in clon.obList)
+        foreach (Obstacle.ObClon obClon in clon.obList)
         {
             Obstacle ob = new GameObject().AddComponent<Obstacle>();
-            ob.fromClon(obClon);
-            ob.rotateOb();
+            ob.fromObClon(obClon);
+            ob.rotate();
             obList.Add(ob);
         }
     }
@@ -661,7 +731,7 @@ public class RaceManager : MonoBehaviour
     public estados estadoAct = estados.LoadScreen;
     public List<LoadedTrack.RaceClon> raceList = new List<LoadedTrack.RaceClon>(); //Lista de carreras disponibles en el directorio
     public LoadedTrack loadedTrack = new LoadedTrack();  //Carrera que se va a usar para correr o editar.
-    private int editionCp , editionOb = 0;
+    private int editionCp, editionOb = 0;
     public LoadedTrack.RaceClon lastLoadedTrack = new LoadedTrack.RaceClon(); //Esto valdrá (supongo) para cargar de nuevo un circuito al volver a la escena de vuelo
     public Dictionary<string, float> records = new Dictionary<string, float>() { { "0", 0 } };
     public EditorGizmos.GizmoRotate grot;
@@ -727,7 +797,8 @@ public class RaceManager : MonoBehaviour
             {
                 if (estadoAct == estados.EditScreen) newCheckpoint(true);
                 if (estadoAct == estados.ObsScreen) newObstacle(true);
-            }else
+            }
+            else
             {
                 try
                 {
@@ -750,8 +821,8 @@ public class RaceManager : MonoBehaviour
                 {
 
                 }
-                
-            }   
+
+            }
         }
     }
 
@@ -846,10 +917,6 @@ public class RaceManager : MonoBehaviour
 
     public void windowFuction(int id)
     {
-        if (GUILayout.Button("test"))
-        {
-            Races.CheckPointComponent lol = new GameObject().AddComponent<Races.CheckPointComponent>();
-        }
         switch (estadoAct)
         {
             case estados.LoadScreen:
@@ -864,7 +931,7 @@ public class RaceManager : MonoBehaviour
                     if (race.bodyName == FlightGlobals.ActiveVessel.mainBody.name)
                     {
                         string names = ((race.name + " by " + race.author).Length > 20) ? race.name + "\nby " + race.author : race.name + " by " + race.author;
-                        if (GUILayout.Button(names + "\n" + ((race.laps == 0)? "Sprint, ":(race.laps + " Laps, ")) + race.lenght.ToString("0.00") + " meters", GUILayout.MaxWidth(170)))
+                        if (GUILayout.Button(names + "\n" + ((race.laps == 0) ? "Sprint, " : (race.laps + " Laps, ")) + race.lenght.ToString("0.00") + " meters", GUILayout.MaxWidth(170)))
                         {
                             newRaceTrack();
                             LoadRaceTrack(race);
@@ -887,8 +954,9 @@ public class RaceManager : MonoBehaviour
                 if (loadedTrack.cpList.Count > 0)
                 {
                     // Información del circuito cargado. No se asusten.
+                    Vector3d pCoords = loadedTrack.cpList[0].getBodyCoords();
                     GUILayout.Label(loadedTrack.name + " by " + loadedTrack.author + "\n" + loadedTrack.cpList.Count + " Checkpoints\n" + ((loadedTrack.laps == 0) ? "Sprint" : (loadedTrack.laps + " Laps")) + trackLength.ToString("0.00") + " Meters\nBest time: " + tiempo(loadedTrack.trackTime));
-                    GUILayout.Label("Starting point:\n" + "Latitude: " + loadedTrack.cpList[0].pCoords.x + "\nLongitude: " + loadedTrack.cpList[0].pCoords.y + "\nAltitude: " + loadedTrack.cpList[0].pCoords.z + "\nDistance: " + Vector3.Distance(loadedTrack.cpList[0].Coords, FlightGlobals.ActiveVessel.CoM).ToString("0.00"));
+                    GUILayout.Label("Starting point:\n" + "Latitude: " + pCoords.x + "\nLongitude: " + pCoords.y + "\nAltitude: " + pCoords.z + "\nDistance: " + Vector3.Distance(loadedTrack.cpList[0].Coords, FlightGlobals.ActiveVessel.CoM).ToString("0.00"));
                     if (loadedTrack.cpList.Count > 1 && GUILayout.Button("Start Race")) cambiaEstado(estados.RaceScreen);
                 }
 
@@ -920,7 +988,7 @@ public class RaceManager : MonoBehaviour
                 GUILayout.BeginHorizontal();
                 if (GUILayout.Button("Sprint")) loadedTrack.laps = 0;
                 if (GUILayout.Button("-") && loadedTrack.laps > 1) loadedTrack.laps--;
-                GUILayout.Label((loadedTrack.laps == 0)? "Sprint": loadedTrack.laps.ToString());
+                GUILayout.Label((loadedTrack.laps == 0) ? "Sprint" : loadedTrack.laps.ToString());
                 if (GUILayout.Button("+")) loadedTrack.laps++;
 
                 GUILayout.EndHorizontal();
@@ -935,7 +1003,7 @@ public class RaceManager : MonoBehaviour
 
                 if (loadedTrack.cpList.Count > 0 && GUILayout.Button("Remove Checkpoint"))
                 {
-                    loadedTrack.cpList[editionCp].destroy();
+                    Destroy(loadedTrack.cpList[editionCp]);
                     loadedTrack.cpList.RemoveAt(editionCp);
                     cambiaEditCp(editionCp);
                 }
@@ -980,8 +1048,8 @@ public class RaceManager : MonoBehaviour
                     {
                         if (grot != null) grot.Detach();
                         if (gofs != null) gofs.Detach();
-                        loadedTrack.cpList[editionCp].rot = loadedTrack.cpList[editionCp].resetRot();
-                        loadedTrack.cpList[editionCp].angleRot = Vector3.zero;
+                        loadedTrack.cpList[editionCp].rot = Quaternion.Inverse(loadedTrack.cpList[editionCp].resetRot()) * loadedTrack.cpList[editionCp].resetRot();
+                        loadedTrack.cpList[editionCp].rotate();
                     }
 
                     GUILayout.BeginHorizontal();
@@ -999,15 +1067,14 @@ public class RaceManager : MonoBehaviour
                             Vector3 _direction = (loadedTrack.cpList[editionCp].body.position - transform.position).normalized;
                             gofs.transform.rotation = Quaternion.LookRotation(_direction);
                         }
-                        else gofs.transform.rotation = loadedTrack.cpList[editionCp].rot;
+                        else gofs.transform.rotation = loadedTrack.cpList[editionCp].transform.rotation;
                     }
                     GUILayout.EndHorizontal();
                     if (GUILayout.Button("Send to floor"))
                     {
                         if (grot != null) grot.Detach();
                         if (gofs != null) gofs.Detach();
-                        CheckPoint theCp = loadedTrack.cpList[editionCp];
-                        theCp.pCoords.z = (float)theCp.body.TerrainAltitude(theCp.pCoords.x, theCp.pCoords.y);
+                        loadedTrack.cpList[editionCp].toFloor();
                     }
                     if (GUILayout.Button("Hide gizmo"))
                     {
@@ -1086,7 +1153,7 @@ public class RaceManager : MonoBehaviour
 
                 if (loadedTrack.obList.Count > 0 && GUILayout.Button("Remove Obstacle"))
                 {
-                    loadedTrack.obList[editionOb].destroy();
+                    Destroy(loadedTrack.obList[editionOb]);
                     loadedTrack.obList.RemoveAt(editionOb);
                     cambiaEditOb(editionOb);
                 }
@@ -1099,7 +1166,7 @@ public class RaceManager : MonoBehaviour
                 {
                     foreach (Obstacle obs in loadedTrack.obList)
                     {
-                        obs.destroy();
+                        Destroy(obs);
                     }
                     loadedTrack.obList.Clear();
                 }
@@ -1135,8 +1202,8 @@ public class RaceManager : MonoBehaviour
                     {
                         if (grot != null) grot.Detach();
                         if (gofs != null) gofs.Detach();
-                        loadedTrack.obList[editionOb].rot = loadedTrack.obList[editionOb].resetRot();
-                        loadedTrack.obList[editionOb].angleRot = Vector3.zero;
+                        loadedTrack.obList[editionOb].rot = Quaternion.Inverse(loadedTrack.obList[editionOb].resetRot()) * loadedTrack.obList[editionOb].resetRot();
+                        loadedTrack.obList[editionOb].rotate();
                     }
 
                     GUILayout.BeginHorizontal();
@@ -1155,15 +1222,14 @@ public class RaceManager : MonoBehaviour
                             Vector3 _direction = (loadedTrack.obList[editionOb].body.position - transform.position).normalized;
                             gofs.transform.rotation = Quaternion.LookRotation(_direction);
                         }
-                        else gofs.transform.rotation = loadedTrack.obList[editionOb].rot;
+                        else gofs.transform.rotation = loadedTrack.obList[editionOb].transform.rotation;
                     }
 
                     if (GUILayout.Button("Send to floor"))
                     {
                         if (grot != null) grot.Detach();
                         if (gofs != null) gofs.Detach();
-                        Obstacle theOb = loadedTrack.obList[editionOb];
-                        theOb.pCoords.z = (float)theOb.body.TerrainAltitude(theOb.pCoords.x, theOb.pCoords.y);
+                        loadedTrack.obList[editionOb].toFloor();
                     }
 
                     if (GUILayout.Button("Hide gizmo"))
@@ -1223,10 +1289,9 @@ public class RaceManager : MonoBehaviour
     /// <param name="arg1"></param>
     private void obTrEnd(Vector3 arg1)
     {
-        CelestialBody cuerpo = loadedTrack.obList[editionOb].body;
         Obstacle ob = loadedTrack.obList[editionOb];
-        loadedTrack.obList[editionOb].pCoords = new Vector3((float)cuerpo.GetLatitude(ob.transform.position), (float)cuerpo.GetLongitude(ob.transform.position), (float)cuerpo.GetAltitude(ob.transform.position));
-        loadedTrack.obList[editionOb].enabled = true;
+        loadedTrack.obList[editionOb].Coords = arg1 - loadedTrack.obList[editionOb].body.position;
+        loadedTrack.obList[editionOb].move();
     }
 
     /// <summary>
@@ -1235,7 +1300,6 @@ public class RaceManager : MonoBehaviour
     /// <param name="arg1"></param>
     private void obTran(Vector3 arg1)
     {
-        loadedTrack.obList[editionOb].enabled = false;
         loadedTrack.obList[editionOb].transform.position = gofs.transform.position;
     }
 
@@ -1246,9 +1310,8 @@ public class RaceManager : MonoBehaviour
     private void obRotado(Quaternion arg1)
     {
         Obstacle ob = loadedTrack.obList[editionOb];
-        ob.rot = arg1 * grot.HostRot0;
-        Quaternion reset = ob.resetRot();
-        ob.angleRot = new Vector3(ob.rot.eulerAngles.x - reset.eulerAngles.x, ob.rot.eulerAngles.y - reset.eulerAngles.y, ob.rot.eulerAngles.z - reset.eulerAngles.z);
+        ob.rot = Quaternion.Inverse(ob.resetRot()) * (arg1 * grot.HostRot0);
+        ob.rotate();
     }
 
     /// <summary>
@@ -1257,8 +1320,10 @@ public class RaceManager : MonoBehaviour
     /// <param name="arg1"></param>
     private void obRot(Quaternion arg1)
     {
-        if (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.LeftCommand)) grot.useAngleSnap = false; else grot.useAngleSnap = true;
-        loadedTrack.obList[editionOb].rot = arg1 * grot.HostRot0;
+        grot.useAngleSnap = !(Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.LeftCommand));
+        Obstacle ob = loadedTrack.obList[editionOb];
+        ob.rot = Quaternion.Inverse(ob.resetRot()) * (arg1 * grot.HostRot0);
+        ob.rotate();
     }
 
     /// <summary>
@@ -1267,10 +1332,9 @@ public class RaceManager : MonoBehaviour
     /// <param name="arg1"></param>
     private void cpTrEnd(Vector3 arg1)
     {
-        CelestialBody cuerpo = loadedTrack.cpList[editionCp].body;
         CheckPoint cp = loadedTrack.cpList[editionCp];
-        loadedTrack.cpList[editionCp].pCoords = new Vector3((float)cuerpo.GetLatitude(cp.transform.position), (float)cuerpo.GetLongitude(cp.transform.position), (float)cuerpo.GetAltitude(cp.transform.position));
-        loadedTrack.cpList[editionCp].enabled = true;
+        cp.Coords = gofs.transform.position - cp.body.position;
+        cp.move();
     }
 
     /// <summary>
@@ -1279,8 +1343,10 @@ public class RaceManager : MonoBehaviour
     /// <param name="arg1"></param>
     private void cpTran(Vector3 arg1)
     {
-        loadedTrack.cpList[editionCp].enabled = false;
-        loadedTrack.cpList[editionCp].transform.position = gofs.transform.position;
+        gofs.useGrid = !(Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.LeftCommand));
+        CheckPoint cp = loadedTrack.cpList[editionCp];
+        cp.Coords = gofs.transform.position - cp.body.position;
+        cp.move();
     }
 
     /// <summary>
@@ -1290,12 +1356,8 @@ public class RaceManager : MonoBehaviour
     private void cpRotado(Quaternion arg1)
     {
         CheckPoint cp = loadedTrack.cpList[editionCp];
-        cp.rot = arg1 * grot.HostRot0;
-        Quaternion reset = cp.resetRot();
-        cp.angleRot = new Vector3(cp.rot.eulerAngles.x - reset.eulerAngles.x, cp.rot.eulerAngles.y - reset.eulerAngles.y, cp.rot.eulerAngles.z - reset.eulerAngles.z);
-        //reinicia la rotación y rota el punto de control hasta la rotación rotada anteriormente. Totalmente innecesario. Para pruebas
-        //cp.rot = reset;
-        //cp.rotateCp();
+        cp.rot = Quaternion.Inverse(cp.resetRot()) * (arg1 * grot.HostRot0);
+        cp.rotate();
     }
 
     /// <summary>
@@ -1305,7 +1367,9 @@ public class RaceManager : MonoBehaviour
     private void cpRot(Quaternion arg1)
     {
         if (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.LeftCommand)) grot.useAngleSnap = false; else grot.useAngleSnap = true;
-        loadedTrack.cpList[editionCp].rot = arg1 * grot.HostRot0;
+        CheckPoint cp = loadedTrack.cpList[editionCp];
+        cp.rot = Quaternion.Inverse(cp.resetRot()) * (arg1 * grot.HostRot0);
+        cp.rotate();
     }
 
     /// <summary>
@@ -1317,9 +1381,9 @@ public class RaceManager : MonoBehaviour
         {
             if (loadedTrack.cpList.Count > 0)
             {
-                foreach (CheckPoint rwpCol in loadedTrack.cpList)
+                foreach (CheckPoint cp in loadedTrack.cpList)
                 {
-                    rwpCol.destroy();
+                    Destroy(cp);
                 }
                 loadedTrack.cpList.Clear();
             }
@@ -1328,7 +1392,7 @@ public class RaceManager : MonoBehaviour
             {
                 foreach (Obstacle obs in loadedTrack.obList)
                 {
-                    obs.destroy();
+                    Destroy(obs);
                 }
                 loadedTrack.obList.Clear();
             }
@@ -1373,11 +1437,11 @@ public class RaceManager : MonoBehaviour
             try
             {
                 Vector3d mousePos = mouseRayHit().point;
-                cp.pCoords = new Vector3((float)cp.body.GetLatitude(mousePos), (float)cp.body.GetLongitude(mousePos), (float)cp.body.GetAltitude(mousePos));
+                cp.Coords = mousePos;
             }
             catch (Exception) { }
             cp.rot = cp.resetRot();
-            cp.angleRot = Vector3.zero;
+            cp.rotate();
         }
         loadedTrack.cpList.Add(cp);
         cambiaEditCp(loadedTrack.cpList.Count - 1);
@@ -1394,10 +1458,10 @@ public class RaceManager : MonoBehaviour
         if (enCursor)
         {
             Vector3d mousePos = mouseRayHit().point;
-            obs.pCoords = new Vector3((float)obs.body.GetLatitude(mousePos), (float)obs.body.GetLongitude(mousePos), (float)obs.body.GetAltitude(mousePos));
+            obs.Coords = mousePos;
         }
         obs.rot = obs.resetRot();
-        obs.angleRot = Vector3.zero;
+        obs.rotate();
         loadedTrack.obList.Add(obs);
         cambiaEditOb(loadedTrack.obList.Count - 1);
     }
@@ -1566,7 +1630,8 @@ public class RaceManager : MonoBehaviour
                     {
                         ScreenMessages.PostScreenMessage("Lap " + curLap + " Checkpoint " + pActivo + "\n" + tiempo((float)tiempoAct), 15);
                     }
-                    if(loadedTrack.laps > 0) { 
+                    if (loadedTrack.laps > 0)
+                    {
                         curLap++;
                     }
                     if (loadedTrack.laps > 0 && curLap == loadedTrack.laps)
@@ -1870,14 +1935,15 @@ public class RaceManager : MonoBehaviour
         for (int i = 0; i < loadedTrack.cpList.Count; i++)
         {
             CheckPoint.CheckPointClon cpClon = new CheckPoint.CheckPointClon();
-            cpClon.body = loadedTrack.cpList[i].body.name;
+            cpClon.clon.body = loadedTrack.cpList[i].body.name;
             cpClon.size = loadedTrack.cpList[i].Size;
-            cpClon.pCoordsX = loadedTrack.cpList[i].pCoords.x;
-            cpClon.pCoordsY = loadedTrack.cpList[i].pCoords.y;
-            cpClon.pCoordsZ = loadedTrack.cpList[i].pCoords.z;
-            cpClon.rotX = loadedTrack.cpList[i].angleRot.x;
-            cpClon.rotY = loadedTrack.cpList[i].angleRot.y;
-            cpClon.rotZ = loadedTrack.cpList[i].angleRot.z;
+            cpClon.clon.posX = loadedTrack.cpList[i].Coords.x;
+            cpClon.clon.posY = loadedTrack.cpList[i].Coords.y;
+            cpClon.clon.posZ = loadedTrack.cpList[i].Coords.z;
+            cpClon.clon.rotX = loadedTrack.cpList[i].rot.x;
+            cpClon.clon.rotY = loadedTrack.cpList[i].rot.y;
+            cpClon.clon.rotZ = loadedTrack.cpList[i].rot.z;
+            cpClon.clon.rotW = loadedTrack.cpList[i].rot.w;
             data.cpList[i] = cpClon;
         }
         data.laps = loadedTrack.laps;
@@ -1927,214 +1993,5 @@ public class bArray
         System.Object obj = (System.Object)binForm.Deserialize(memStream);
 
         return obj;
-    }
-}
-
-public class Obstacle : MonoBehaviour
-{
-    public CelestialBody body;
-    public Vector3 pCoords; //posición del marcador en lon lat alt
-    private Vector3 coords;
-    public Quaternion rot;  //rotación marcador
-    public Vector3 angleRot;
-    public static int maxAlt = 50000;
-    public static int maxScale = 100;
-    public static int minScale = 1;
-    public GameObject cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
-    public BoxCollider cubeCol;
-    private bool solid;
-    public static Color colorNormal = new Color(0.75f, 0.75f, 0.75f);
-    public static Color colorEdit = new Color(1f, 0f, 1f);
-    private Color obColor;
-
-    public Vector3 Coords
-    {
-        get
-        {
-            return coords;
-        }
-    }
-
-    public bool Solid
-    {
-        get
-        {
-            return solid;
-        }
-
-        set
-        {
-            solid = value;
-            cubeCol.isTrigger = !solid;
-            cube.GetComponent<Renderer>().material = (!solid) ? new Material(Shader.Find("Transparent/Diffuse")) : null;
-            ObColor = obColor;
-        }
-    }
-
-    public Color ObColor
-    {
-        get
-        {
-            return obColor;
-        }
-
-        set
-        {
-            obColor = value;
-            cube.GetComponent<Renderer>().material.color = new Color(obColor.r, obColor.g, obColor.b, (solid) ? 1 : 0.5f);
-        }
-    }
-
-    void Awake()
-    {
-        //Donde está el buque en el momento de crear el punto de control
-        cube.transform.parent = transform;
-        cubeCol = cube.gameObject.GetComponent<BoxCollider>();
-        ObColor = colorEdit;
-        cubeCol.enabled = false;
-        cubeCol.isTrigger = true;
-        cubeCol.name = "[Races!]ob" + (Races.Races.raceMan.loadedTrack.obList.Count).ToString();
-        cube.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        Solid = false;
-        pCoords = new Vector3((float)FlightGlobals.ActiveVessel.latitude, (float)FlightGlobals.ActiveVessel.longitude, (float)FlightGlobals.ActiveVessel.altitude);
-        body = FlightGlobals.ActiveVessel.mainBody;
-
-        if (pCoords.z - body.TerrainAltitude(pCoords.x, pCoords.y) <= 0) pCoords.z = (float)body.TerrainAltitude(pCoords.x, pCoords.y);
-        if (pCoords.z > maxAlt) pCoords.z = maxAlt;
-        coords = body.GetWorldSurfacePosition(pCoords.x, pCoords.y, pCoords.z);
-        rot = resetRot();
-        transform.position = coords;
-        transform.rotation = rot;
-
-        //Esto es para que el punto de control tome la rotación del buque
-        Quaternion vesselRelativeRotation = Quaternion.Inverse(rot) * FlightGlobals.ActiveVessel.GetTransform().rotation;
-
-        angleRot = new Vector3(vesselRelativeRotation.eulerAngles.x, vesselRelativeRotation.eulerAngles.y, vesselRelativeRotation.eulerAngles.z);
-
-        rotateOb();
-    }
-
-    /// <summary>
-    /// Coloca el obstáculo
-    /// </summary>
-    void Update()
-    {
-        //que el punto de control no se meta por debajo del suelo
-        if (pCoords.z - body.TerrainAltitude(pCoords.x, pCoords.y) <= 0) pCoords.z = (float)body.TerrainAltitude(pCoords.x, pCoords.y);
-        if (pCoords.z > maxAlt) pCoords.z = maxAlt;
-
-        //Como el origen del mundo se mueve con el buque, esto mantiene el punto de control en una posicion fija respecto al planeta.
-        coords = body.GetWorldSurfacePosition(pCoords.x, pCoords.y, pCoords.z);
-
-        transform.position = coords;
-        transform.rotation = rot;
-    }
-
-    public void destroy()
-    {
-        Destroy(cube);
-        Destroy(this);
-    }
-
-    /// <summary>
-    /// Rota el obstáculo alrededor de los ejes y en la cantidad de grados especificados, cada vez que se llama.
-    /// </summary>
-    /// <param name="xAngle"></param>
-    /// <param name="yAngle"></param>
-    /// <param name="zAngle"></param>
-    public void rotateOb(float xAngle, float yAngle, float zAngle)
-    {
-        rot *= Quaternion.Euler(xAngle, yAngle, zAngle);
-    }
-
-    public void rotateOb(Vector3 angles)
-    {
-        rotateOb(angles.x, angles.y, angles.z);
-    }
-
-    /// <summary>
-    /// Reinicia la rotación del obstáculo y luego lo rota segun lo que sea angleRot
-    /// </summary>
-    public void rotateOb()
-    {
-        rot = resetRot();
-        rotateOb(angleRot);
-    }
-
-    /// <summary>
-    /// Translada el obstaculo a lo largo del eje y en la distancia especificada, cada vez que se llama
-    /// </summary>
-    /// <param name="lat"></param>
-    /// <param name="lon"></param>
-    /// <param name="alt"></param>
-    public void moveOb(float lat, float lon, float alt)
-    {
-        pCoords.x += lat;
-        pCoords.y += lon;
-        pCoords.z += alt;
-    }
-
-    public void scaleOb(float x, float y, float z)
-    {
-        float sx = cube.transform.localScale.x + x;
-        float sy = cube.transform.localScale.y + y;
-        float sz = cube.transform.localScale.z + z;
-
-        if (sx < minScale) sx = minScale; else if (sx > maxScale) sx = maxScale;
-        if (sy < minScale) sy = minScale; else if (sy > maxScale) sy = maxScale;
-        if (sz < minScale) sz = minScale; else if (sz > maxScale) sz = maxScale;
-
-        cube.transform.localScale = new Vector3((float)Math.Round(sx, 2), (float)Math.Round(sy, 2), (float)Math.Round(sz, 2));
-    }
-
-    [Serializable]
-    public class ObsClon
-    {
-        public string body;
-        public float pCoordsx, pCoordsy, pCoordsz;
-        public float rotx, roty, rotz, rotw; //si quito rotw aparecen problemas
-        public float scalex, scaley, scalez;
-        public bool solid;
-    }
-
-    /// <summary>
-    /// Escupe una clase serializable que contiene los datos del obstáculo
-    /// </summary>
-    /// <returns></returns>
-    public ObsClon toClon()
-    {
-        ObsClon clon = new ObsClon();
-        clon.body = body.name;
-        clon.pCoordsx = pCoords.x;
-        clon.pCoordsy = pCoords.y;
-        clon.pCoordsz = pCoords.z;
-        clon.rotx = angleRot.x;
-        clon.roty = angleRot.y;
-        clon.rotz = angleRot.z;
-        clon.scalex = cube.transform.localScale.x;
-        clon.scaley = cube.transform.localScale.y;
-        clon.scalez = cube.transform.localScale.z;
-        clon.solid = Solid;
-        return clon;
-    }
-
-    /// <summary>
-    /// toma los datos de un ObsClon
-    /// </summary>
-    /// <param name="clon"></param>
-    public void fromClon(ObsClon clon)
-    {
-        pCoords = new Vector3(clon.pCoordsx, clon.pCoordsy, clon.pCoordsz);
-        angleRot = new Vector3(clon.rotx, clon.roty, clon.rotz);
-        cube.transform.localScale = new Vector3(clon.scalex, clon.scaley, clon.scalez);
-        Solid = clon.solid;
-    }
-
-    internal Quaternion resetRot()
-    {
-        //http://answers.unity3d.com/questions/254130/how-do-i-rotate-an-object-towards-a-vector3-point.html
-        Vector3 _direction = (body.position - transform.position).normalized;
-        Quaternion _lookRotation = Quaternion.LookRotation(_direction);
-        return _lookRotation;
     }
 }
