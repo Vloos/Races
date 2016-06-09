@@ -454,7 +454,7 @@ public class CheckPoint : RaceComponent
         cpBoxTrigger.GetComponent<BoxCollider>().gameObject.AddComponent<colision>();
         cpBoxTrigger.transform.parent = transform;
         cpBoxTrigger.GetComponent<BoxCollider>().isTrigger = true;
-        cpBoxTrigger.transform.localScale = new Vector3(sizes[Size].y, sizes[Size].x + 0.2f, sizes[Size].z);
+        cpBoxTrigger.transform.localScale = new Vector3(sizes[Size].y, sizes[Size].x, sizes[Size].z);
         cpBoxTrigger.GetComponent<BoxCollider>().enabled = false;
         cpBoxTrigger.GetComponent<Renderer>().enabled = false;
 
@@ -644,7 +644,7 @@ public class LoadedTrack
                     length += Vector3.Distance(cpList[i - 1].Coords, cpList[i].Coords);
                 }
 
-                if (laps > 1)
+                if (laps > 0)
                 {
                     length += Vector3.Distance(cpList[0].Coords, cpList[cpList.Count - 1].Coords);
                     length *= laps;
@@ -746,7 +746,7 @@ public class RaceManager : MonoBehaviour
     public List<LoadedTrack.RaceClon> raceList = new List<LoadedTrack.RaceClon>(); //Lista de carreras disponibles en el directorio
     public LoadedTrack loadedTrack = new LoadedTrack();  //Carrera que se va a usar para correr o editar.
     private int editionCp, editionOb = 0;
-    public LoadedTrack.RaceClon lastLoadedTrack = new LoadedTrack.RaceClon(); //Esto valdrá (supongo) para cargar de nuevo un circuito al volver a la escena de vuelo
+    public LoadedTrack.RaceClon lastLoadedTrack = new LoadedTrack.RaceClon(); //Esto servirá (supongo) para cargar de nuevo un circuito al volver a la escena de vuelo
     public Dictionary<string, float> records = new Dictionary<string, float>() { { "0", 0 } };
     public EditorGizmos.GizmoRotate grot;
     public EditorGizmos.GizmoOffset gofs;
@@ -799,7 +799,7 @@ public class RaceManager : MonoBehaviour
             tiempoAct = Planetarium.GetUniversalTime() - tiempoIni;
 
             //Reactiva la penalización de tiempo al tocar el punto de control si el buque controlado se aleja demasiado del punto de control previamente tocado
-            if (Vector3.Distance(FlightGlobals.ActiveVessel.CoM, loadedTrack.cpList[pActivo].Coords) > CheckPoint.sizes[loadedTrack.cpList[pActivo].Size].y && !loadedTrack.cpList[pActivo].Penalization)
+            if (!loadedTrack.cpList[pActivo].Penalization && Vector3.Distance(FlightGlobals.ActiveVessel.transform.position, loadedTrack.cpList[pActivo].transform.position) > CheckPoint.sizes[loadedTrack.cpList[pActivo].Size].y)
             {
                 loadedTrack.cpList[pActivo].Penalization = true;
             }
@@ -931,11 +931,6 @@ public class RaceManager : MonoBehaviour
 
     public void windowFuction(int id)
     {
-        GUILayout.Label(loadedTrack.trackKey);
-        if (GUILayout.Button("key"))
-        {
-            loadedTrack.trackKey = genTrackKey();
-        }
         switch (estadoAct)
         {
             case estados.LoadScreen:
@@ -955,7 +950,7 @@ public class RaceManager : MonoBehaviour
                             newRaceTrack();
                             LoadRaceTrack(race);
                             prepCp(false);
-                            trackLength = race.lenght;
+                            trackLength = loadedTrack.trackLength;
                             loadedTrack.trackTime = (records.ContainsKey(loadedTrack.trackKey)) ? records[loadedTrack.trackKey] : 0;
                         }
                     }
@@ -1005,10 +1000,22 @@ public class RaceManager : MonoBehaviour
                 GUILayout.EndHorizontal();
                 GUILayout.Label("Laps");
                 GUILayout.BeginHorizontal();
-                if (GUILayout.Button("Sprint")) loadedTrack.laps = 0;
-                if (GUILayout.Button("-") && loadedTrack.laps > 1) loadedTrack.laps--;
+                if (GUILayout.Button("Sprint"))
+                {
+                    loadedTrack.laps = 0;
+                    trackLength = loadedTrack.trackLength;
+                }
+                if (GUILayout.Button("-") && loadedTrack.laps > 1)
+                {
+                    loadedTrack.laps--;
+                    trackLength = loadedTrack.trackLength;
+                }
                 GUILayout.Label((loadedTrack.laps == 0) ? "Sprint" : loadedTrack.laps.ToString());
-                if (GUILayout.Button("+")) loadedTrack.laps++;
+                if (GUILayout.Button("+"))
+                {
+                    loadedTrack.laps++;
+                    trackLength = loadedTrack.trackLength;
+                }
 
                 GUILayout.EndHorizontal();
 
@@ -1071,7 +1078,7 @@ public class RaceManager : MonoBehaviour
                     }
 
                     GUILayout.BeginHorizontal();
-                    GUILayout.Label("Translate");
+                    GUILayout.Label("Move");
                     bool abs = GUILayout.Button("Absolute");
                     bool rel = GUILayout.Button("Relative");
 
@@ -1154,10 +1161,22 @@ public class RaceManager : MonoBehaviour
                 GUILayout.EndHorizontal();
                 GUILayout.Label("Laps");
                 GUILayout.BeginHorizontal();
-                if (GUILayout.Button("1")) loadedTrack.laps = 1;
-                if (GUILayout.Button("-") && loadedTrack.laps > 1) loadedTrack.laps--;
-                GUILayout.Label(loadedTrack.laps.ToString());
-                if (GUILayout.Button("+")) loadedTrack.laps++;
+                if (GUILayout.Button("Sprint"))
+                {
+                    loadedTrack.laps = 0;
+                    trackLength = loadedTrack.trackLength;
+                }
+                if (GUILayout.Button("-") && loadedTrack.laps > 1)
+                {
+                    loadedTrack.laps--;
+                    trackLength = loadedTrack.trackLength;
+                }
+                GUILayout.Label((loadedTrack.laps == 0) ? "Sprint" : loadedTrack.laps.ToString());
+                if (GUILayout.Button("+"))
+                {
+                    loadedTrack.laps++;
+                    trackLength = loadedTrack.trackLength;
+                }
 
                 GUILayout.EndHorizontal();
 
@@ -1224,7 +1243,7 @@ public class RaceManager : MonoBehaviour
                     }
 
                     GUILayout.BeginHorizontal();
-                    GUILayout.Label("Translate");
+                    GUILayout.Label("Move");
                     bool abs = GUILayout.Button("Absolute");
                     bool rel = GUILayout.Button("Relative");
                     GUILayout.EndHorizontal();
@@ -1300,14 +1319,23 @@ public class RaceManager : MonoBehaviour
         GUI.DragWindow();
     }
 
+    /// <summary>
+    /// llamado al utilizar el chirimbolo de translación sobre un punto de control u obstáculo
+    /// </summary>
+    /// <param name="arg1"></param>
     private void rCompTran(Vector3 arg1)
     {
         gofs.useGrid = !(Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.LeftCommand));
         RaceComponent rc = (estadoAct == estados.EditScreen) ? loadedTrack.cpList[editionCp] as RaceComponent : loadedTrack.obList[editionOb] as RaceComponent;
+        if (estadoAct == estados.EditScreen) trackLength = loadedTrack.trackLength;
         rc.Coords = rc.body.GetTransform().InverseTransformPoint(gofs.transform.position);
         rc.move();
     }
 
+    /// <summary>
+    /// llamado al utilizar el chirimbolo de rotación sobre un punto de control u obstáculo
+    /// </summary>
+    /// <param name="arg1"></param>
     private void rCompRot(Quaternion arg1)
     {
         grot.useAngleSnap = !(Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.LeftCommand));
@@ -1366,7 +1394,6 @@ public class RaceManager : MonoBehaviour
         if (loadedTrack.cpList.Count == 1)
         {
             cp.tipoCp = CheckPoint.Types.START;
-            trackLength = loadedTrack.trackLength;
         }
         else
         {
@@ -1391,10 +1418,10 @@ public class RaceManager : MonoBehaviour
         {
             cp.Coords = cp.body.transform.InverseTransformPoint(FlightGlobals.ActiveVessel.GetTransform().position);
             cp.rot = Quaternion.Inverse(cp.rotZero()) * FlightGlobals.ActiveVessel.GetTransform().rotation;
-            
         }
         Debug.Log(cp.name);
         loadedTrack.cpList.Add(cp);
+        trackLength = loadedTrack.trackLength;
         cambiaEditCp(loadedTrack.cpList.Count - 1);
     }
 
@@ -1417,7 +1444,7 @@ public class RaceManager : MonoBehaviour
 
         }else
         {
-            obs.Coords = FlightGlobals.ActiveVessel.GetTransform().position - obs.body.position;
+            obs.Coords = obs.body.transform.InverseTransformPoint(FlightGlobals.ActiveVessel.GetTransform().position);
         }
         obs.resetRot();
         loadedTrack.obList.Add(obs);
