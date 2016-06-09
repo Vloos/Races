@@ -248,13 +248,14 @@ public class RaceComponent : MonoBehaviour
 
     public Vector3d getBodyCoords()
     {
-        return new Vector3d (body.GetLongitude(coords), body.GetLatitude(coords), body.GetAltitude(coords));
+        return new Vector3d(body.GetLongitude(coords), body.GetLatitude(coords), body.GetAltitude(coords));
     }
 
     public void toFloor()
     {
-        coords = body.GetWorldSurfacePosition(body.GetLatitude(coords), body.GetLongitude(coords), body.TerrainAltitude(body.GetLatitude(coords), body.GetLongitude(coords)));
-        transform.position = coords;
+        Vector3 floorCordsAbs = body.GetWorldSurfacePosition(body.GetLatitude(transform.position), body.GetLongitude(transform.position), body.TerrainAltitude(body.GetLatitude(transform.position), body.GetLongitude(transform.position)));
+        Coords = body.transform.InverseTransformPoint(floorCordsAbs);
+        move();
     }
 }
 
@@ -403,7 +404,7 @@ public class CheckPoint : RaceComponent
             cubo.transform.parent = transform;
             cubo.GetComponent<BoxCollider>().isTrigger = true;
             cubo.GetComponent<BoxCollider>().enabled = true;
-            cubo.GetComponent<BoxCollider>().name = name + "cp-" + (Races.Races.raceMan.loadedTrack.cpList.Count).ToString();
+            cubo.GetComponent<BoxCollider>().name = "[Races!]CP-" + (Races.Races.raceMan.loadedTrack.cpList.Count).ToString();
         }
 
         void OnDestroy()
@@ -577,9 +578,15 @@ public class Obstacle : RaceComponent
         ObColor = colorEdit;
         cubeCol.enabled = false;
         cubeCol.isTrigger = true;
-        cubeCol.name = "[Races!]ob" + (Races.Races.raceMan.loadedTrack.obList.Count).ToString();
+        cubeCol.name = "[Races!]OB-" + (Races.Races.raceMan.loadedTrack.obList.Count).ToString();
         cube.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         Solid = false;
+    }
+
+    public void destroy()
+    {
+        Destroy(cube);
+        Destroy(this);
     }
 
     [Serializable]
@@ -817,17 +824,18 @@ public class RaceManager : MonoBehaviour
                 try
                 {
                     string obj = mouseRayHit().collider.name;
-                    string type = obj.Substring(0, 10);
-                    if (type == "[Races!]cp")
+                    string[] type = obj.Split("-".ToCharArray());
+                    Debug.Log(obj);
+                    if (type[0] == "[Races!]CP")
                     {
                         cambiaEstado(estados.EditScreen);
-                        int num = int.Parse(obj.Substring(10));
+                        int num = int.Parse(type[1]);
                         cambiaEditCp(num);
                     }
-                    if (type == "[Races!]ob")
+                    if (type[0] == "[Races!]OB")
                     {
                         cambiaEstado(estados.ObsScreen);
-                        int num = int.Parse(obj.Substring(10));
+                        int num = int.Parse(type[1]);
                         cambiaEditOb(num);
                     }
                 }
@@ -970,7 +978,7 @@ public class RaceManager : MonoBehaviour
                     // Información del circuito cargado. No se asusten.
                     Vector3d pCoords = loadedTrack.cpList[0].getBodyCoords();
                     GUILayout.Label(loadedTrack.name + " by " + loadedTrack.author + "\n" + loadedTrack.cpList.Count + " Checkpoints\n" + ((loadedTrack.laps == 0) ? "Sprint " : (loadedTrack.laps + " Laps ")) + trackLength.ToString("0.00") + " Meters\nBest time: " + tiempo(loadedTrack.trackTime));
-                    GUILayout.Label("Starting point:\n" + "Latitude: " + pCoords.x.ToString("0.00") + "\nLongitude: " + pCoords.y.ToString("0.00") + "\nAltitude: " + (pCoords.z/1000).ToString("0.00") + "\nDistance: " + Vector3.Distance(loadedTrack.cpList[0].transform.position, FlightGlobals.ActiveVessel.transform.position).ToString("0.00"));
+                    GUILayout.Label("Starting point:\n" + "Latitude: " + pCoords.x.ToString("0.00") + "\nLongitude: " + pCoords.y.ToString("0.00") + "\nAltitude: " + (pCoords.z / 1000).ToString("0.00") + "\nDistance: " + Vector3.Distance(loadedTrack.cpList[0].transform.position, FlightGlobals.ActiveVessel.transform.position).ToString("0.00"));
                     if (loadedTrack.cpList.Count > 1 && GUILayout.Button("Start Race")) cambiaEstado(estados.RaceScreen);
                 }
 
@@ -1026,13 +1034,6 @@ public class RaceManager : MonoBehaviour
 
                 if (GUILayout.Button("New Checkpoint here")) newCheckpoint(false);
                 GUILayout.Label("RCtrl + LMB new checkpoint on cursor");
-
-                if (loadedTrack.cpList.Count > 0 && GUILayout.Button("Remove Checkpoint"))
-                {
-                    loadedTrack.cpList[editionCp].destroy();
-                    loadedTrack.cpList.RemoveAt(editionCp);
-                    cambiaEditCp(editionCp);
-                }
 
                 if (GUILayout.Button("Edit Obstacles")) cambiaEstado(estados.ObsScreen);
                 saveDialog();
@@ -1106,6 +1107,15 @@ public class RaceManager : MonoBehaviour
                         if (grot != null) grot.Detach();
                         if (gofs != null) gofs.Detach();
                     }
+
+                    if (loadedTrack.cpList.Count > 0 && GUILayout.Button("Remove Checkpoint"))
+                    {
+                        loadedTrack.cpList[editionCp].destroy();
+                        loadedTrack.cpList.RemoveAt(editionCp);
+                        cambiaEditCp(editionCp);
+                        trackLength = loadedTrack.trackLength;
+                    }
+
                     GUILayout.EndVertical();
                 }
                 GUILayout.EndHorizontal();
@@ -1188,13 +1198,6 @@ public class RaceManager : MonoBehaviour
                 if (GUILayout.Button("New Obstacle here")) newObstacle(false);
                 GUILayout.Label("RCtrl + LMB new obstacle on cursor");
 
-                if (loadedTrack.obList.Count > 0 && GUILayout.Button("Remove Obstacle"))
-                {
-                    Destroy(loadedTrack.obList[editionOb]);
-                    loadedTrack.obList.RemoveAt(editionOb);
-                    cambiaEditOb(editionOb);
-                }
-
                 if (GUILayout.Button("Edit Checkpoints")) cambiaEstado(estados.EditScreen);
 
                 saveDialog();
@@ -1203,7 +1206,7 @@ public class RaceManager : MonoBehaviour
                 {
                     foreach (Obstacle obs in loadedTrack.obList)
                     {
-                        Destroy(obs);
+                        obs.destroy();
                     }
                     loadedTrack.obList.Clear();
                 }
@@ -1309,6 +1312,13 @@ public class RaceManager : MonoBehaviour
                     if (GUILayout.Button("+|")) loadedTrack.obList[editionOb].scaleOb(0, 0, Obstacle.maxScale);
                     GUILayout.EndHorizontal();
 
+                    if (loadedTrack.obList.Count > 0 && GUILayout.Button("Remove Obstacle"))
+                    {
+                        loadedTrack.obList[editionOb].destroy();
+                        loadedTrack.obList.RemoveAt(editionOb);
+                        cambiaEditOb(editionOb);
+                    }
+
                     GUILayout.EndVertical();
                 }
                 GUILayout.EndHorizontal();
@@ -1339,7 +1349,7 @@ public class RaceManager : MonoBehaviour
     private void rCompRot(Quaternion arg1)
     {
         grot.useAngleSnap = !(Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.LeftCommand));
-        RaceComponent rc = (estadoAct == estados.EditScreen)? loadedTrack.cpList[editionCp] as RaceComponent : loadedTrack.obList[editionOb] as RaceComponent;
+        RaceComponent rc = (estadoAct == estados.EditScreen) ? loadedTrack.cpList[editionCp] as RaceComponent : loadedTrack.obList[editionOb] as RaceComponent;
         rc.rot = Quaternion.Inverse(rc.rotZero()) * (arg1 * grot.HostRot0);
         rc.rotate();
     }
@@ -1364,7 +1374,7 @@ public class RaceManager : MonoBehaviour
             {
                 foreach (Obstacle obs in loadedTrack.obList)
                 {
-                    Destroy(obs);
+                    obs.destroy();
                 }
                 loadedTrack.obList.Clear();
             }
@@ -1431,21 +1441,25 @@ public class RaceManager : MonoBehaviour
     /// <param name="enCursor"></param>
     public void newObstacle(bool enCursor)
     {
+        if (grot != null) grot.Detach();
+        if (gofs != null) gofs.Detach();
         Obstacle obs = new GameObject().AddComponent<Obstacle>();
+        obs.name += loadedTrack.obList.Count;
         obs.cube.transform.localScale = new Vector3(Obstacle.maxScale / 2, Obstacle.maxScale / 2, Obstacle.maxScale / 2);
         if (enCursor)
         {
             try
             {
                 Vector3d mousePos = mouseRayHit().point;
-                obs.Coords = mousePos - obs.body.position;
+                obs.Coords = obs.body.transform.InverseTransformPoint(mousePos);
             }
             catch (Exception) { }
-
-        }else
+        }
+        else
         {
             obs.Coords = obs.body.transform.InverseTransformPoint(FlightGlobals.ActiveVessel.GetTransform().position);
         }
+        Debug.Log(obs.name);
         obs.resetRot();
         loadedTrack.obList.Add(obs);
         cambiaEditOb(loadedTrack.obList.Count - 1);
@@ -1526,10 +1540,7 @@ public class RaceManager : MonoBehaviour
     {
         //Tomar los datos de la carrera cargada (no guardable) y transferirlos a la carrera guardable
         LoadedTrack.RaceClon raceClon = loadedTrack.toClon();
-        if (!Directory.Exists(Races.Races.RaceTrackFolder))
-        {
-            Directory.CreateDirectory(Races.Races.RaceTrackFolder);
-        }
+        if (!Directory.Exists(Races.Races.RaceTrackFolder)) Directory.CreateDirectory(Races.Races.RaceTrackFolder);
         try
         {
             BinaryFormatter bf = new BinaryFormatter();
@@ -1563,10 +1574,7 @@ public class RaceManager : MonoBehaviour
     public void GetRacetrackList()
     {
         // coger todos los archivos de tipo .krt de la carpeta y meterlos en la lista de circuitos
-        if (!Directory.Exists(Races.Races.RaceTrackFolder))
-        {
-            Directory.CreateDirectory(Races.Races.RaceTrackFolder);
-        }
+        if (!Directory.Exists(Races.Races.RaceTrackFolder)) Directory.CreateDirectory(Races.Races.RaceTrackFolder);
         var info = new DirectoryInfo(Races.Races.RaceTrackFolder);
         var fileInfo = info.GetFiles("*" + Races.Races.RaceTrackFileExtension, SearchOption.TopDirectoryOnly);
         Debug.Log("[Races!] " + fileInfo.Length + " Race Tracks found");
@@ -1579,11 +1587,7 @@ public class RaceManager : MonoBehaviour
                 FileStream fileStream = File.Open(file.FullName, FileMode.Open);
                 var stream = bf.Deserialize(fileStream);
                 LoadedTrack.RaceClon race = stream as LoadedTrack.RaceClon;
-
-                if (race != null)
-                {
-                    raceList.Add(race);
-                }
+                if (race != null) raceList.Add(race);
             }
             catch (Exception)
             {
@@ -1740,7 +1744,6 @@ public class RaceManager : MonoBehaviour
                 num = loadedTrack.cpList.Count - 1;
             }
             editionCp = num;
-
             loadedTrack.cpList[editionCp].cpColor = CheckPoint.colorEdit;
             size = loadedTrack.cpList[editionCp].Size;
         }
@@ -1771,8 +1774,8 @@ public class RaceManager : MonoBehaviour
             if (editionOb <= loadedTrack.obList.Count - 1)
             {
                 loadedTrack.obList[editionOb].ObColor = Obstacle.colorNormal;
+                loadedTrack.obList[editionOb].cubeCol.enabled = true;
             }
-            loadedTrack.obList[editionOb].cubeCol.enabled = true;
             editionOb = num;
             loadedTrack.obList[editionOb].ObColor = Obstacle.colorEdit;
             loadedTrack.obList[editionOb].cubeCol.enabled = false;
@@ -1830,10 +1833,7 @@ public class RaceManager : MonoBehaviour
     /// </summary>
     public void loadRecordFile()
     {
-        if (!Directory.Exists(Races.Races.RaceTrackFolder))
-        {
-            Directory.CreateDirectory(Races.Races.RaceTrackFolder);
-        }
+        if (!Directory.Exists(Races.Races.RaceTrackFolder)) Directory.CreateDirectory(Races.Races.RaceTrackFolder);
         try
         {
             BinaryFormatter bf = new BinaryFormatter();

@@ -91,6 +91,11 @@
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>set SOURCE="D:\Mis documentos\Visual Studio 2015\Projects\Output\Races!"
+set DESTINATION="D:\Escritorio\KSP\GameData\Races!"
+xcopy %25SOURCE%25 %25DESTINATION%25 /D /E /C /R /I /K /Y</PostBuildEvent>
+  </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">
