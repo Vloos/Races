@@ -248,7 +248,7 @@ public class RaceComponent : MonoBehaviour
 
     public Vector3d getBodyCoords()
     {
-        return new Vector3d(body.GetLongitude(coords), body.GetLatitude(coords), body.GetAltitude(coords));
+        return new Vector3d(body.GetLongitude(transform.position), body.GetLatitude(transform.position), body.GetAltitude(transform.position));
     }
 
     public void toFloor()
@@ -804,7 +804,6 @@ public class RaceManager : MonoBehaviour
         if (enCarrera)
         {
             tiempoAct = Planetarium.GetUniversalTime() - tiempoIni;
-
             //Reactiva la penalización de tiempo al tocar el punto de control si el buque controlado se aleja demasiado del punto de control previamente tocado
             if (!loadedTrack.cpList[pActivo].Penalization && Vector3.Distance(FlightGlobals.ActiveVessel.transform.position, loadedTrack.cpList[pActivo].transform.position) > CheckPoint.sizes[loadedTrack.cpList[pActivo].Size].y)
             {
@@ -816,8 +815,13 @@ public class RaceManager : MonoBehaviour
         {
             if (Input.GetKey(KeyCode.RightControl) || Input.GetKey(KeyCode.RightCommand))
             {
-                if (estadoAct == estados.EditScreen) newCheckpoint(true);
-                if (estadoAct == estados.ObsScreen) newObstacle(true);
+                cambiaEstado(estados.EditScreen);
+                newCheckpoint(true);
+            }
+            else if (Input.GetKey(KeyCode.RightShift))
+            {
+                newObstacle(true);
+                cambiaEstado(estados.ObsScreen);
             }
             else
             {
@@ -825,7 +829,6 @@ public class RaceManager : MonoBehaviour
                 {
                     string obj = mouseRayHit().collider.name;
                     string[] type = obj.Split("-".ToCharArray());
-                    Debug.Log(obj);
                     if (type[0] == "[Races!]CP")
                     {
                         cambiaEstado(estados.EditScreen);
@@ -839,11 +842,7 @@ public class RaceManager : MonoBehaviour
                         cambiaEditOb(num);
                     }
                 }
-                catch (Exception)
-                {
-
-                }
-
+                catch (Exception) { }
             }
         }
     }
@@ -978,7 +977,7 @@ public class RaceManager : MonoBehaviour
                     // Información del circuito cargado. No se asusten.
                     Vector3d pCoords = loadedTrack.cpList[0].getBodyCoords();
                     GUILayout.Label(loadedTrack.name + " by " + loadedTrack.author + "\n" + loadedTrack.cpList.Count + " Checkpoints\n" + ((loadedTrack.laps == 0) ? "Sprint " : (loadedTrack.laps + " Laps ")) + trackLength.ToString("0.00") + " Meters\nBest time: " + tiempo(loadedTrack.trackTime));
-                    GUILayout.Label("Starting point:\n" + "Latitude: " + pCoords.x.ToString("0.00") + "\nLongitude: " + pCoords.y.ToString("0.00") + "\nAltitude: " + (pCoords.z / 1000).ToString("0.00") + "\nDistance: " + Vector3.Distance(loadedTrack.cpList[0].transform.position, FlightGlobals.ActiveVessel.transform.position).ToString("0.00"));
+                    GUILayout.Label("Starting point:\n" + "Latitude: " + pCoords.x.ToString("0.00") + "\nLongitude: " + pCoords.y.ToString("0.00") + "\nAltitude: " + pCoords.z.ToString("0.00") + "\nDistance: " + Vector3.Distance(loadedTrack.cpList[0].transform.position, FlightGlobals.ActiveVessel.transform.position).ToString("0.00"));
                     if (loadedTrack.cpList.Count > 1 && GUILayout.Button("Start Race")) cambiaEstado(estados.RaceScreen);
                 }
 
@@ -991,133 +990,55 @@ public class RaceManager : MonoBehaviour
                 GUILayout.EndHorizontal();
                 break;
             case estados.EditScreen:
+            case estados.ObsScreen:
                 GUILayout.Label("Race Track Editor");
 
                 GUILayout.BeginHorizontal();
 
+                genDataTrackEditGui(); //Controles genéricos de edición de circuitos, nombre, numero de vueltas, etc
+
                 GUILayout.BeginVertical();
 
                 GUILayout.BeginHorizontal();
-                GUI.SetNextControlName("TrackNAme");
-                GUILayout.Label("Name", GUILayout.Width(nameLabelWidth));
-                loadedTrack.name = GUILayout.TextField(loadedTrack.name, GUILayout.Width(nameTextWidth));
-                GUILayout.EndHorizontal();
-                GUILayout.BeginHorizontal();
-                GUILayout.Label("Author", GUILayout.Width(nameLabelWidth));
-                loadedTrack.author = GUILayout.TextField(loadedTrack.author, GUILayout.Width(nameTextWidth));
-                GUILayout.EndHorizontal();
-                GUILayout.Label("Laps");
-                GUILayout.BeginHorizontal();
-                if (GUILayout.Button("Sprint"))
+
+                GUILayout.BeginVertical();
+                if (GUILayout.Button("New Checkpoint here"))
                 {
-                    loadedTrack.laps = 0;
-                    trackLength = loadedTrack.trackLength;
+                    cambiaEstado(estados.EditScreen);
+                    newCheckpoint(false);
                 }
-                if (GUILayout.Button("-") && loadedTrack.laps > 1)
-                {
-                    loadedTrack.laps--;
-                    trackLength = loadedTrack.trackLength;
-                }
-                GUILayout.Label((loadedTrack.laps == 0) ? "Sprint" : loadedTrack.laps.ToString());
-                if (GUILayout.Button("+"))
-                {
-                    loadedTrack.laps++;
-                    trackLength = loadedTrack.trackLength;
-                }
-
-                GUILayout.EndHorizontal();
-
-                GUILayout.BeginHorizontal();
-                GUILayout.Label("Length");
-                GUILayout.Label(trackLength.ToString());
-                GUILayout.EndHorizontal();
-
-                if (GUILayout.Button("New Checkpoint here")) newCheckpoint(false);
-                GUILayout.Label("RCtrl + LMB new checkpoint on cursor");
-
-                if (GUILayout.Button("Edit Obstacles")) cambiaEstado(estados.ObsScreen);
-                saveDialog();
-                if (GUILayout.Button("New Race Track")) newRaceTrack();
-                if (loadedTrack.cpList.Count > 1 && GUILayout.Button("Start Race!")) cambiaEstado(estados.RaceScreen);
-                if (GUILayout.Button("Load Racetrack")) cambiaEstado(estados.LoadScreen);
-
+                    
+                GUILayout.Label("RCtrl + LMB on cursor");
                 GUILayout.EndVertical();
 
-                if (loadedTrack.cpList.Count > 0)
+                GUILayout.BeginVertical();
+                if (GUILayout.Button("New Obstacle here"))
                 {
-                    GUILayout.BeginVertical();
+                    cambiaEstado(estados.ObsScreen);
+                    newObstacle(false);
+                } 
+                GUILayout.Label("RShift + LMB on cursor");
+                GUILayout.EndVertical();
 
-                    GUILayout.Label("Select Checkpoint");
-                    GUILayout.BeginHorizontal();
-                    if (GUILayout.Button("|<")) cambiaEditCp(0); //First
-                    if (GUILayout.Button("<")) cambiaEditCp(editionCp - 1); //previous
-                    GUILayout.Label(editionCp.ToString());
-                    if (GUILayout.Button(">")) cambiaEditCp(editionCp + 1);  //next
-                    if (GUILayout.Button(">|")) cambiaEditCp(loadedTrack.cpList.Count - 1); //last
+                GUILayout.EndHorizontal();
 
-                    GUILayout.EndHorizontal();
-
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("Size");
-                    if (GUILayout.Button("-") && size > 0) loadedTrack.cpList[editionCp].Size = --size;
-                    GUILayout.Label(size.ToString());
-                    if (GUILayout.Button("+") && size < CheckPoint.sizes.Count - 1) loadedTrack.cpList[editionCp].Size = ++size;
-                    GUILayout.EndHorizontal();
-
-                    if (GUILayout.Button("Rotate"))
-                    {
-                        if (grot != null) grot.Detach();
-                        if (gofs != null) gofs.Detach();
-                        grot = EditorGizmos.GizmoRotate.Attach(loadedTrack.cpList[editionCp].transform, loadedTrack.cpList[editionCp].transform.position, rCompRot, rCompRot);
-                    }
-
-                    if (GUILayout.Button("Reset Rotation"))
-                    {
-                        if (grot != null) grot.Detach();
-                        if (gofs != null) gofs.Detach();
-                        loadedTrack.cpList[editionCp].resetRot();
-                    }
-
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("Move");
-                    bool abs = GUILayout.Button("Absolute");
-                    bool rel = GUILayout.Button("Relative");
-
-                    if (abs || rel)
-                    {
-                        if (grot != null) grot.Detach();
-                        if (gofs != null) gofs.Detach();
-                        gofs = EditorGizmos.GizmoOffset.Attach(loadedTrack.cpList[editionCp].transform, rCompTran, rCompTran);
-                        if (abs)
-                        {
-                            Vector3 _direction = (loadedTrack.cpList[editionCp].body.position - transform.position).normalized;
-                            gofs.transform.rotation = Quaternion.LookRotation(_direction);
-                        }
-                        else gofs.transform.rotation = loadedTrack.cpList[editionCp].transform.rotation;
-                    }
-                    GUILayout.EndHorizontal();
-                    if (GUILayout.Button("Send to floor"))
-                    {
-                        if (grot != null) grot.Detach();
-                        if (gofs != null) gofs.Detach();
-                        loadedTrack.cpList[editionCp].toFloor();
-                    }
-                    if (GUILayout.Button("Hide gizmo"))
-                    {
-                        if (grot != null) grot.Detach();
-                        if (gofs != null) gofs.Detach();
-                    }
-
-                    if (loadedTrack.cpList.Count > 0 && GUILayout.Button("Remove Checkpoint"))
-                    {
-                        loadedTrack.cpList[editionCp].destroy();
-                        loadedTrack.cpList.RemoveAt(editionCp);
-                        cambiaEditCp(editionCp);
-                        trackLength = loadedTrack.trackLength;
-                    }
-
-                    GUILayout.EndVertical();
+                GUILayout.BeginHorizontal();
+                if (loadedTrack.cpList.Count > 0 && estadoAct == estados.EditScreen)
+                {
+                    GUILayout.Label("Checkpoint Edit");
+                    if (loadedTrack.obList.Count > 0 && GUILayout.Button("Edit Obstacles")) cambiaEstado(estados.ObsScreen);
                 }
+                else if (loadedTrack.obList.Count > 0 && estadoAct == estados.ObsScreen)
+                {
+                    if (loadedTrack.cpList.Count > 0 && GUILayout.Button("Edit Checkpoints")) cambiaEstado(estados.EditScreen);
+                    GUILayout.Label("Obstacle Edit");
+                }
+                GUILayout.EndHorizontal();
+
+                if (estadoAct == estados.EditScreen) cpEditionGui();
+                if (estadoAct == estados.ObsScreen) obEditionGui();
+                GUILayout.EndVertical();
+               
                 GUILayout.EndHorizontal();
                 break;
             case estados.RaceScreen:
@@ -1153,180 +1074,272 @@ public class RaceManager : MonoBehaviour
                 if (GUILayout.Button("Edit Race Track")) cambiaEstado(estados.EditScreen);
                 if (GUILayout.Button("Load Track")) cambiaEstado(estados.LoadScreen);
                 break;
-            case estados.ObsScreen:
-                GUILayout.Label("Obstacle Editor");
-
-                GUILayout.BeginHorizontal();
-
-                GUILayout.BeginVertical();
-
-                GUILayout.BeginHorizontal();
-                GUI.SetNextControlName("TrackNAme");
-                GUILayout.Label("Name", GUILayout.Width(nameLabelWidth));
-                loadedTrack.name = GUILayout.TextField(loadedTrack.name, GUILayout.Width(nameTextWidth));
-                GUILayout.EndHorizontal();
-                GUILayout.BeginHorizontal();
-                GUILayout.Label("Author", GUILayout.Width(nameLabelWidth));
-                loadedTrack.author = GUILayout.TextField(loadedTrack.author, GUILayout.Width(nameTextWidth));
-                GUILayout.EndHorizontal();
-                GUILayout.Label("Laps");
-                GUILayout.BeginHorizontal();
-                if (GUILayout.Button("Sprint"))
-                {
-                    loadedTrack.laps = 0;
-                    trackLength = loadedTrack.trackLength;
-                }
-                if (GUILayout.Button("-") && loadedTrack.laps > 1)
-                {
-                    loadedTrack.laps--;
-                    trackLength = loadedTrack.trackLength;
-                }
-                GUILayout.Label((loadedTrack.laps == 0) ? "Sprint" : loadedTrack.laps.ToString());
-                if (GUILayout.Button("+"))
-                {
-                    loadedTrack.laps++;
-                    trackLength = loadedTrack.trackLength;
-                }
-
-                GUILayout.EndHorizontal();
-
-                GUILayout.BeginHorizontal();
-                GUILayout.Label("Length");
-                GUILayout.Label(trackLength.ToString());
-                GUILayout.EndHorizontal();
-
-                if (GUILayout.Button("New Obstacle here")) newObstacle(false);
-                GUILayout.Label("RCtrl + LMB new obstacle on cursor");
-
-                if (GUILayout.Button("Edit Checkpoints")) cambiaEstado(estados.EditScreen);
-
-                saveDialog();
-
-                if (loadedTrack.obList.Count > 0 && GUILayout.Button("Clear Obstacles"))
-                {
-                    foreach (Obstacle obs in loadedTrack.obList)
-                    {
-                        obs.destroy();
-                    }
-                    loadedTrack.obList.Clear();
-                }
-
-                if (loadedTrack.cpList.Count > 1 && GUILayout.Button("Start Race!")) cambiaEstado(estados.RaceScreen);
-                if (GUILayout.Button("Load Racetrack")) cambiaEstado(estados.LoadScreen);
-
-                GUILayout.EndVertical();
-
-                if (loadedTrack.obList.Count > 0)
-                {
-                    GUILayout.BeginVertical();
-
-                    GUILayout.Label("Select Obstacle");
-                    GUILayout.BeginHorizontal();
-                    if (GUILayout.Button("|<")) cambiaEditOb(0); //First
-                    if (GUILayout.Button("<")) cambiaEditOb(editionOb - 1); //Previous
-                    GUILayout.Label(editionOb.ToString());
-                    if (GUILayout.Button(">")) cambiaEditOb(editionOb + 1); //Next
-                    if (GUILayout.Button(">|")) cambiaEditOb(loadedTrack.obList.Count - 1); //Last
-                    GUILayout.EndHorizontal();
-
-                    loadedTrack.obList[editionOb].Solid = GUILayout.Toggle(loadedTrack.obList[editionOb].Solid, "Solid thing");
-
-                    if (GUILayout.Button("Rotate"))
-                    {
-                        if (grot != null) grot.Detach();
-                        if (gofs != null) gofs.Detach();
-                        grot = EditorGizmos.GizmoRotate.Attach(loadedTrack.obList[editionOb].transform, loadedTrack.obList[editionOb].transform.position, rCompRot, rCompRot);
-                    }
-
-                    if (GUILayout.Button("Reset Rotation"))
-                    {
-                        if (grot != null) grot.Detach();
-                        if (gofs != null) gofs.Detach();
-                        loadedTrack.obList[editionOb].resetRot();
-                    }
-
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("Move");
-                    bool abs = GUILayout.Button("Absolute");
-                    bool rel = GUILayout.Button("Relative");
-                    GUILayout.EndHorizontal();
-
-                    if (abs || rel)
-                    {
-                        if (grot != null) grot.Detach();
-                        if (gofs != null) gofs.Detach();
-                        gofs = EditorGizmos.GizmoOffset.Attach(loadedTrack.obList[editionOb].transform, rCompTran, rCompTran);
-                        if (abs)
-                        {
-                            Vector3 _direction = (loadedTrack.obList[editionOb].body.position - transform.position).normalized;
-                            gofs.transform.rotation = Quaternion.LookRotation(_direction);
-                        }
-                        else gofs.transform.rotation = loadedTrack.obList[editionOb].transform.rotation;
-                    }
-
-                    if (GUILayout.Button("Send to floor"))
-                    {
-                        if (grot != null) grot.Detach();
-                        if (gofs != null) gofs.Detach();
-                        loadedTrack.obList[editionOb].toFloor();
-                    }
-
-                    if (GUILayout.Button("Hide gizmo"))
-                    {
-                        if (grot != null) grot.Detach();
-                        if (gofs != null) gofs.Detach();
-                    }
-
-                    GUILayout.Label("Scale");
-
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("X", GUILayout.Width(15));
-                    if (GUILayout.Button("|-")) loadedTrack.obList[editionOb].scaleOb(-Obstacle.maxScale, 0, 0);
-                    if (GUILayout.RepeatButton("--")) loadedTrack.obList[editionOb].scaleOb(-obScaleMaxRatio, 0, 0);
-                    if (GUILayout.Button("-")) loadedTrack.obList[editionOb].scaleOb(-obScaleMinRatio, 0, 0);
-                    GUILayout.Label(loadedTrack.obList[editionOb].cube.transform.localScale.x.ToString(), GUILayout.Width(obScaleInfoLabelWidth));
-                    if (GUILayout.Button("+")) loadedTrack.obList[editionOb].scaleOb(obScaleMinRatio, 0, 0);
-                    if (GUILayout.RepeatButton("++")) loadedTrack.obList[editionOb].scaleOb(obScaleMaxRatio, 0, 0);
-                    if (GUILayout.Button("+|")) loadedTrack.obList[editionOb].scaleOb(Obstacle.maxScale, 0, 0);
-                    GUILayout.EndHorizontal();
-
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("Y", GUILayout.Width(15));
-                    if (GUILayout.Button("|-")) loadedTrack.obList[editionOb].scaleOb(0, -Obstacle.maxScale, 0);
-                    if (GUILayout.RepeatButton("--")) loadedTrack.obList[editionOb].scaleOb(0, -obScaleMaxRatio, 0);
-                    if (GUILayout.Button("-")) loadedTrack.obList[editionOb].scaleOb(0, -obScaleMinRatio, 0);
-                    GUILayout.Label(loadedTrack.obList[editionOb].cube.transform.localScale.y.ToString(), GUILayout.Width(obScaleInfoLabelWidth));
-                    if (GUILayout.Button("+")) loadedTrack.obList[editionOb].scaleOb(0, obScaleMinRatio, 0);
-                    if (GUILayout.RepeatButton("++")) loadedTrack.obList[editionOb].scaleOb(0, obScaleMaxRatio, 0);
-                    if (GUILayout.Button("+|")) loadedTrack.obList[editionOb].scaleOb(0, Obstacle.maxScale, 0);
-                    GUILayout.EndHorizontal();
-
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("Z", GUILayout.Width(15));
-                    if (GUILayout.Button("|-")) loadedTrack.obList[editionOb].scaleOb(0, 0, -Obstacle.maxScale);
-                    if (GUILayout.RepeatButton("--")) loadedTrack.obList[editionOb].scaleOb(0, 0, -obScaleMaxRatio);
-                    if (GUILayout.Button("-")) loadedTrack.obList[editionOb].scaleOb(0, 0, -obScaleMinRatio);
-                    GUILayout.Label(loadedTrack.obList[editionOb].cube.transform.localScale.z.ToString(), GUILayout.Width(obScaleInfoLabelWidth));
-                    if (GUILayout.Button("+")) loadedTrack.obList[editionOb].scaleOb(0, 0, obScaleMinRatio);
-                    if (GUILayout.RepeatButton("++")) loadedTrack.obList[editionOb].scaleOb(0, 0, obScaleMaxRatio);
-                    if (GUILayout.Button("+|")) loadedTrack.obList[editionOb].scaleOb(0, 0, Obstacle.maxScale);
-                    GUILayout.EndHorizontal();
-
-                    if (loadedTrack.obList.Count > 0 && GUILayout.Button("Remove Obstacle"))
-                    {
-                        loadedTrack.obList[editionOb].destroy();
-                        loadedTrack.obList.RemoveAt(editionOb);
-                        cambiaEditOb(editionOb);
-                    }
-
-                    GUILayout.EndVertical();
-                }
-                GUILayout.EndHorizontal();
-                break;
             default:
                 break;
         }
         GUI.DragWindow();
+    }
+
+    /// <summary>
+    /// Contiene la interfaz gráfica de usuario para mover, rotar y reescalar obstáculos
+    /// </summary>
+    public void obEditionGui()
+    {
+        if (loadedTrack.obList.Count > 0)
+        {
+            GUILayout.BeginVertical();
+
+            GUILayout.Label("Select Obstacle");
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("|<")) cambiaEditOb(0); //First
+            if (GUILayout.Button("<")) cambiaEditOb(editionOb - 1); //Previous
+            GUILayout.Label(editionOb.ToString());
+            if (GUILayout.Button(">")) cambiaEditOb(editionOb + 1); //Next
+            if (GUILayout.Button(">|")) cambiaEditOb(loadedTrack.obList.Count - 1); //Last
+            GUILayout.EndHorizontal();
+
+            loadedTrack.obList[editionOb].Solid = GUILayout.Toggle(loadedTrack.obList[editionOb].Solid, "Solid thing");
+
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Rotate"))
+            {
+                if (grot != null) grot.Detach();
+                if (gofs != null) gofs.Detach();
+                grot = EditorGizmos.GizmoRotate.Attach(loadedTrack.obList[editionOb].transform, loadedTrack.obList[editionOb].transform.position, rCompRot, rCompRot);
+            }
+
+            if (GUILayout.Button("Reset Rotation"))
+            {
+                if (grot != null) grot.Detach();
+                if (gofs != null) gofs.Detach();
+                loadedTrack.obList[editionOb].resetRot();
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Move");
+            bool abs = GUILayout.Button("Absolute");
+            bool rel = GUILayout.Button("Relative");
+            GUILayout.EndHorizontal();
+
+            if (abs || rel)
+            {
+                if (grot != null) grot.Detach();
+                if (gofs != null) gofs.Detach();
+                gofs = EditorGizmos.GizmoOffset.Attach(loadedTrack.obList[editionOb].transform, rCompTran, rCompTran);
+                if (abs)
+                {
+                    Vector3 _direction = (loadedTrack.obList[editionOb].body.position - transform.position).normalized;
+                    gofs.transform.rotation = Quaternion.LookRotation(_direction);
+                }
+                else gofs.transform.rotation = loadedTrack.obList[editionOb].transform.rotation;
+            }
+
+            if (GUILayout.Button("Send to floor"))
+            {
+                if (grot != null) grot.Detach();
+                if (gofs != null) gofs.Detach();
+                loadedTrack.obList[editionOb].toFloor();
+            }
+
+            if (GUILayout.Button("Hide gizmo"))
+            {
+                if (grot != null) grot.Detach();
+                if (gofs != null) gofs.Detach();
+            }
+
+            GUILayout.Label("Scale");
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("X", GUILayout.Width(15));
+            if (GUILayout.Button("|-")) loadedTrack.obList[editionOb].scaleOb(-Obstacle.maxScale, 0, 0);
+            if (GUILayout.RepeatButton("--")) loadedTrack.obList[editionOb].scaleOb(-obScaleMaxRatio, 0, 0);
+            if (GUILayout.Button("-")) loadedTrack.obList[editionOb].scaleOb(-obScaleMinRatio, 0, 0);
+            GUILayout.Label(loadedTrack.obList[editionOb].cube.transform.localScale.x.ToString(), GUILayout.Width(obScaleInfoLabelWidth));
+            if (GUILayout.Button("+")) loadedTrack.obList[editionOb].scaleOb(obScaleMinRatio, 0, 0);
+            if (GUILayout.RepeatButton("++")) loadedTrack.obList[editionOb].scaleOb(obScaleMaxRatio, 0, 0);
+            if (GUILayout.Button("+|")) loadedTrack.obList[editionOb].scaleOb(Obstacle.maxScale, 0, 0);
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Y", GUILayout.Width(15));
+            if (GUILayout.Button("|-")) loadedTrack.obList[editionOb].scaleOb(0, -Obstacle.maxScale, 0);
+            if (GUILayout.RepeatButton("--")) loadedTrack.obList[editionOb].scaleOb(0, -obScaleMaxRatio, 0);
+            if (GUILayout.Button("-")) loadedTrack.obList[editionOb].scaleOb(0, -obScaleMinRatio, 0);
+            GUILayout.Label(loadedTrack.obList[editionOb].cube.transform.localScale.y.ToString(), GUILayout.Width(obScaleInfoLabelWidth));
+            if (GUILayout.Button("+")) loadedTrack.obList[editionOb].scaleOb(0, obScaleMinRatio, 0);
+            if (GUILayout.RepeatButton("++")) loadedTrack.obList[editionOb].scaleOb(0, obScaleMaxRatio, 0);
+            if (GUILayout.Button("+|")) loadedTrack.obList[editionOb].scaleOb(0, Obstacle.maxScale, 0);
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Z", GUILayout.Width(15));
+            if (GUILayout.Button("|-")) loadedTrack.obList[editionOb].scaleOb(0, 0, -Obstacle.maxScale);
+            if (GUILayout.RepeatButton("--")) loadedTrack.obList[editionOb].scaleOb(0, 0, -obScaleMaxRatio);
+            if (GUILayout.Button("-")) loadedTrack.obList[editionOb].scaleOb(0, 0, -obScaleMinRatio);
+            GUILayout.Label(loadedTrack.obList[editionOb].cube.transform.localScale.z.ToString(), GUILayout.Width(obScaleInfoLabelWidth));
+            if (GUILayout.Button("+")) loadedTrack.obList[editionOb].scaleOb(0, 0, obScaleMinRatio);
+            if (GUILayout.RepeatButton("++")) loadedTrack.obList[editionOb].scaleOb(0, 0, obScaleMaxRatio);
+            if (GUILayout.Button("+|")) loadedTrack.obList[editionOb].scaleOb(0, 0, Obstacle.maxScale);
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            if (loadedTrack.obList.Count > 0 && GUILayout.Button("Remove Obstacle"))
+            {
+                loadedTrack.obList[editionOb].destroy();
+                loadedTrack.obList.RemoveAt(editionOb);
+                cambiaEditOb(editionOb);
+                if (loadedTrack.obList.Count == 0) cambiaEstado(estados.EditScreen);
+            }
+
+            if (loadedTrack.obList.Count > 0 && GUILayout.Button("Clear Obstacles"))
+            {
+                foreach (Obstacle obs in loadedTrack.obList)
+                {
+                    obs.destroy();
+                }
+                loadedTrack.obList.Clear();
+                cambiaEstado(estados.EditScreen);
+            }
+            GUILayout.EndHorizontal();
+            GUILayout.EndVertical();
+        }
+    }
+
+    /// <summary>
+    /// Contiene la interfaz gráfica de usuario para mover, rotar y redimensionar puntos de control
+    /// </summary>
+    public void cpEditionGui()
+    {
+        if (loadedTrack.cpList.Count > 0)
+        {
+            GUILayout.BeginVertical();
+
+            GUILayout.Label("Select Checkpoint");
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("|<")) cambiaEditCp(0); //First
+            if (GUILayout.Button("<")) cambiaEditCp(editionCp - 1); //previous
+            GUILayout.Label(editionCp.ToString());
+            if (GUILayout.Button(">")) cambiaEditCp(editionCp + 1);  //next
+            if (GUILayout.Button(">|")) cambiaEditCp(loadedTrack.cpList.Count - 1); //last
+
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Size");
+            if (GUILayout.Button("-") && size > 0) loadedTrack.cpList[editionCp].Size = --size;
+            GUILayout.Label(size.ToString());
+            if (GUILayout.Button("+") && size < CheckPoint.sizes.Count - 1) loadedTrack.cpList[editionCp].Size = ++size;
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Rotate"))
+            {
+                if (grot != null) grot.Detach();
+                if (gofs != null) gofs.Detach();
+                grot = EditorGizmos.GizmoRotate.Attach(loadedTrack.cpList[editionCp].transform, loadedTrack.cpList[editionCp].transform.position, rCompRot, rCompRot);
+            }
+
+            if (GUILayout.Button("Reset Rotation"))
+            {
+                if (grot != null) grot.Detach();
+                if (gofs != null) gofs.Detach();
+                loadedTrack.cpList[editionCp].resetRot();
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Move");
+            bool abs = GUILayout.Button("Absolute");
+            bool rel = GUILayout.Button("Relative");
+
+            if (abs || rel)
+            {
+                if (grot != null) grot.Detach();
+                if (gofs != null) gofs.Detach();
+                gofs = EditorGizmos.GizmoOffset.Attach(loadedTrack.cpList[editionCp].transform, rCompTran, rCompTran);
+                if (abs)
+                {
+                    Vector3 _direction = (loadedTrack.cpList[editionCp].body.position - transform.position).normalized;
+                    gofs.transform.rotation = Quaternion.LookRotation(_direction);
+                }
+                else gofs.transform.rotation = loadedTrack.cpList[editionCp].transform.rotation;
+            }
+            GUILayout.EndHorizontal();
+            if (GUILayout.Button("Send to floor"))
+            {
+                if (grot != null) grot.Detach();
+                if (gofs != null) gofs.Detach();
+                loadedTrack.cpList[editionCp].toFloor();
+            }
+            if (GUILayout.Button("Hide gizmo"))
+            {
+                if (grot != null) grot.Detach();
+                if (gofs != null) gofs.Detach();
+            }
+
+            if (loadedTrack.cpList.Count > 0 && GUILayout.Button("Remove Checkpoint"))
+            {
+                loadedTrack.cpList[editionCp].destroy();
+                loadedTrack.cpList.RemoveAt(editionCp);
+                cambiaEditCp(editionCp);
+                trackLength = loadedTrack.trackLength;
+                if (loadedTrack.cpList.Count == 0) cambiaEstado(estados.ObsScreen);
+            }
+
+            GUILayout.EndVertical();
+        }
+    }
+
+    /// <summary>
+    /// Contiene la interfaz gráfica de usuario para cambiar las características básicas del circuito, y otras opciones
+    /// </summary>
+    public void genDataTrackEditGui()
+    {
+        GUILayout.BeginVertical();
+
+        GUILayout.BeginHorizontal();
+        GUI.SetNextControlName("TrackNAme");
+        GUILayout.Label("Name", GUILayout.Width(nameLabelWidth));
+        loadedTrack.name = GUILayout.TextField(loadedTrack.name, GUILayout.Width(nameTextWidth));
+        GUILayout.EndHorizontal();
+        GUILayout.BeginHorizontal();
+        GUILayout.Label("Author", GUILayout.Width(nameLabelWidth));
+        loadedTrack.author = GUILayout.TextField(loadedTrack.author, GUILayout.Width(nameTextWidth));
+        GUILayout.EndHorizontal();
+        GUILayout.Label("Laps");
+        GUILayout.BeginHorizontal();
+        if (GUILayout.Button("Sprint"))
+        {
+            loadedTrack.laps = 0;
+            trackLength = loadedTrack.trackLength;
+        }
+        if (GUILayout.Button("-") && loadedTrack.laps > 1)
+        {
+            loadedTrack.laps--;
+            trackLength = loadedTrack.trackLength;
+        }
+        GUILayout.Label((loadedTrack.laps == 0) ? "Sprint" : loadedTrack.laps.ToString());
+        if (GUILayout.Button("+"))
+        {
+            loadedTrack.laps++;
+            trackLength = loadedTrack.trackLength;
+        }
+
+        GUILayout.EndHorizontal();
+
+        GUILayout.BeginHorizontal();
+        GUILayout.Label("Length");
+        GUILayout.Label(trackLength.ToString());
+        GUILayout.EndHorizontal();
+
+        saveDialog();
+
+        if (GUILayout.Button("New Race Track")) newRaceTrack();
+        if (loadedTrack.cpList.Count > 1 && GUILayout.Button("Start Race!")) cambiaEstado(estados.RaceScreen);
+        if (GUILayout.Button("Load Racetrack")) cambiaEstado(estados.LoadScreen);
+
+        GUILayout.EndVertical();
     }
 
     /// <summary>
@@ -1429,7 +1442,6 @@ public class RaceManager : MonoBehaviour
             cp.Coords = cp.body.transform.InverseTransformPoint(FlightGlobals.ActiveVessel.GetTransform().position);
             cp.rot = Quaternion.Inverse(cp.rotZero()) * FlightGlobals.ActiveVessel.GetTransform().rotation;
         }
-        Debug.Log(cp.name);
         loadedTrack.cpList.Add(cp);
         trackLength = loadedTrack.trackLength;
         cambiaEditCp(loadedTrack.cpList.Count - 1);
@@ -1459,7 +1471,6 @@ public class RaceManager : MonoBehaviour
         {
             obs.Coords = obs.body.transform.InverseTransformPoint(FlightGlobals.ActiveVessel.GetTransform().position);
         }
-        Debug.Log(obs.name);
         obs.resetRot();
         loadedTrack.obList.Add(obs);
         cambiaEditOb(loadedTrack.obList.Count - 1);
