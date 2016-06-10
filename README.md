@@ -8,6 +8,7 @@ Races! Busca archivos .krt (kerbal race track) en la carpeta RaceTracks, situada
 * Tipo de circuito, una etapa o vueltas, junto con la longitud total del circuito.
 * Mejor tiempo registrado
 * Posición del punto de inicio del circuito, en longitud, latitud y altitud, y la distancia que lo separa de la nave controlada.
+
 También aparen dos o tres botones con funciones bastante obvias: Start Race, sólo si el circuito tiene dos o más puntos de control, para empezar la carrera. Edit Race Track para editar el circuito y Clear Race Track para que desaparezca el circuito de la faz del planeta (El circuito desaparece al abandonar la esfera de influencia).
 
 ## Empezar a correr:
@@ -27,7 +28,8 @@ Desde la pantalla de carga de circuitos pulsar New Race Track, o Edit Race Track
 En la ventana se propone introducir alguna información acerca del circuito:
 * Name: El nombre del circuito. El archivo krt se guarda con el mismo nombre sin caracteres especiales.
 * Author: El autor del circuito, para ser mundialmente reconocido, o repudiado.
-* Laps: Configurar el número de vueltas necesarias para completar el circuito, o circuito de una etapa.
+* Laps: Configurar el número de vueltas necesarias para completar el circuito, o circuito de una etapa. 
+
 Para crear un punto de control, al pulsar en New Checkpoint here se crea un punto de control en la posición y orientación del vehículo controlado. Al pulsar la tecla Control Derecho y Botón Izquierdo del Ratón se crea un punto de control ecuatorialmente alineado en la posición del ratón (conviene mencionar que a veces el ratón no está donde parece)
 Al crear, mover o borrar un punto de control, o al cambiar el número de vueltas del circuito, la distancia total se actualiza.
 Se pueden crear obstáculos del mismo modo. Para crear un obstáculo en la posición del ratón pulsar Mayúsculas Derecha y Boton Izquierdo del Ratón. Los obstáculos son creados como cubos no sólidos de 50m de lado (para evitar posibles explosiones).
