@@ -1,7 +1,72 @@
-# Races
-Pequeño mod para Kerbal Space Program en el que se pueden crear circuitos, colocando puntos de control, para competir en carreras contrarreloj.
+# Races! 1.0.0
+
+Races! Es un mod para Kerbal Space Program que consiste en la construcción e intercambio de circuitos de carreras aéreas, terrestres y acuáticas en las que competir para completarlas en el menor tiempo posible.
+
+## Cargar un circuito:
+Races! Busca archivos .krt (kerbal race track) en la carpeta RaceTracks, situada dentro de GameData. Cada circuito encontrado se lista en forma de botón en la pantalla principal de la interfaz gráfica de Races! Los circuitos situados en otros planetas aparecen en forma de texto (tal vez se pueda hacer más bonito eso, pero no es importante ahora mismo) Al pulsar el botón, el circuito se carga y se muestra más información:
+* Nombre del circuito y autor
+* Tipo de circuito, una etapa o vueltas, junto con la longitud total del circuito.
+* Mejor tiempo registrado
+* Posición del punto de inicio del circuito, en longitud, latitud y altitud, y la distancia que lo separa de la nave controlada.
+También aparen dos o tres botones con funciones bastante obvias: Start Race, sólo si el circuito tiene dos o más puntos de control, para empezar la carrera. Edit Race Track para editar el circuito y Clear Race Track para que desaparezca el circuito de la faz del planeta (El circuito desaparece al abandonar la esfera de influencia).
+
+## Empezar a correr:
+Cuando el circuito tiene dos o más puntos de control, puede empezar una competición. Pulsa el botón Star Race desde la pantalla de carga de circuitos o desde la pantalla de edición para empezar una carrera.
+El tiempo empieza a correr cuando se atraviesa el primer punto de control, de color blanco. El color blanco indica el punto de control que se debe atravesar, el color amarillo indica el punto de control siguiente. Una vez atravesado el punto de control correcto este se volverá gris transparente.
+En los circuitos de una etapa el último punto de control aparece de color rojo. En los circuitos de varias vueltas el último punto de control aparece de color rojo sólo en la última vuelta.
+Tocar los bordes del punto de control blanco (o rojo, si es el que toca atravesar) penaliza con 10 segundos.
+Si el tiempo total del circuito es menor que el record registrado, se guarda automáticamente. Si recorrido o el número de vueltas del circuito cambia, los tiempos se reinician. Se pueden guardar los tiempos de un mismo circuito para cada cantidad de vueltas independientemente, con tan solo cambiar el número de vueltas en la pantalla de edición.
+La carrera puede interrumpirse pulsando Abort Race. La carrera queda interrumpida al salir de la escena de vuelo.
+Cuando se completa la carrera aparecen las opciones:
+* Restart Race: Vuelve a comenzar la carrera. El cronómetro vuelve a 0 y los puntos de control se colorean de nuevo para mostrar el punto de control inicial y el siguiente.
+* Edit Race Track: Pasa al modo de edición de circuitos, en el que se puede modificar sus características.
+* Load Track: Pantalla de carga de circuitos.
+
+##Editar o Crear un circuito:
+Desde la pantalla de carga de circuitos pulsar New Race Track, o Edit Race Track para entrar en el modo de edición de circuitos.
+En la ventana se propone introducir alguna información acerca del circuito:
+* Name: El nombre del circuito. El archivo krt se guarda con el mismo nombre sin caracteres especiales.
+* Author: El autor del circuito, para ser mundialmente reconocido, o repudiado.
+* Laps: Configurar el número de vueltas necesarias para completar el circuito, o circuito de una etapa.
+Para crear un punto de control, al pulsar en New Checkpoint here se crea un punto de control en la posición y orientación del vehículo controlado. Al pulsar la tecla Control Derecho y Botón Izquierdo del Ratón se crea un punto de control ecuatorialmente alineado en la posición del ratón (conviene mencionar que a veces el ratón no está donde parece)
+Al crear, mover o borrar un punto de control, o al cambiar el número de vueltas del circuito, la distancia total se actualiza.
+Se pueden crear obstáculos del mismo modo. Para crear un obstáculo en la posición del ratón pulsar Mayúsculas Derecha y Boton Izquierdo del Ratón. Los obstáculos son creados como cubos no sólidos de 50m de lado (para evitar posibles explosiones).
+Para seleccionar puntos de control u obstáculos puede hacerse por medio del ratón, pulsando Botón Izquierdo del Ratón sobre un punto de control u obstáculo para seleccionarlo, o mediante la interfaz gráfica, pulsando en Edit Checkpoints (disponible cuando el circuito tiene puntos de control) o Edit Obstacles (disponible cuando el circuito tiene obstáculos), y recorriendo la lista de puntos de control u obstáculos mediante los botones:
+* |< : primero de la lista
+* < : anterior
+* > : siguiente
+* >| : último de la lista
+
+Tanto los puntos de control como los obstáculos pueden moverse y rotarse mediante los chirimbolos. Los mismos utilizados en el VAB o SPH. Pulsa Control Izquierdo para evitar el ajuste a la rejilla o al ángulo. Si acaban a demasiada altura o bajo tierra, utiliza Send to floor para ajustar su altitud a la altitud del suelo.
+Los puntos de control pueden adoptar 5 tamaños diferentes pulsando los botones + y - .
+Los obstáculos pueden redimensionarse desde 1m hasta 100m por cada lado:
+* |- : 1m de lado
+* -- : 0.2m menos por cada fotograma que se mantiene pulsado
+* - : 0.1m menos por cada pulsación
+* + : 0.1m más por cada pulsación
+* ++ : 0.2m más por cada fotograma que se mantiene pulsado
+* +| : 100m de lado
+
+El punto de control u obstáculo seleccionado puede eliminarse pulsando Remove Checkpoint o Remove Obstacle, respectivamente.
+Cuando el circuito tiene al menos un punto de control puede guardarse pulsando el botón Save Track. Al hacerlo, se genera o sobrescribe un archivo de extensión krt en la carpeta RaceTracks nombrado igual que el nombre del circuito exceptuando los caracteres especiales.
+
+## Bugs conocidos:
+* A veces las ruedas explotan inexplicablemente al atravesar un punto de control de medio lado. Creo que esto tiene algo que ver con que el comportamiento de las ruedas no esté afinado de todo.
+* Cuando se toca el chirimbolo para mover, los puntos de control y los obstáculos se desplazan un poquitín, aunque no se mueva el ratón.
+* Cuidado con los chirimbolos. Puede haber explosiones si entran en contacto con vehículos
+* Ir muy rápido al atravesar los puntos de control puede causar que en un fotograma la nave esté de un lado del punto de control y en el siguiente fotograma ya haya quedado atrás. Trata de frenar un poco la próxima vez. No hay tanta prisa.
+* Si la nave utilizada para competir es más grande que los puntos de control, puede suceder que, si la parte raíz está demasiado lejos y alguna parte de la nave toca los bordes de un punto de control, se acumule gran cantidad de tiempo de penalización (sin probar, pero por cómo está programado me hace sospechar que ocurrirá…)
+
+## Bugs desconocidos:
+* Por supuesto.
+
 
 ## Historial de cambios
+
+* 1.0.0
+ * Ahora que todo funciona decentemente (desde mi punto de vista), estoy en condiciones de hacer un lanzamiento completo.
+ * Debido a los cambios en los elementos con los que se construyen los circuitos (https://github.com/Vloos/Races/commit/619e13d2f5fa73b10cf9214336ac817f22c72340), los circuitos guardados en las versiones alpha no son compatibles. Supongo que siendo versión alpha, era de esperar (y en parte me escudo en “Eh, es una versión alpha, las cosas se pueden romper” para no admitir que no tengo ni idea de cómo hacer compatibles los archivos de circuitos antiguos).
+ * Rediseño parcial de la interfaz gráfica de usuario utilizada para editar circuitos.
 
 * 0.0.9-alpha
  * Los circuitos pueden tener como mínimo 1 vuelta, de forma que la carrera empieza y termina en el mismo punto de control, o pueden ser de recorrido, empezando y terminando en puntos de control diferentes.

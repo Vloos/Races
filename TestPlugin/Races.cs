@@ -859,8 +859,11 @@ public class RaceManager : MonoBehaviour
                 loadedTrack.trackTime = (records.ContainsKey(loadedTrack.trackKey)) ? records[loadedTrack.trackKey] : 0;
                 if (loadedTrack.obList.Count > 0)
                 {
-                    loadedTrack.obList[editionOb].ObColor = Obstacle.colorNormal;
-                    loadedTrack.obList[editionOb].cubeCol.enabled = true;
+                    foreach (Obstacle obs in loadedTrack.obList)
+                    {
+                        obs.ObColor = Obstacle.colorNormal;
+                        obs.cubeCol.enabled = true;
+                    }
                 }
                 if (grot != null) grot.Detach();
                 if (gofs != null) gofs.Detach();
@@ -878,8 +881,11 @@ public class RaceManager : MonoBehaviour
                 trackLength = loadedTrack.trackLength;
                 if (loadedTrack.obList.Count > 0)
                 {
-                    loadedTrack.obList[editionOb].ObColor = Obstacle.colorNormal;
-                    loadedTrack.obList[editionOb].cubeCol.enabled = true;
+                    foreach (Obstacle obs in loadedTrack.obList)
+                    {
+                        obs.ObColor = Obstacle.colorNormal;
+                        obs.cubeCol.enabled = true;
+                    }
                 }
                 editionOb = 0;
                 break;
@@ -900,8 +906,11 @@ public class RaceManager : MonoBehaviour
                 }
                 if (loadedTrack.obList.Count > 0)
                 {
-                    loadedTrack.obList[editionOb].ObColor = Obstacle.colorNormal;
-                    loadedTrack.obList[editionOb].cubeCol.enabled = true;
+                    foreach (Obstacle obs in loadedTrack.obList)
+                    {
+                        obs.ObColor = Obstacle.colorNormal;
+                        obs.cubeCol.enabled = true;
+                    }
                 }
                 break;
             case estados.EndScreen:
@@ -1183,7 +1192,6 @@ public class RaceManager : MonoBehaviour
             if (GUILayout.Button("+|")) loadedTrack.obList[editionOb].scaleOb(0, 0, Obstacle.maxScale);
             GUILayout.EndHorizontal();
 
-            GUILayout.BeginHorizontal();
             if (loadedTrack.obList.Count > 0 && GUILayout.Button("Remove Obstacle"))
             {
                 loadedTrack.obList[editionOb].destroy();
@@ -1191,17 +1199,6 @@ public class RaceManager : MonoBehaviour
                 cambiaEditOb(editionOb);
                 if (loadedTrack.obList.Count == 0) cambiaEstado(estados.EditScreen);
             }
-
-            if (loadedTrack.obList.Count > 0 && GUILayout.Button("Clear Obstacles"))
-            {
-                foreach (Obstacle obs in loadedTrack.obList)
-                {
-                    obs.destroy();
-                }
-                loadedTrack.obList.Clear();
-                cambiaEstado(estados.EditScreen);
-            }
-            GUILayout.EndHorizontal();
             GUILayout.EndVertical();
         }
     }
