@@ -86,6 +86,7 @@ namespace Races
                 if (raceMan.grot != null) raceMan.grot.Detach();
                 if (raceMan.gofs != null) raceMan.gofs.Detach();
                 raceMan.lastLoadedTrack = raceMan.loadedTrack.toClon();
+                raceMan.newRaceTrack();
                 raceMan.cambiaEstado(RaceManager.estados.LoadScreen);
             }
             if (data.to != GameScenes.FLIGHT) GUIoff();
@@ -142,21 +143,128 @@ namespace Races
     }
 }
 
-/// <summary>
-/// Punto de control con primitivos
-/// </summary>
-public class CheckPoint : MonoBehaviour
+public class RaceComponent : MonoBehaviour
+{
+    public CelestialBody body;
+    private Vector3d coords; //coordenadas relativas al planeta
+    public Quaternion rot;  //rotación relativa a la superficie
+    public static int maxAlt = 50000;
+
+    public Vector3 Coords
+    {
+        get
+        {
+            return coords;
+        }
+
+        set
+        {
+            coords = value;
+        }
+    }
+
+    public void Start()
+    {
+        move();
+        rotate();
+    }
+
+    /// <summary>
+    /// Rota el obstáculo alrededor de los ejes y en la cantidad de grados especificados, cada vez que se llama.
+    /// </summary>
+    /// <param name="xAngle"></param>
+    /// <param name="yAngle"></param>
+    /// <param name="zAngle"></param>
+    public void rotate(float xAngle, float yAngle, float zAngle)
+    {
+        rot *= Quaternion.Euler(xAngle, yAngle, zAngle);
+        transform.rotation = rot;
+    }
+
+    public void rotate(Vector3 angles)
+    {
+        rotate(angles.x, angles.y, angles.z);
+    }
+
+    public void rotate()
+    {
+        transform.rotation = rotZero() * rot;
+    }
+
+    public void move()
+    {
+        transform.localPosition = Coords;// + body.position;
+    }
+
+    [Serializable]
+    public class Clon
+    {
+        public string body;
+        public double posX, posY, posZ;
+        public float rotX, rotY, rotZ, rotW;
+    }
+
+    /// <summary>
+    /// Escupe una clase serializable que contiene los datos del obstáculo
+    /// </summary>
+    /// <returns></returns>
+    public Clon toClon()
+    {
+        Clon clon = new Clon();
+        clon.body = body.name;
+        clon.posX = Coords.x;
+        clon.posY = Coords.y;
+        clon.posZ = Coords.z;
+        clon.rotX = rot.x;
+        clon.rotY = rot.y;
+        clon.rotZ = rot.z;
+        clon.rotW = rot.w;
+        return clon;
+    }
+
+    /// <summary>
+    /// toma los datos de un ObsClon
+    /// </summary>
+    /// <param name="clon"></param>
+    public void fromClon(Clon clon)
+    {
+        Coords = new Vector3d(clon.posX, clon.posY, clon.posZ);
+        rot = new QuaternionD(clon.rotX, clon.rotY, clon.rotZ, clon.rotW);
+    }
+
+    public Quaternion rotZero()
+    {
+        //http://answers.unity3d.com/questions/254130/how-do-i-rotate-an-object-towards-a-vector3-point.html
+        Vector3 _direction = (body.position - transform.position).normalized;
+        Quaternion _lookRotation = Quaternion.LookRotation(_direction);
+        return _lookRotation;
+    }
+
+    public void resetRot()
+    {
+        rot = Quaternion.Inverse(rotZero()) * rotZero();
+        rotate();
+    }
+
+    public Vector3d getBodyCoords()
+    {
+        return new Vector3d(body.GetLongitude(transform.position), body.GetLatitude(transform.position), body.GetAltitude(transform.position));
+    }
+
+    public void toFloor()
+    {
+        Vector3 floorCordsAbs = body.GetWorldSurfacePosition(body.GetLatitude(transform.position), body.GetLongitude(transform.position), body.TerrainAltitude(body.GetLatitude(transform.position), body.GetLongitude(transform.position)));
+        Coords = body.transform.InverseTransformPoint(floorCordsAbs);
+        move();
+    }
+}
+
+public class CheckPoint : RaceComponent
 {
     public enum Types { START, CHECKPOINT, FINISH };
     public Types cpType;
-    public CelestialBody body;
-    public Vector3 pCoords; //posición del marcador en lon lat alt
-    private Vector3 coords;
-    public Quaternion rot;  //rotación marcador
-    public Vector3 angleRot; //rotación, en grados euler, del punto de cotrol. Aquí se guardan despues de restar a cada uno el resultado de resetrwp.
-    public static int maxAlt = 50000;
     public GameObject cpBoxTrigger = GameObject.CreatePrimitive(PrimitiveType.Cube); //Esto detecta el buque pasar, para validar el punto de control
-    private bool solid, penalization;
+    private bool penalization;
     private int size;
     private Color wpColor;
     public Qub cuUp, cuDown, cuLe, cuRi;
@@ -169,12 +277,12 @@ public class CheckPoint : MonoBehaviour
     public static Material pasado = new Material(Shader.Find("Transparent/Diffuse"));
     public static Material listo = new Material(Shader.Find("KSP/Emissive/Diffuse"));
     public static Dictionary<int, Vector3> sizes = new Dictionary<int, Vector3>() {
-        {0, new Vector3(1f, 16f, 9f)}, //Grosor de la linea, ancho del rectángulo, alto del rectángulo
-        {1, new Vector3(2f, 32f, 18f)},
-        {2, new Vector3(3f, 48f, 27f)},
-        {3, new Vector3(4F, 64f, 36f)},
-        {4, new Vector3(5F, 80f, 45f)}
-    };
+            {0, new Vector3(1f, 16f, 9f)}, //Grosor de la linea, ancho del rectángulo, alto del rectángulo
+            {1, new Vector3(2f, 32f, 18f)},
+            {2, new Vector3(3f, 48f, 27f)},
+            {3, new Vector3(4F, 64f, 36f)},
+            {4, new Vector3(5F, 80f, 45f)}
+        };
 
     /// <summary>
     /// Da color a las lineas del punto de control
@@ -268,31 +376,6 @@ public class CheckPoint : MonoBehaviour
         }
     }
 
-    public Vector3 Coords
-    {
-        get
-        {
-            return coords;
-        }
-    }
-
-    public bool Solid
-    {
-        get
-        {
-            return solid;
-        }
-
-        set
-        {
-            solid = value;
-            cuUp.cubo.gameObject.GetComponent<BoxCollider>().isTrigger = !solid;
-            cuDown.cubo.gameObject.GetComponent<BoxCollider>().isTrigger = !solid;
-            cuLe.cubo.gameObject.GetComponent<BoxCollider>().isTrigger = !solid;
-            cuRi.cubo.gameObject.GetComponent<BoxCollider>().isTrigger = !solid;
-        }
-    }
-
     public bool Penalization
     {
         get
@@ -307,6 +390,40 @@ public class CheckPoint : MonoBehaviour
             cuDown.cubo.GetComponent<timePenalization>().enabled = penalization;
             cuLe.cubo.GetComponent<timePenalization>().enabled = penalization;
             cuRi.cubo.GetComponent<timePenalization>().enabled = penalization;
+        }
+    }
+
+    public class Qub : MonoBehaviour
+    {
+        public GameObject cubo = GameObject.CreatePrimitive(PrimitiveType.Cube);
+
+        void Awake()
+        {
+            cubo.AddComponent<timePenalization>();
+            cubo.gameObject.GetComponent<timePenalization>().enabled = false;
+            cubo.transform.parent = transform;
+            cubo.GetComponent<BoxCollider>().isTrigger = true;
+            cubo.GetComponent<BoxCollider>().enabled = true;
+            cubo.GetComponent<BoxCollider>().name = "[Races!]CP-" + (Races.Races.raceMan.loadedTrack.cpList.Count).ToString();
+        }
+
+        void OnDestroy()
+        {
+            Destroy(cubo);
+            Destroy(this);
+        }
+    }
+
+    public class timePenalization : MonoBehaviour
+    {
+        void OnTriggerEnter()
+        {
+            if (enabled)
+            {
+                Races.Races.raceMan.penTime += 10;
+                ScreenMessages.PostScreenMessage("+10 sec penalty", 5);
+                Races.Races.raceMan.loadedTrack.cpList[Races.Races.raceMan.pActivo].Penalization = false;
+            }
         }
     }
 
@@ -329,54 +446,16 @@ public class CheckPoint : MonoBehaviour
         }
     }
 
-    public class timePenalization : MonoBehaviour
-    {
-        void OnTriggerEnter()
-        {
-            if (enabled)
-            {
-                Races.Races.raceMan.penTime += 10;
-                ScreenMessages.PostScreenMessage("+10 sec penalty", 5);
-                Races.Races.raceMan.loadedTrack.cpList[Races.Races.raceMan.pActivo].Penalization = false;
-            }
-        }
-    }
-
-    public class Qub : MonoBehaviour
-    {
-        public GameObject cubo = GameObject.CreatePrimitive(PrimitiveType.Cube);
-
-        void Awake()
-        {
-            cubo.AddComponent<timePenalization>();
-            cubo.gameObject.GetComponent<timePenalization>().enabled = false;
-            cubo.transform.parent = transform;
-            //cubo.GetComponent<MeshRenderer>().material = new Material(Shader.Find("KSP/Emissive/Diffuse"));
-            cubo.GetComponent<BoxCollider>().isTrigger = true;
-            cubo.GetComponent<BoxCollider>().enabled = true;
-            cubo.GetComponent<BoxCollider>().name = "[Races!]cp" + (Races.Races.raceMan.loadedTrack.cpList.Count).ToString();
-        }
-
-        void OnDestroy()
-        {
-            Destroy(cubo);
-            Destroy(this);
-        }
-    }
-
     void Awake()
     {
-        //Donde está el buque en el momento de crear el punto de control
+        name = "[Races!]CP-";
         body = FlightGlobals.ActiveVessel.mainBody;
-        pCoords = new Vector3((float)FlightGlobals.ActiveVessel.latitude, (float)FlightGlobals.ActiveVessel.longitude, (float)FlightGlobals.ActiveVessel.altitude);
-        size = 0;
-        wpColor = colorCheckP;
+        transform.parent = body.transform;
 
-        //colisionador
         cpBoxTrigger.GetComponent<BoxCollider>().gameObject.AddComponent<colision>();
         cpBoxTrigger.transform.parent = transform;
         cpBoxTrigger.GetComponent<BoxCollider>().isTrigger = true;
-        cpBoxTrigger.transform.localScale = new Vector3(sizes[Size].y, sizes[Size].x + 0.2f, sizes[Size].z);
+        cpBoxTrigger.transform.localScale = new Vector3(sizes[Size].y, sizes[Size].x, sizes[Size].z);
         cpBoxTrigger.GetComponent<BoxCollider>().enabled = false;
         cpBoxTrigger.GetComponent<Renderer>().enabled = false;
 
@@ -400,38 +479,6 @@ public class CheckPoint : MonoBehaviour
         cuDown.transform.localScale = new Vector3(sizes[Size].y + sizes[Size].x, sizes[Size].x, sizes[Size].x);
         cuRi.transform.localScale = new Vector3(sizes[Size].x, sizes[Size].x, sizes[Size].z - sizes[Size].x);
         cuLe.transform.localScale = new Vector3(sizes[Size].x, sizes[Size].x, sizes[Size].z - sizes[Size].x);
-
-        if (pCoords.z - body.TerrainAltitude(pCoords.x, pCoords.y) <= 0) pCoords.z = (float)body.TerrainAltitude(pCoords.x, pCoords.y);
-        if (pCoords.z > maxAlt) pCoords.z = maxAlt;
-        coords = body.GetWorldSurfacePosition(pCoords.x, pCoords.y, pCoords.z);
-        rot = resetRot();
-        transform.position = coords;
-        transform.rotation = rot;
-
-        //Esto es para que el punto de control tome la rotación del buque
-        Quaternion vesselRelativeRotation = Quaternion.Inverse(rot) * FlightGlobals.ActiveVessel.GetTransform().rotation;
-
-        angleRot = new Vector3(vesselRelativeRotation.eulerAngles.x, vesselRelativeRotation.eulerAngles.y, vesselRelativeRotation.eulerAngles.z);
-
-        rotateCp();
-    }
-
-    /// <summary>
-    /// Coloca el punto de control. Todo el rato.
-    /// </summary>
-    void Update()
-    {
-        //que el punto de control no se meta por debajo del suelo
-        if (pCoords.z - body.TerrainAltitude(pCoords.x, pCoords.y) <= 0)
-        {
-            pCoords.z = (float)body.TerrainAltitude(pCoords.x, pCoords.y);
-        }
-        if (pCoords.z > maxAlt) pCoords.z = maxAlt;
-        //Como el origen del mundo se mueve con el buque, esto mantiene el punto de control en una posicion fija respecto al planeta.
-        coords = body.GetWorldSurfacePosition(pCoords.x, pCoords.y, pCoords.z);
-
-        transform.position = coords;
-        transform.rotation = rot;
     }
 
     public void destroy()
@@ -441,97 +488,140 @@ public class CheckPoint : MonoBehaviour
         Destroy(cuLe);
         Destroy(cuRi);
         Destroy(cpBoxTrigger);
-        cpBoxTrigger = null;
         Destroy(this);
-    }
-
-    /// <summary>
-    /// Rota el punto de cotrol alrededor de los ejes y en la cantidad de grados especificados, cada vez que se llama.
-    /// </summary>
-    /// <param name="xAngle"></param>
-    /// <param name="yAngle"></param>
-    /// <param name="zAngle"></param>
-    public void rotateCp(float xAngle, float yAngle, float zAngle)
-    {
-        rot *= Quaternion.Euler(xAngle, yAngle, zAngle);
-    }
-
-    public void rotateCp(Vector3 angles)
-    {
-        rotateCp(angles.x, angles.y, angles.z);
-    }
-
-    /// <summary>
-    /// Reinicia la rotación del punto de control y luego lo rota segun lo que sea angleRot
-    /// </summary>
-    public void rotateCp()
-    {
-        rot = resetRot();
-        rotateCp(angleRot);
-    }
-
-    /// <summary>
-    /// Translada el punto de control, a lo largo del eje y en la distancia especificada, cada vez que se llama
-    /// </summary>
-    /// <param name="lat"></param>
-    /// <param name="lon"></param>
-    /// <param name="alt"></param>
-    public void moveCp(float lat, float lon, float alt)
-    {
-        pCoords.x += lat;
-        pCoords.y += lon;
-        pCoords.z += alt;
-    }
-
-    /// <summary>
-    /// Alinea el punto de control con el ecuador
-    /// </summary>
-    internal Quaternion resetRot()
-    {
-        //http://answers.unity3d.com/questions/254130/how-do-i-rotate-an-object-towards-a-vector3-point.html
-        Vector3 _direction = (body.position - transform.position).normalized;
-        Quaternion _lookRotation = Quaternion.LookRotation(_direction);
-        return _lookRotation;
     }
 
     [Serializable]
     public class CheckPointClon
     {
-        public string body;  //¿Conmo convertir un string a un celestialbody?
         public int size;
-        //posición del marcador lon lat alt
-        public float pCoordsX;
-        public float pCoordsY;
-        public float pCoordsZ;
-        //rotación del marcador pitch roll yaw ¿w?
-        public float rotX;
-        public float rotY;
-        public float rotZ;
-        public float rotW;
+        public Clon clon;
     }
 
-    internal CheckPointClon toClon()
+    public CheckPointClon toCpClon()
     {
-        CheckPointClon clon = new CheckPointClon();
-        clon.body = body.name;
-        clon.size = Size;
-        clon.pCoordsX = pCoords.x;
-        clon.pCoordsY = pCoords.y;
-        clon.pCoordsZ = pCoords.z;
-        clon.rotX = angleRot.x;
-        clon.rotY = angleRot.y;
-        clon.rotZ = angleRot.z;
-        //clon.rotW = null;
-
-        return clon;
+        CheckPointClon cpClon = new CheckPointClon();
+        cpClon.size = Size;
+        cpClon.clon = toClon();
+        return cpClon;
     }
 
-    public void fromClon(CheckPointClon clon)
+    public void fromCpClon(CheckPointClon cpClon)
     {
-        pCoords = new Vector3(clon.pCoordsX, clon.pCoordsY, clon.pCoordsZ);
-        //rot = new Quaternion(clon.rotX, clon.rotY, clon.rotZ, clon.rotW);
-        angleRot = new Vector3(clon.rotX, clon.rotY, clon.rotZ);
-        Size = clon.size;
+        Size = cpClon.size;
+        fromClon(cpClon.clon);
+    }
+}
+
+public class Obstacle : RaceComponent
+{
+    public static int maxScale = 100;
+    public static int minScale = 1;
+    public GameObject cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+    public BoxCollider cubeCol;
+    private bool solid;
+    public static Color colorNormal = new Color(0.75f, 0.75f, 0.75f);
+    public static Color colorEdit = new Color(1f, 0f, 1f);
+    private Color obColor;
+
+    public bool Solid
+    {
+        get
+        {
+            return solid;
+        }
+
+        set
+        {
+            solid = value;
+            cubeCol.isTrigger = !solid;
+            cube.GetComponent<Renderer>().material = (!solid) ? new Material(Shader.Find("Transparent/Diffuse")) : null;
+            ObColor = obColor;
+        }
+    }
+
+    public Color ObColor
+    {
+        get
+        {
+            return obColor;
+        }
+
+        set
+        {
+            obColor = value;
+            cube.GetComponent<Renderer>().material.color = new Color(obColor.r, obColor.g, obColor.b, (solid) ? 1 : 0.5f);
+        }
+    }
+
+    public void scaleOb(float x, float y, float z)
+    {
+        float sx = cube.transform.localScale.x + x;
+        float sy = cube.transform.localScale.y + y;
+        float sz = cube.transform.localScale.z + z;
+
+        if (sx < minScale) sx = minScale; else if (sx > maxScale) sx = maxScale;
+        if (sy < minScale) sy = minScale; else if (sy > maxScale) sy = maxScale;
+        if (sz < minScale) sz = minScale; else if (sz > maxScale) sz = maxScale;
+
+        cube.transform.localScale = new Vector3((float)Math.Round(sx, 2), (float)Math.Round(sy, 2), (float)Math.Round(sz, 2));
+    }
+
+    void Awake()
+    {
+        name = "[Races!]OB-";
+        body = FlightGlobals.ActiveVessel.mainBody;
+        transform.parent = body.transform;
+
+        cube.transform.parent = transform;
+        cubeCol = cube.gameObject.GetComponent<BoxCollider>();
+        ObColor = colorEdit;
+        cubeCol.enabled = false;
+        cubeCol.isTrigger = true;
+        cubeCol.name = "[Races!]OB-" + (Races.Races.raceMan.loadedTrack.obList.Count).ToString();
+        cube.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        Solid = false;
+    }
+
+    public void destroy()
+    {
+        Destroy(cube);
+        Destroy(this);
+    }
+
+    [Serializable]
+    public class ObClon
+    {
+        public Clon clon;
+        public float scalex, scaley, scalez;
+        public bool solid;
+    }
+
+    /// <summary>
+    /// Escupe una clase serializable que contiene los datos del obstáculo
+    /// </summary>
+    /// <returns></returns>
+    public ObClon toObClon()
+    {
+
+        ObClon obClon = new ObClon();
+        obClon.clon = toClon();
+        obClon.scalex = cube.transform.localScale.x;
+        obClon.scaley = cube.transform.localScale.y;
+        obClon.scalez = cube.transform.localScale.z;
+        obClon.solid = Solid;
+        return obClon;
+    }
+
+    /// <summary>
+    /// toma los datos de un ObsClon
+    /// </summary>
+    /// <param name="clon"></param>
+    public void fromObClon(ObClon obClon)
+    {
+        fromClon(obClon.clon);
+        cube.transform.localScale = new Vector3(obClon.scalex, obClon.scaley, obClon.scalez);
+        Solid = obClon.solid;
     }
 }
 
@@ -561,7 +651,7 @@ public class LoadedTrack
                     length += Vector3.Distance(cpList[i - 1].Coords, cpList[i].Coords);
                 }
 
-                if (laps > 1)
+                if (laps > 0)
                 {
                     length += Vector3.Distance(cpList[0].Coords, cpList[cpList.Count - 1].Coords);
                     length *= laps;
@@ -584,7 +674,7 @@ public class LoadedTrack
         public float lenght;
         public string key;
         public CheckPoint.CheckPointClon[] cpList;
-        public Obstacle.ObsClon[] obList;
+        public Obstacle.ObClon[] obList;
     }
 
     public RaceClon toClon()
@@ -598,16 +688,16 @@ public class LoadedTrack
         clon.lenght = trackLength;
         clon.key = Races.Races.raceMan.genTrackKey();
         clon.cpList = new CheckPoint.CheckPointClon[cpList.Count];
-        clon.obList = new Obstacle.ObsClon[obList.Count];
+        clon.obList = new Obstacle.ObClon[obList.Count];
 
         for (int i = 0; i < cpList.Count; i++)
         {
-            clon.cpList[i] = cpList[i].toClon();
+            clon.cpList[i] = cpList[i].toCpClon();
         }
 
         for (int i = 0; i < obList.Count; i++)
         {
-            clon.obList[i] = obList[i].toClon();
+            clon.obList[i] = obList[i].toObClon();
         }
 
         return clon;
@@ -623,16 +713,16 @@ public class LoadedTrack
         foreach (CheckPoint.CheckPointClon cpClon in clon.cpList)
         {
             CheckPoint cp = new GameObject().AddComponent<CheckPoint>();
-            cp.fromClon(cpClon);
-            cp.rotateCp();
+            cp.fromCpClon(cpClon);
+            cp.rotate();
             cp.cpBoxTrigger.GetComponent<BoxCollider>().name = "[Races!]cp" + cpList.Count;
             cpList.Add(cp);
         }
-        foreach (Obstacle.ObsClon obClon in clon.obList)
+        foreach (Obstacle.ObClon obClon in clon.obList)
         {
             Obstacle ob = new GameObject().AddComponent<Obstacle>();
-            ob.fromClon(obClon);
-            ob.rotateOb();
+            ob.fromObClon(obClon);
+            ob.rotate();
             obList.Add(ob);
         }
     }
@@ -662,8 +752,8 @@ public class RaceManager : MonoBehaviour
     public estados estadoAct = estados.LoadScreen;
     public List<LoadedTrack.RaceClon> raceList = new List<LoadedTrack.RaceClon>(); //Lista de carreras disponibles en el directorio
     public LoadedTrack loadedTrack = new LoadedTrack();  //Carrera que se va a usar para correr o editar.
-    private int editionCp , editionOb = 0;
-    public LoadedTrack.RaceClon lastLoadedTrack = new LoadedTrack.RaceClon(); //Esto valdrá (supongo) para cargar de nuevo un circuito al volver a la escena de vuelo
+    private int editionCp, editionOb = 0;
+    public LoadedTrack.RaceClon lastLoadedTrack = new LoadedTrack.RaceClon(); //Esto servirá (supongo) para cargar de nuevo un circuito al volver a la escena de vuelo
     public Dictionary<string, float> records = new Dictionary<string, float>() { { "0", 0 } };
     public EditorGizmos.GizmoRotate grot;
     public EditorGizmos.GizmoOffset gofs;
@@ -714,9 +804,8 @@ public class RaceManager : MonoBehaviour
         if (enCarrera)
         {
             tiempoAct = Planetarium.GetUniversalTime() - tiempoIni;
-
             //Reactiva la penalización de tiempo al tocar el punto de control si el buque controlado se aleja demasiado del punto de control previamente tocado
-            if (Vector3.Distance(FlightGlobals.ActiveVessel.CoM, loadedTrack.cpList[pActivo].Coords) > CheckPoint.sizes[loadedTrack.cpList[pActivo].Size].y && !loadedTrack.cpList[pActivo].Penalization)
+            if (!loadedTrack.cpList[pActivo].Penalization && Vector3.Distance(FlightGlobals.ActiveVessel.transform.position, loadedTrack.cpList[pActivo].transform.position) > CheckPoint.sizes[loadedTrack.cpList[pActivo].Size].y)
             {
                 loadedTrack.cpList[pActivo].Penalization = true;
             }
@@ -726,33 +815,35 @@ public class RaceManager : MonoBehaviour
         {
             if (Input.GetKey(KeyCode.RightControl) || Input.GetKey(KeyCode.RightCommand))
             {
-                if (estadoAct == estados.EditScreen) newCheckpoint(true);
-                if (estadoAct == estados.ObsScreen) newObstacle(true);
-            }else
+                cambiaEstado(estados.EditScreen);
+                newCheckpoint(true);
+            }
+            else if (Input.GetKey(KeyCode.RightShift))
+            {
+                newObstacle(true);
+                cambiaEstado(estados.ObsScreen);
+            }
+            else
             {
                 try
                 {
                     string obj = mouseRayHit().collider.name;
-                    string type = obj.Substring(0, 10);
-                    if (type == "[Races!]cp")
+                    string[] type = obj.Split("-".ToCharArray());
+                    if (type[0] == "[Races!]CP")
                     {
                         cambiaEstado(estados.EditScreen);
-                        int num = int.Parse(obj.Substring(10));
+                        int num = int.Parse(type[1]);
                         cambiaEditCp(num);
                     }
-                    if (type == "[Races!]ob")
+                    if (type[0] == "[Races!]OB")
                     {
                         cambiaEstado(estados.ObsScreen);
-                        int num = int.Parse(obj.Substring(10));
+                        int num = int.Parse(type[1]);
                         cambiaEditOb(num);
                     }
                 }
-                catch (Exception)
-                {
-
-                }
-                
-            }   
+                catch (Exception) { }
+            }
         }
     }
 
@@ -768,8 +859,11 @@ public class RaceManager : MonoBehaviour
                 loadedTrack.trackTime = (records.ContainsKey(loadedTrack.trackKey)) ? records[loadedTrack.trackKey] : 0;
                 if (loadedTrack.obList.Count > 0)
                 {
-                    loadedTrack.obList[editionOb].ObColor = Obstacle.colorNormal;
-                    loadedTrack.obList[editionOb].cubeCol.enabled = true;
+                    foreach (Obstacle obs in loadedTrack.obList)
+                    {
+                        obs.ObColor = Obstacle.colorNormal;
+                        obs.cubeCol.enabled = true;
+                    }
                 }
                 if (grot != null) grot.Detach();
                 if (gofs != null) gofs.Detach();
@@ -787,8 +881,11 @@ public class RaceManager : MonoBehaviour
                 trackLength = loadedTrack.trackLength;
                 if (loadedTrack.obList.Count > 0)
                 {
-                    loadedTrack.obList[editionOb].ObColor = Obstacle.colorNormal;
-                    loadedTrack.obList[editionOb].cubeCol.enabled = true;
+                    foreach (Obstacle obs in loadedTrack.obList)
+                    {
+                        obs.ObColor = Obstacle.colorNormal;
+                        obs.cubeCol.enabled = true;
+                    }
                 }
                 editionOb = 0;
                 break;
@@ -809,8 +906,11 @@ public class RaceManager : MonoBehaviour
                 }
                 if (loadedTrack.obList.Count > 0)
                 {
-                    loadedTrack.obList[editionOb].ObColor = Obstacle.colorNormal;
-                    loadedTrack.obList[editionOb].cubeCol.enabled = true;
+                    foreach (Obstacle obs in loadedTrack.obList)
+                    {
+                        obs.ObColor = Obstacle.colorNormal;
+                        obs.cubeCol.enabled = true;
+                    }
                 }
                 break;
             case estados.EndScreen:
@@ -861,12 +961,12 @@ public class RaceManager : MonoBehaviour
                     if (race.bodyName == FlightGlobals.ActiveVessel.mainBody.name)
                     {
                         string names = ((race.name + " by " + race.author).Length > 20) ? race.name + "\nby " + race.author : race.name + " by " + race.author;
-                        if (GUILayout.Button(names + "\n" + ((race.laps == 0)? "Sprint, ":(race.laps + " Laps, ")) + race.lenght.ToString("0.00") + " meters", GUILayout.MaxWidth(170)))
+                        if (GUILayout.Button(names + "\n" + ((race.laps == 0) ? "Sprint, " : (race.laps + " Laps, ")) + race.lenght.ToString("0.00") + " meters", GUILayout.MaxWidth(170)))
                         {
                             newRaceTrack();
                             LoadRaceTrack(race);
                             prepCp(false);
-                            trackLength = race.lenght;
+                            trackLength = loadedTrack.trackLength;
                             loadedTrack.trackTime = (records.ContainsKey(loadedTrack.trackKey)) ? records[loadedTrack.trackKey] : 0;
                         }
                     }
@@ -884,8 +984,9 @@ public class RaceManager : MonoBehaviour
                 if (loadedTrack.cpList.Count > 0)
                 {
                     // Información del circuito cargado. No se asusten.
-                    GUILayout.Label(loadedTrack.name + " by " + loadedTrack.author + "\n" + loadedTrack.cpList.Count + " Checkpoints\n" + ((loadedTrack.laps == 0) ? "Sprint" : (loadedTrack.laps + " Laps")) + trackLength.ToString("0.00") + " Meters\nBest time: " + tiempo(loadedTrack.trackTime));
-                    GUILayout.Label("Starting point:\n" + "Latitude: " + loadedTrack.cpList[0].pCoords.x + "\nLongitude: " + loadedTrack.cpList[0].pCoords.y + "\nAltitude: " + loadedTrack.cpList[0].pCoords.z + "\nDistance: " + Vector3.Distance(loadedTrack.cpList[0].Coords, FlightGlobals.ActiveVessel.CoM).ToString("0.00"));
+                    Vector3d pCoords = loadedTrack.cpList[0].getBodyCoords();
+                    GUILayout.Label(loadedTrack.name + " by " + loadedTrack.author + "\n" + loadedTrack.cpList.Count + " Checkpoints\n" + ((loadedTrack.laps == 0) ? "Sprint " : (loadedTrack.laps + " Laps ")) + trackLength.ToString("0.00") + " Meters\nBest time: " + tiempo(loadedTrack.trackTime));
+                    GUILayout.Label("Starting point:\n" + "Latitude: " + pCoords.x.ToString("0.00") + "\nLongitude: " + pCoords.y.ToString("0.00") + "\nAltitude: " + pCoords.z.ToString("0.00") + "\nDistance: " + Vector3.Distance(loadedTrack.cpList[0].transform.position, FlightGlobals.ActiveVessel.transform.position).ToString("0.00"));
                     if (loadedTrack.cpList.Count > 1 && GUILayout.Button("Start Race")) cambiaEstado(estados.RaceScreen);
                 }
 
@@ -898,121 +999,55 @@ public class RaceManager : MonoBehaviour
                 GUILayout.EndHorizontal();
                 break;
             case estados.EditScreen:
+            case estados.ObsScreen:
                 GUILayout.Label("Race Track Editor");
 
                 GUILayout.BeginHorizontal();
 
+                genDataTrackEditGui(); //Controles genéricos de edición de circuitos, nombre, numero de vueltas, etc
+
                 GUILayout.BeginVertical();
 
                 GUILayout.BeginHorizontal();
-                GUI.SetNextControlName("TrackNAme");
-                GUILayout.Label("Name", GUILayout.Width(nameLabelWidth));
-                loadedTrack.name = GUILayout.TextField(loadedTrack.name, GUILayout.Width(nameTextWidth));
-                GUILayout.EndHorizontal();
-                GUILayout.BeginHorizontal();
-                GUILayout.Label("Author", GUILayout.Width(nameLabelWidth));
-                loadedTrack.author = GUILayout.TextField(loadedTrack.author, GUILayout.Width(nameTextWidth));
-                GUILayout.EndHorizontal();
-                GUILayout.Label("Laps");
-                GUILayout.BeginHorizontal();
-                if (GUILayout.Button("Sprint")) loadedTrack.laps = 0;
-                if (GUILayout.Button("-") && loadedTrack.laps > 1) loadedTrack.laps--;
-                GUILayout.Label((loadedTrack.laps == 0)? "Sprint": loadedTrack.laps.ToString());
-                if (GUILayout.Button("+")) loadedTrack.laps++;
 
-                GUILayout.EndHorizontal();
-
-                GUILayout.BeginHorizontal();
-                GUILayout.Label("Length");
-                GUILayout.Label(trackLength.ToString());
-                GUILayout.EndHorizontal();
-
-                if (GUILayout.Button("New Checkpoint here")) newCheckpoint(false);
-                GUILayout.Label("RCtrl + LMB new checkpoint on cursor");
-
-                if (loadedTrack.cpList.Count > 0 && GUILayout.Button("Remove Checkpoint"))
+                GUILayout.BeginVertical();
+                if (GUILayout.Button("New Checkpoint here"))
                 {
-                    loadedTrack.cpList[editionCp].destroy();
-                    loadedTrack.cpList.RemoveAt(editionCp);
-                    cambiaEditCp(editionCp);
+                    cambiaEstado(estados.EditScreen);
+                    newCheckpoint(false);
                 }
-
-                if (GUILayout.Button("Edit Obstacles")) cambiaEstado(estados.ObsScreen);
-                saveDialog();
-                if (GUILayout.Button("New Race Track")) newRaceTrack();
-                if (loadedTrack.cpList.Count > 1 && GUILayout.Button("Start Race!")) cambiaEstado(estados.RaceScreen);
-                if (GUILayout.Button("Load Racetrack")) cambiaEstado(estados.LoadScreen);
-
+                    
+                GUILayout.Label("RCtrl + LMB on cursor");
                 GUILayout.EndVertical();
 
-                if (loadedTrack.cpList.Count > 0)
+                GUILayout.BeginVertical();
+                if (GUILayout.Button("New Obstacle here"))
                 {
-                    GUILayout.BeginVertical();
+                    cambiaEstado(estados.ObsScreen);
+                    newObstacle(false);
+                } 
+                GUILayout.Label("RShift + LMB on cursor");
+                GUILayout.EndVertical();
 
-                    GUILayout.Label("Select Checkpoint");
-                    GUILayout.BeginHorizontal();
-                    if (GUILayout.Button("|<")) cambiaEditCp(0); //First
-                    if (GUILayout.Button("<")) cambiaEditCp(editionCp - 1); //previous
-                    GUILayout.Label(editionCp.ToString());
-                    if (GUILayout.Button(">")) cambiaEditCp(editionCp + 1);  //next
-                    if (GUILayout.Button(">|")) cambiaEditCp(loadedTrack.cpList.Count - 1); //last
+                GUILayout.EndHorizontal();
 
-                    GUILayout.EndHorizontal();
-
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("Size");
-                    if (GUILayout.Button("-") && size > 0) loadedTrack.cpList[editionCp].Size = --size;
-                    GUILayout.Label(size.ToString());
-                    if (GUILayout.Button("+") && size < CheckPoint.sizes.Count - 1) loadedTrack.cpList[editionCp].Size = ++size;
-                    GUILayout.EndHorizontal();
-
-                    if (GUILayout.Button("Rotate"))
-                    {
-                        if (grot != null) grot.Detach();
-                        if (gofs != null) gofs.Detach();
-                        grot = EditorGizmos.GizmoRotate.Attach(loadedTrack.cpList[editionCp].transform, loadedTrack.cpList[editionCp].transform.position, cpRot, cpRotado);
-                    }
-
-                    if (GUILayout.Button("Reset Rotation"))
-                    {
-                        if (grot != null) grot.Detach();
-                        if (gofs != null) gofs.Detach();
-                        loadedTrack.cpList[editionCp].rot = loadedTrack.cpList[editionCp].resetRot();
-                        loadedTrack.cpList[editionCp].angleRot = Vector3.zero;
-                    }
-
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("Translate");
-                    bool abs = GUILayout.Button("Absolute");
-                    bool rel = GUILayout.Button("Relative");
-
-                    if (abs || rel)
-                    {
-                        if (grot != null) grot.Detach();
-                        if (gofs != null) gofs.Detach();
-                        gofs = EditorGizmos.GizmoOffset.Attach(loadedTrack.cpList[editionCp].transform, cpTran, cpTrEnd);
-                        if (abs)
-                        {
-                            Vector3 _direction = (loadedTrack.cpList[editionCp].body.position - transform.position).normalized;
-                            gofs.transform.rotation = Quaternion.LookRotation(_direction);
-                        }
-                        else gofs.transform.rotation = loadedTrack.cpList[editionCp].rot;
-                    }
-                    GUILayout.EndHorizontal();
-                    if (GUILayout.Button("Send to floor"))
-                    {
-                        if (grot != null) grot.Detach();
-                        if (gofs != null) gofs.Detach();
-                        CheckPoint theCp = loadedTrack.cpList[editionCp];
-                        theCp.pCoords.z = (float)theCp.body.TerrainAltitude(theCp.pCoords.x, theCp.pCoords.y);
-                    }
-                    if (GUILayout.Button("Hide gizmo"))
-                    {
-                        if (grot != null) grot.Detach();
-                        if (gofs != null) gofs.Detach();
-                    }
-                    GUILayout.EndVertical();
+                GUILayout.BeginHorizontal();
+                if (loadedTrack.cpList.Count > 0 && estadoAct == estados.EditScreen)
+                {
+                    GUILayout.Label("Checkpoint Edit");
+                    if (loadedTrack.obList.Count > 0 && GUILayout.Button("Edit Obstacles")) cambiaEstado(estados.ObsScreen);
                 }
+                else if (loadedTrack.obList.Count > 0 && estadoAct == estados.ObsScreen)
+                {
+                    if (loadedTrack.cpList.Count > 0 && GUILayout.Button("Edit Checkpoints")) cambiaEstado(estados.EditScreen);
+                    GUILayout.Label("Obstacle Edit");
+                }
+                GUILayout.EndHorizontal();
+
+                if (estadoAct == estados.EditScreen) cpEditionGui();
+                if (estadoAct == estados.ObsScreen) obEditionGui();
+                GUILayout.EndVertical();
+               
                 GUILayout.EndHorizontal();
                 break;
             case estados.RaceScreen:
@@ -1048,166 +1083,6 @@ public class RaceManager : MonoBehaviour
                 if (GUILayout.Button("Edit Race Track")) cambiaEstado(estados.EditScreen);
                 if (GUILayout.Button("Load Track")) cambiaEstado(estados.LoadScreen);
                 break;
-            case estados.ObsScreen:
-                GUILayout.Label("Obstacle Editor");
-
-                GUILayout.BeginHorizontal();
-
-                GUILayout.BeginVertical();
-
-                GUILayout.BeginHorizontal();
-                GUI.SetNextControlName("TrackNAme");
-                GUILayout.Label("Name", GUILayout.Width(nameLabelWidth));
-                loadedTrack.name = GUILayout.TextField(loadedTrack.name, GUILayout.Width(nameTextWidth));
-                GUILayout.EndHorizontal();
-                GUILayout.BeginHorizontal();
-                GUILayout.Label("Author", GUILayout.Width(nameLabelWidth));
-                loadedTrack.author = GUILayout.TextField(loadedTrack.author, GUILayout.Width(nameTextWidth));
-                GUILayout.EndHorizontal();
-                GUILayout.Label("Laps");
-                GUILayout.BeginHorizontal();
-                if (GUILayout.Button("1")) loadedTrack.laps = 1;
-                if (GUILayout.Button("-") && loadedTrack.laps > 1) loadedTrack.laps--;
-                GUILayout.Label(loadedTrack.laps.ToString());
-                if (GUILayout.Button("+")) loadedTrack.laps++;
-
-                GUILayout.EndHorizontal();
-
-                GUILayout.BeginHorizontal();
-                GUILayout.Label("Length");
-                GUILayout.Label(trackLength.ToString());
-                GUILayout.EndHorizontal();
-
-                if (GUILayout.Button("New Obstacle here")) newObstacle(false);
-                GUILayout.Label("RCtrl + LMB new obstacle on cursor");
-
-                if (loadedTrack.obList.Count > 0 && GUILayout.Button("Remove Obstacle"))
-                {
-                    loadedTrack.obList[editionOb].destroy();
-                    loadedTrack.obList.RemoveAt(editionOb);
-                    cambiaEditOb(editionOb);
-                }
-
-                if (GUILayout.Button("Edit Checkpoints")) cambiaEstado(estados.EditScreen);
-
-                saveDialog();
-
-                if (loadedTrack.obList.Count > 0 && GUILayout.Button("Clear Obstacles"))
-                {
-                    foreach (Obstacle obs in loadedTrack.obList)
-                    {
-                        obs.destroy();
-                    }
-                    loadedTrack.obList.Clear();
-                }
-
-                if (loadedTrack.cpList.Count > 1 && GUILayout.Button("Start Race!")) cambiaEstado(estados.RaceScreen);
-                if (GUILayout.Button("Load Racetrack")) cambiaEstado(estados.LoadScreen);
-
-                GUILayout.EndVertical();
-
-                if (loadedTrack.obList.Count > 0)
-                {
-                    GUILayout.BeginVertical();
-
-                    GUILayout.Label("Select Obstacle");
-                    GUILayout.BeginHorizontal();
-                    if (GUILayout.Button("|<")) cambiaEditOb(0); //First
-                    if (GUILayout.Button("<")) cambiaEditOb(editionOb - 1); //Previous
-                    GUILayout.Label(editionOb.ToString());
-                    if (GUILayout.Button(">")) cambiaEditOb(editionOb + 1); //Next
-                    if (GUILayout.Button(">|")) cambiaEditOb(loadedTrack.obList.Count - 1); //Last
-                    GUILayout.EndHorizontal();
-
-                    loadedTrack.obList[editionOb].Solid = GUILayout.Toggle(loadedTrack.obList[editionOb].Solid, "Solid thing");
-
-                    if (GUILayout.Button("Rotate"))
-                    {
-                        if (grot != null) grot.Detach();
-                        if (gofs != null) gofs.Detach();
-                        grot = EditorGizmos.GizmoRotate.Attach(loadedTrack.obList[editionOb].transform, loadedTrack.obList[editionOb].transform.position, obRot, obRotado);
-                    }
-
-                    if (GUILayout.Button("Reset Rotation"))
-                    {
-                        if (grot != null) grot.Detach();
-                        if (gofs != null) gofs.Detach();
-                        loadedTrack.obList[editionOb].rot = loadedTrack.obList[editionOb].resetRot();
-                        loadedTrack.obList[editionOb].angleRot = Vector3.zero;
-                    }
-
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("Translate");
-                    bool abs = GUILayout.Button("Absolute");
-                    bool rel = GUILayout.Button("Relative");
-                    GUILayout.EndHorizontal();
-
-                    if (abs || rel)
-                    {
-                        if (grot != null) grot.Detach();
-                        if (gofs != null) gofs.Detach();
-                        gofs = EditorGizmos.GizmoOffset.Attach(loadedTrack.obList[editionOb].transform, obTran, obTrEnd);
-                        if (abs)
-                        {
-                            Vector3 _direction = (loadedTrack.obList[editionOb].body.position - transform.position).normalized;
-                            gofs.transform.rotation = Quaternion.LookRotation(_direction);
-                        }
-                        else gofs.transform.rotation = loadedTrack.obList[editionOb].rot;
-                    }
-
-                    if (GUILayout.Button("Send to floor"))
-                    {
-                        if (grot != null) grot.Detach();
-                        if (gofs != null) gofs.Detach();
-                        Obstacle theOb = loadedTrack.obList[editionOb];
-                        theOb.pCoords.z = (float)theOb.body.TerrainAltitude(theOb.pCoords.x, theOb.pCoords.y);
-                    }
-
-                    if (GUILayout.Button("Hide gizmo"))
-                    {
-                        if (grot != null) grot.Detach();
-                        if (gofs != null) gofs.Detach();
-                    }
-
-                    GUILayout.Label("Scale");
-
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("X", GUILayout.Width(15));
-                    if (GUILayout.Button("|-")) loadedTrack.obList[editionOb].scaleOb(-Obstacle.maxScale, 0, 0);
-                    if (GUILayout.RepeatButton("--")) loadedTrack.obList[editionOb].scaleOb(-obScaleMaxRatio, 0, 0);
-                    if (GUILayout.Button("-")) loadedTrack.obList[editionOb].scaleOb(-obScaleMinRatio, 0, 0);
-                    GUILayout.Label(loadedTrack.obList[editionOb].cube.transform.localScale.x.ToString(), GUILayout.Width(obScaleInfoLabelWidth));
-                    if (GUILayout.Button("+")) loadedTrack.obList[editionOb].scaleOb(obScaleMinRatio, 0, 0);
-                    if (GUILayout.RepeatButton("++")) loadedTrack.obList[editionOb].scaleOb(obScaleMaxRatio, 0, 0);
-                    if (GUILayout.Button("+|")) loadedTrack.obList[editionOb].scaleOb(Obstacle.maxScale, 0, 0);
-                    GUILayout.EndHorizontal();
-
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("Y", GUILayout.Width(15));
-                    if (GUILayout.Button("|-")) loadedTrack.obList[editionOb].scaleOb(0, -Obstacle.maxScale, 0);
-                    if (GUILayout.RepeatButton("--")) loadedTrack.obList[editionOb].scaleOb(0, -obScaleMaxRatio, 0);
-                    if (GUILayout.Button("-")) loadedTrack.obList[editionOb].scaleOb(0, -obScaleMinRatio, 0);
-                    GUILayout.Label(loadedTrack.obList[editionOb].cube.transform.localScale.y.ToString(), GUILayout.Width(obScaleInfoLabelWidth));
-                    if (GUILayout.Button("+")) loadedTrack.obList[editionOb].scaleOb(0, obScaleMinRatio, 0);
-                    if (GUILayout.RepeatButton("++")) loadedTrack.obList[editionOb].scaleOb(0, obScaleMaxRatio, 0);
-                    if (GUILayout.Button("+|")) loadedTrack.obList[editionOb].scaleOb(0, Obstacle.maxScale, 0);
-                    GUILayout.EndHorizontal();
-
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label("Z", GUILayout.Width(15));
-                    if (GUILayout.Button("|-")) loadedTrack.obList[editionOb].scaleOb(0, 0, -Obstacle.maxScale);
-                    if (GUILayout.RepeatButton("--")) loadedTrack.obList[editionOb].scaleOb(0, 0, -obScaleMaxRatio);
-                    if (GUILayout.Button("-")) loadedTrack.obList[editionOb].scaleOb(0, 0, -obScaleMinRatio);
-                    GUILayout.Label(loadedTrack.obList[editionOb].cube.transform.localScale.z.ToString(), GUILayout.Width(obScaleInfoLabelWidth));
-                    if (GUILayout.Button("+")) loadedTrack.obList[editionOb].scaleOb(0, 0, obScaleMinRatio);
-                    if (GUILayout.RepeatButton("++")) loadedTrack.obList[editionOb].scaleOb(0, 0, obScaleMaxRatio);
-                    if (GUILayout.Button("+|")) loadedTrack.obList[editionOb].scaleOb(0, 0, Obstacle.maxScale);
-                    GUILayout.EndHorizontal();
-
-                    GUILayout.EndVertical();
-                }
-                GUILayout.EndHorizontal();
-                break;
             default:
                 break;
         }
@@ -1215,94 +1090,278 @@ public class RaceManager : MonoBehaviour
     }
 
     /// <summary>
-    /// llamado cuando se suelta el chirimbolo de translación de obstáculos
+    /// Contiene la interfaz gráfica de usuario para mover, rotar y reescalar obstáculos
     /// </summary>
-    /// <param name="arg1"></param>
-    private void obTrEnd(Vector3 arg1)
+    public void obEditionGui()
     {
-        CelestialBody cuerpo = loadedTrack.obList[editionOb].body;
-        Obstacle ob = loadedTrack.obList[editionOb];
-        loadedTrack.obList[editionOb].pCoords = new Vector3((float)cuerpo.GetLatitude(ob.transform.position), (float)cuerpo.GetLongitude(ob.transform.position), (float)cuerpo.GetAltitude(ob.transform.position));
-        loadedTrack.obList[editionOb].enabled = true;
+        if (loadedTrack.obList.Count > 0)
+        {
+            GUILayout.BeginVertical();
+
+            GUILayout.Label("Select Obstacle");
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("|<")) cambiaEditOb(0); //First
+            if (GUILayout.Button("<")) cambiaEditOb(editionOb - 1); //Previous
+            GUILayout.Label(editionOb.ToString());
+            if (GUILayout.Button(">")) cambiaEditOb(editionOb + 1); //Next
+            if (GUILayout.Button(">|")) cambiaEditOb(loadedTrack.obList.Count - 1); //Last
+            GUILayout.EndHorizontal();
+
+            loadedTrack.obList[editionOb].Solid = GUILayout.Toggle(loadedTrack.obList[editionOb].Solid, "Solid thing");
+
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Rotate"))
+            {
+                if (grot != null) grot.Detach();
+                if (gofs != null) gofs.Detach();
+                grot = EditorGizmos.GizmoRotate.Attach(loadedTrack.obList[editionOb].transform, loadedTrack.obList[editionOb].transform.position, rCompRot, rCompRot);
+            }
+
+            if (GUILayout.Button("Reset Rotation"))
+            {
+                if (grot != null) grot.Detach();
+                if (gofs != null) gofs.Detach();
+                loadedTrack.obList[editionOb].resetRot();
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Move");
+            bool abs = GUILayout.Button("Absolute");
+            bool rel = GUILayout.Button("Relative");
+            GUILayout.EndHorizontal();
+
+            if (abs || rel)
+            {
+                if (grot != null) grot.Detach();
+                if (gofs != null) gofs.Detach();
+                gofs = EditorGizmos.GizmoOffset.Attach(loadedTrack.obList[editionOb].transform, rCompTran, rCompTran);
+                if (abs)
+                {
+                    Vector3 _direction = (loadedTrack.obList[editionOb].body.position - transform.position).normalized;
+                    gofs.transform.rotation = Quaternion.LookRotation(_direction);
+                }
+                else gofs.transform.rotation = loadedTrack.obList[editionOb].transform.rotation;
+            }
+
+            if (GUILayout.Button("Send to floor"))
+            {
+                if (grot != null) grot.Detach();
+                if (gofs != null) gofs.Detach();
+                loadedTrack.obList[editionOb].toFloor();
+            }
+
+            if (GUILayout.Button("Hide gizmo"))
+            {
+                if (grot != null) grot.Detach();
+                if (gofs != null) gofs.Detach();
+            }
+
+            GUILayout.Label("Scale");
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("X", GUILayout.Width(15));
+            if (GUILayout.Button("|-")) loadedTrack.obList[editionOb].scaleOb(-Obstacle.maxScale, 0, 0);
+            if (GUILayout.RepeatButton("--")) loadedTrack.obList[editionOb].scaleOb(-obScaleMaxRatio, 0, 0);
+            if (GUILayout.Button("-")) loadedTrack.obList[editionOb].scaleOb(-obScaleMinRatio, 0, 0);
+            GUILayout.Label(loadedTrack.obList[editionOb].cube.transform.localScale.x.ToString(), GUILayout.Width(obScaleInfoLabelWidth));
+            if (GUILayout.Button("+")) loadedTrack.obList[editionOb].scaleOb(obScaleMinRatio, 0, 0);
+            if (GUILayout.RepeatButton("++")) loadedTrack.obList[editionOb].scaleOb(obScaleMaxRatio, 0, 0);
+            if (GUILayout.Button("+|")) loadedTrack.obList[editionOb].scaleOb(Obstacle.maxScale, 0, 0);
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Y", GUILayout.Width(15));
+            if (GUILayout.Button("|-")) loadedTrack.obList[editionOb].scaleOb(0, -Obstacle.maxScale, 0);
+            if (GUILayout.RepeatButton("--")) loadedTrack.obList[editionOb].scaleOb(0, -obScaleMaxRatio, 0);
+            if (GUILayout.Button("-")) loadedTrack.obList[editionOb].scaleOb(0, -obScaleMinRatio, 0);
+            GUILayout.Label(loadedTrack.obList[editionOb].cube.transform.localScale.y.ToString(), GUILayout.Width(obScaleInfoLabelWidth));
+            if (GUILayout.Button("+")) loadedTrack.obList[editionOb].scaleOb(0, obScaleMinRatio, 0);
+            if (GUILayout.RepeatButton("++")) loadedTrack.obList[editionOb].scaleOb(0, obScaleMaxRatio, 0);
+            if (GUILayout.Button("+|")) loadedTrack.obList[editionOb].scaleOb(0, Obstacle.maxScale, 0);
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Z", GUILayout.Width(15));
+            if (GUILayout.Button("|-")) loadedTrack.obList[editionOb].scaleOb(0, 0, -Obstacle.maxScale);
+            if (GUILayout.RepeatButton("--")) loadedTrack.obList[editionOb].scaleOb(0, 0, -obScaleMaxRatio);
+            if (GUILayout.Button("-")) loadedTrack.obList[editionOb].scaleOb(0, 0, -obScaleMinRatio);
+            GUILayout.Label(loadedTrack.obList[editionOb].cube.transform.localScale.z.ToString(), GUILayout.Width(obScaleInfoLabelWidth));
+            if (GUILayout.Button("+")) loadedTrack.obList[editionOb].scaleOb(0, 0, obScaleMinRatio);
+            if (GUILayout.RepeatButton("++")) loadedTrack.obList[editionOb].scaleOb(0, 0, obScaleMaxRatio);
+            if (GUILayout.Button("+|")) loadedTrack.obList[editionOb].scaleOb(0, 0, Obstacle.maxScale);
+            GUILayout.EndHorizontal();
+
+            if (loadedTrack.obList.Count > 0 && GUILayout.Button("Remove Obstacle"))
+            {
+                loadedTrack.obList[editionOb].destroy();
+                loadedTrack.obList.RemoveAt(editionOb);
+                cambiaEditOb(editionOb);
+                if (loadedTrack.obList.Count == 0) cambiaEstado(estados.EditScreen);
+            }
+            GUILayout.EndVertical();
+        }
     }
 
     /// <summary>
-    /// llamado mientras se agarra el chirimbolo de translación de obstáculos
+    /// Contiene la interfaz gráfica de usuario para mover, rotar y redimensionar puntos de control
     /// </summary>
-    /// <param name="arg1"></param>
-    private void obTran(Vector3 arg1)
+    public void cpEditionGui()
     {
-        loadedTrack.obList[editionOb].enabled = false;
-        loadedTrack.obList[editionOb].transform.position = gofs.transform.position;
+        if (loadedTrack.cpList.Count > 0)
+        {
+            GUILayout.BeginVertical();
+
+            GUILayout.Label("Select Checkpoint");
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("|<")) cambiaEditCp(0); //First
+            if (GUILayout.Button("<")) cambiaEditCp(editionCp - 1); //previous
+            GUILayout.Label(editionCp.ToString());
+            if (GUILayout.Button(">")) cambiaEditCp(editionCp + 1);  //next
+            if (GUILayout.Button(">|")) cambiaEditCp(loadedTrack.cpList.Count - 1); //last
+
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Size");
+            if (GUILayout.Button("-") && size > 0) loadedTrack.cpList[editionCp].Size = --size;
+            GUILayout.Label(size.ToString());
+            if (GUILayout.Button("+") && size < CheckPoint.sizes.Count - 1) loadedTrack.cpList[editionCp].Size = ++size;
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Rotate"))
+            {
+                if (grot != null) grot.Detach();
+                if (gofs != null) gofs.Detach();
+                grot = EditorGizmos.GizmoRotate.Attach(loadedTrack.cpList[editionCp].transform, loadedTrack.cpList[editionCp].transform.position, rCompRot, rCompRot);
+            }
+
+            if (GUILayout.Button("Reset Rotation"))
+            {
+                if (grot != null) grot.Detach();
+                if (gofs != null) gofs.Detach();
+                loadedTrack.cpList[editionCp].resetRot();
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Move");
+            bool abs = GUILayout.Button("Absolute");
+            bool rel = GUILayout.Button("Relative");
+
+            if (abs || rel)
+            {
+                if (grot != null) grot.Detach();
+                if (gofs != null) gofs.Detach();
+                gofs = EditorGizmos.GizmoOffset.Attach(loadedTrack.cpList[editionCp].transform, rCompTran, rCompTran);
+                if (abs)
+                {
+                    Vector3 _direction = (loadedTrack.cpList[editionCp].body.position - transform.position).normalized;
+                    gofs.transform.rotation = Quaternion.LookRotation(_direction);
+                }
+                else gofs.transform.rotation = loadedTrack.cpList[editionCp].transform.rotation;
+            }
+            GUILayout.EndHorizontal();
+            if (GUILayout.Button("Send to floor"))
+            {
+                if (grot != null) grot.Detach();
+                if (gofs != null) gofs.Detach();
+                loadedTrack.cpList[editionCp].toFloor();
+            }
+            if (GUILayout.Button("Hide gizmo"))
+            {
+                if (grot != null) grot.Detach();
+                if (gofs != null) gofs.Detach();
+            }
+
+            if (loadedTrack.cpList.Count > 0 && GUILayout.Button("Remove Checkpoint"))
+            {
+                loadedTrack.cpList[editionCp].destroy();
+                loadedTrack.cpList.RemoveAt(editionCp);
+                cambiaEditCp(editionCp);
+                trackLength = loadedTrack.trackLength;
+                if (loadedTrack.cpList.Count == 0) cambiaEstado(estados.ObsScreen);
+            }
+
+            GUILayout.EndVertical();
+        }
     }
 
     /// <summary>
-    /// llamado cuando se suelta el chirimbolo de rotación de obstáculos
+    /// Contiene la interfaz gráfica de usuario para cambiar las características básicas del circuito, y otras opciones
     /// </summary>
-    /// <param name="arg1"></param>
-    private void obRotado(Quaternion arg1)
+    public void genDataTrackEditGui()
     {
-        Obstacle ob = loadedTrack.obList[editionOb];
-        ob.rot = arg1 * grot.HostRot0;
-        Quaternion reset = ob.resetRot();
-        ob.angleRot = new Vector3(ob.rot.eulerAngles.x - reset.eulerAngles.x, ob.rot.eulerAngles.y - reset.eulerAngles.y, ob.rot.eulerAngles.z - reset.eulerAngles.z);
+        GUILayout.BeginVertical();
+
+        GUILayout.BeginHorizontal();
+        GUI.SetNextControlName("TrackNAme");
+        GUILayout.Label("Name", GUILayout.Width(nameLabelWidth));
+        loadedTrack.name = GUILayout.TextField(loadedTrack.name, GUILayout.Width(nameTextWidth));
+        GUILayout.EndHorizontal();
+        GUILayout.BeginHorizontal();
+        GUILayout.Label("Author", GUILayout.Width(nameLabelWidth));
+        loadedTrack.author = GUILayout.TextField(loadedTrack.author, GUILayout.Width(nameTextWidth));
+        GUILayout.EndHorizontal();
+        GUILayout.Label("Laps");
+        GUILayout.BeginHorizontal();
+        if (GUILayout.Button("Sprint"))
+        {
+            loadedTrack.laps = 0;
+            trackLength = loadedTrack.trackLength;
+        }
+        if (GUILayout.Button("-") && loadedTrack.laps > 1)
+        {
+            loadedTrack.laps--;
+            trackLength = loadedTrack.trackLength;
+        }
+        GUILayout.Label((loadedTrack.laps == 0) ? "Sprint" : loadedTrack.laps.ToString());
+        if (GUILayout.Button("+"))
+        {
+            loadedTrack.laps++;
+            trackLength = loadedTrack.trackLength;
+        }
+
+        GUILayout.EndHorizontal();
+
+        GUILayout.BeginHorizontal();
+        GUILayout.Label("Length");
+        GUILayout.Label(trackLength.ToString());
+        GUILayout.EndHorizontal();
+
+        saveDialog();
+
+        if (GUILayout.Button("New Race Track")) newRaceTrack();
+        if (loadedTrack.cpList.Count > 1 && GUILayout.Button("Start Race!")) cambiaEstado(estados.RaceScreen);
+        if (GUILayout.Button("Load Racetrack")) cambiaEstado(estados.LoadScreen);
+
+        GUILayout.EndVertical();
     }
 
     /// <summary>
-    /// llamado cuando mientras se agarra el chirimbolo de rotación de obstáculos
+    /// llamado al utilizar el chirimbolo de translación sobre un punto de control u obstáculo
     /// </summary>
     /// <param name="arg1"></param>
-    private void obRot(Quaternion arg1)
+    private void rCompTran(Vector3 arg1)
     {
-        if (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.LeftCommand)) grot.useAngleSnap = false; else grot.useAngleSnap = true;
-        loadedTrack.obList[editionOb].rot = arg1 * grot.HostRot0;
+        gofs.useGrid = !(Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.LeftCommand));
+        RaceComponent rc = (estadoAct == estados.EditScreen) ? loadedTrack.cpList[editionCp] as RaceComponent : loadedTrack.obList[editionOb] as RaceComponent;
+        if (estadoAct == estados.EditScreen) trackLength = loadedTrack.trackLength;
+        rc.Coords = rc.body.GetTransform().InverseTransformPoint(gofs.transform.position);
+        rc.move();
     }
 
     /// <summary>
-    /// llamado cuando se suelta el chirimbolo de translación de puntos de control
+    /// llamado al utilizar el chirimbolo de rotación sobre un punto de control u obstáculo
     /// </summary>
     /// <param name="arg1"></param>
-    private void cpTrEnd(Vector3 arg1)
+    private void rCompRot(Quaternion arg1)
     {
-        CelestialBody cuerpo = loadedTrack.cpList[editionCp].body;
-        CheckPoint cp = loadedTrack.cpList[editionCp];
-        loadedTrack.cpList[editionCp].pCoords = new Vector3((float)cuerpo.GetLatitude(cp.transform.position), (float)cuerpo.GetLongitude(cp.transform.position), (float)cuerpo.GetAltitude(cp.transform.position));
-        loadedTrack.cpList[editionCp].enabled = true;
-    }
-
-    /// <summary>
-    /// llamado mientras se agarra el chirimbolo de translación de puntos de control
-    /// </summary>
-    /// <param name="arg1"></param>
-    private void cpTran(Vector3 arg1)
-    {
-        loadedTrack.cpList[editionCp].enabled = false;
-        loadedTrack.cpList[editionCp].transform.position = gofs.transform.position;
-    }
-
-    /// <summary>
-    /// llamado cuando se suelta el chirimbolo de rotación de puntos de control
-    /// </summary>
-    /// <param name="arg1"></param>
-    private void cpRotado(Quaternion arg1)
-    {
-        CheckPoint cp = loadedTrack.cpList[editionCp];
-        cp.rot = arg1 * grot.HostRot0;
-        Quaternion reset = cp.resetRot();
-        cp.angleRot = new Vector3(cp.rot.eulerAngles.x - reset.eulerAngles.x, cp.rot.eulerAngles.y - reset.eulerAngles.y, cp.rot.eulerAngles.z - reset.eulerAngles.z);
-        //reinicia la rotación y rota el punto de control hasta la rotación rotada anteriormente. Totalmente innecesario. Para pruebas
-        //cp.rot = reset;
-        //cp.rotateCp();
-    }
-
-    /// <summary>
-    /// llamado mientras se agarra el chirimbolo de rotación de puntos de control
-    /// </summary>
-    /// <param name="arg1"></param>
-    private void cpRot(Quaternion arg1)
-    {
-        if (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.LeftCommand)) grot.useAngleSnap = false; else grot.useAngleSnap = true;
-        loadedTrack.cpList[editionCp].rot = arg1 * grot.HostRot0;
+        grot.useAngleSnap = !(Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.LeftCommand));
+        RaceComponent rc = (estadoAct == estados.EditScreen) ? loadedTrack.cpList[editionCp] as RaceComponent : loadedTrack.obList[editionOb] as RaceComponent;
+        rc.rot = Quaternion.Inverse(rc.rotZero()) * (arg1 * grot.HostRot0);
+        rc.rotate();
     }
 
     /// <summary>
@@ -1314,9 +1373,9 @@ public class RaceManager : MonoBehaviour
         {
             if (loadedTrack.cpList.Count > 0)
             {
-                foreach (CheckPoint rwpCol in loadedTrack.cpList)
+                foreach (CheckPoint cp in loadedTrack.cpList)
                 {
-                    rwpCol.destroy();
+                    cp.destroy();
                 }
                 loadedTrack.cpList.Clear();
             }
@@ -1348,13 +1407,13 @@ public class RaceManager : MonoBehaviour
     /// <param name="enCursor"></param>
     public void newCheckpoint(bool enCursor)
     {
-        CheckPoint cp = new GameObject().AddComponent<CheckPoint>();
         if (grot != null) grot.Detach();
         if (gofs != null) gofs.Detach();
+        CheckPoint cp = new GameObject().AddComponent<CheckPoint>();
+        cp.name += loadedTrack.cpList.Count;
         if (loadedTrack.cpList.Count == 1)
         {
             cp.tipoCp = CheckPoint.Types.START;
-            trackLength = loadedTrack.trackLength;
         }
         else
         {
@@ -1364,19 +1423,24 @@ public class RaceManager : MonoBehaviour
             }
             cp.tipoCp = CheckPoint.Types.FINISH;
         }
-        cp.cpBoxTrigger.GetComponent<BoxCollider>().name = "[Races!]cp" + loadedTrack.cpList.Count;
+        cp.cpBoxTrigger.GetComponent<BoxCollider>().name = cp.name;
         if (enCursor)
         {
             try
             {
                 Vector3d mousePos = mouseRayHit().point;
-                cp.pCoords = new Vector3((float)cp.body.GetLatitude(mousePos), (float)cp.body.GetLongitude(mousePos), (float)cp.body.GetAltitude(mousePos));
+                cp.Coords = cp.body.transform.InverseTransformPoint(mousePos);
             }
             catch (Exception) { }
-            cp.rot = cp.resetRot();
-            cp.angleRot = Vector3.zero;
+            cp.resetRot();
+        }
+        else
+        {
+            cp.Coords = cp.body.transform.InverseTransformPoint(FlightGlobals.ActiveVessel.GetTransform().position);
+            cp.rot = Quaternion.Inverse(cp.rotZero()) * FlightGlobals.ActiveVessel.GetTransform().rotation;
         }
         loadedTrack.cpList.Add(cp);
+        trackLength = loadedTrack.trackLength;
         cambiaEditCp(loadedTrack.cpList.Count - 1);
     }
 
@@ -1386,15 +1450,25 @@ public class RaceManager : MonoBehaviour
     /// <param name="enCursor"></param>
     public void newObstacle(bool enCursor)
     {
+        if (grot != null) grot.Detach();
+        if (gofs != null) gofs.Detach();
         Obstacle obs = new GameObject().AddComponent<Obstacle>();
+        obs.name += loadedTrack.obList.Count;
         obs.cube.transform.localScale = new Vector3(Obstacle.maxScale / 2, Obstacle.maxScale / 2, Obstacle.maxScale / 2);
         if (enCursor)
         {
-            Vector3d mousePos = mouseRayHit().point;
-            obs.pCoords = new Vector3((float)obs.body.GetLatitude(mousePos), (float)obs.body.GetLongitude(mousePos), (float)obs.body.GetAltitude(mousePos));
+            try
+            {
+                Vector3d mousePos = mouseRayHit().point;
+                obs.Coords = obs.body.transform.InverseTransformPoint(mousePos);
+            }
+            catch (Exception) { }
         }
-        obs.rot = obs.resetRot();
-        obs.angleRot = Vector3.zero;
+        else
+        {
+            obs.Coords = obs.body.transform.InverseTransformPoint(FlightGlobals.ActiveVessel.GetTransform().position);
+        }
+        obs.resetRot();
         loadedTrack.obList.Add(obs);
         cambiaEditOb(loadedTrack.obList.Count - 1);
     }
@@ -1474,10 +1548,7 @@ public class RaceManager : MonoBehaviour
     {
         //Tomar los datos de la carrera cargada (no guardable) y transferirlos a la carrera guardable
         LoadedTrack.RaceClon raceClon = loadedTrack.toClon();
-        if (!Directory.Exists(Races.Races.RaceTrackFolder))
-        {
-            Directory.CreateDirectory(Races.Races.RaceTrackFolder);
-        }
+        if (!Directory.Exists(Races.Races.RaceTrackFolder)) Directory.CreateDirectory(Races.Races.RaceTrackFolder);
         try
         {
             BinaryFormatter bf = new BinaryFormatter();
@@ -1511,10 +1582,7 @@ public class RaceManager : MonoBehaviour
     public void GetRacetrackList()
     {
         // coger todos los archivos de tipo .krt de la carpeta y meterlos en la lista de circuitos
-        if (!Directory.Exists(Races.Races.RaceTrackFolder))
-        {
-            Directory.CreateDirectory(Races.Races.RaceTrackFolder);
-        }
+        if (!Directory.Exists(Races.Races.RaceTrackFolder)) Directory.CreateDirectory(Races.Races.RaceTrackFolder);
         var info = new DirectoryInfo(Races.Races.RaceTrackFolder);
         var fileInfo = info.GetFiles("*" + Races.Races.RaceTrackFileExtension, SearchOption.TopDirectoryOnly);
         Debug.Log("[Races!] " + fileInfo.Length + " Race Tracks found");
@@ -1527,11 +1595,7 @@ public class RaceManager : MonoBehaviour
                 FileStream fileStream = File.Open(file.FullName, FileMode.Open);
                 var stream = bf.Deserialize(fileStream);
                 LoadedTrack.RaceClon race = stream as LoadedTrack.RaceClon;
-
-                if (race != null)
-                {
-                    raceList.Add(race);
-                }
+                if (race != null) raceList.Add(race);
             }
             catch (Exception)
             {
@@ -1563,7 +1627,8 @@ public class RaceManager : MonoBehaviour
                     {
                         ScreenMessages.PostScreenMessage("Lap " + curLap + " Checkpoint " + pActivo + "\n" + tiempo((float)tiempoAct), 15);
                     }
-                    if(loadedTrack.laps > 0) { 
+                    if (loadedTrack.laps > 0)
+                    {
                         curLap++;
                     }
                     if (loadedTrack.laps > 0 && curLap == loadedTrack.laps)
@@ -1687,7 +1752,6 @@ public class RaceManager : MonoBehaviour
                 num = loadedTrack.cpList.Count - 1;
             }
             editionCp = num;
-
             loadedTrack.cpList[editionCp].cpColor = CheckPoint.colorEdit;
             size = loadedTrack.cpList[editionCp].Size;
         }
@@ -1718,8 +1782,8 @@ public class RaceManager : MonoBehaviour
             if (editionOb <= loadedTrack.obList.Count - 1)
             {
                 loadedTrack.obList[editionOb].ObColor = Obstacle.colorNormal;
+                loadedTrack.obList[editionOb].cubeCol.enabled = true;
             }
-            loadedTrack.obList[editionOb].cubeCol.enabled = true;
             editionOb = num;
             loadedTrack.obList[editionOb].ObColor = Obstacle.colorEdit;
             loadedTrack.obList[editionOb].cubeCol.enabled = false;
@@ -1777,10 +1841,7 @@ public class RaceManager : MonoBehaviour
     /// </summary>
     public void loadRecordFile()
     {
-        if (!Directory.Exists(Races.Races.RaceTrackFolder))
-        {
-            Directory.CreateDirectory(Races.Races.RaceTrackFolder);
-        }
+        if (!Directory.Exists(Races.Races.RaceTrackFolder)) Directory.CreateDirectory(Races.Races.RaceTrackFolder);
         try
         {
             BinaryFormatter bf = new BinaryFormatter();
@@ -1866,16 +1927,7 @@ public class RaceManager : MonoBehaviour
         data.cpList = new CheckPoint.CheckPointClon[loadedTrack.cpList.Count];
         for (int i = 0; i < loadedTrack.cpList.Count; i++)
         {
-            CheckPoint.CheckPointClon cpClon = new CheckPoint.CheckPointClon();
-            cpClon.body = loadedTrack.cpList[i].body.name;
-            cpClon.size = loadedTrack.cpList[i].Size;
-            cpClon.pCoordsX = loadedTrack.cpList[i].pCoords.x;
-            cpClon.pCoordsY = loadedTrack.cpList[i].pCoords.y;
-            cpClon.pCoordsZ = loadedTrack.cpList[i].pCoords.z;
-            cpClon.rotX = loadedTrack.cpList[i].angleRot.x;
-            cpClon.rotY = loadedTrack.cpList[i].angleRot.y;
-            cpClon.rotZ = loadedTrack.cpList[i].angleRot.z;
-            data.cpList[i] = cpClon;
+            data.cpList[i] = loadedTrack.cpList[i].toCpClon();
         }
         data.laps = loadedTrack.laps;
         return loadedTrack.trackKey = MD5Hash(data);
@@ -1924,214 +1976,5 @@ public class bArray
         System.Object obj = (System.Object)binForm.Deserialize(memStream);
 
         return obj;
-    }
-}
-
-public class Obstacle : MonoBehaviour
-{
-    public CelestialBody body;
-    public Vector3 pCoords; //posición del marcador en lon lat alt
-    private Vector3 coords;
-    public Quaternion rot;  //rotación marcador
-    public Vector3 angleRot;
-    public static int maxAlt = 50000;
-    public static int maxScale = 100;
-    public static int minScale = 1;
-    public GameObject cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
-    public BoxCollider cubeCol;
-    private bool solid;
-    public static Color colorNormal = new Color(0.75f, 0.75f, 0.75f);
-    public static Color colorEdit = new Color(1f, 0f, 1f);
-    private Color obColor;
-
-    public Vector3 Coords
-    {
-        get
-        {
-            return coords;
-        }
-    }
-
-    public bool Solid
-    {
-        get
-        {
-            return solid;
-        }
-
-        set
-        {
-            solid = value;
-            cubeCol.isTrigger = !solid;
-            cube.GetComponent<Renderer>().material = (!solid) ? new Material(Shader.Find("Transparent/Diffuse")) : null;
-            ObColor = obColor;
-        }
-    }
-
-    public Color ObColor
-    {
-        get
-        {
-            return obColor;
-        }
-
-        set
-        {
-            obColor = value;
-            cube.GetComponent<Renderer>().material.color = new Color(obColor.r, obColor.g, obColor.b, (solid) ? 1 : 0.5f);
-        }
-    }
-
-    void Awake()
-    {
-        //Donde está el buque en el momento de crear el punto de control
-        cube.transform.parent = transform;
-        cubeCol = cube.gameObject.GetComponent<BoxCollider>();
-        ObColor = colorEdit;
-        cubeCol.enabled = false;
-        cubeCol.isTrigger = true;
-        cubeCol.name = "[Races!]ob" + (Races.Races.raceMan.loadedTrack.obList.Count).ToString();
-        cube.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        Solid = false;
-        pCoords = new Vector3((float)FlightGlobals.ActiveVessel.latitude, (float)FlightGlobals.ActiveVessel.longitude, (float)FlightGlobals.ActiveVessel.altitude);
-        body = FlightGlobals.ActiveVessel.mainBody;
-
-        if (pCoords.z - body.TerrainAltitude(pCoords.x, pCoords.y) <= 0) pCoords.z = (float)body.TerrainAltitude(pCoords.x, pCoords.y);
-        if (pCoords.z > maxAlt) pCoords.z = maxAlt;
-        coords = body.GetWorldSurfacePosition(pCoords.x, pCoords.y, pCoords.z);
-        rot = resetRot();
-        transform.position = coords;
-        transform.rotation = rot;
-
-        //Esto es para que el punto de control tome la rotación del buque
-        Quaternion vesselRelativeRotation = Quaternion.Inverse(rot) * FlightGlobals.ActiveVessel.GetTransform().rotation;
-
-        angleRot = new Vector3(vesselRelativeRotation.eulerAngles.x, vesselRelativeRotation.eulerAngles.y, vesselRelativeRotation.eulerAngles.z);
-
-        rotateOb();
-    }
-
-    /// <summary>
-    /// Coloca el obstáculo
-    /// </summary>
-    void Update()
-    {
-        //que el punto de control no se meta por debajo del suelo
-        if (pCoords.z - body.TerrainAltitude(pCoords.x, pCoords.y) <= 0) pCoords.z = (float)body.TerrainAltitude(pCoords.x, pCoords.y);
-        if (pCoords.z > maxAlt) pCoords.z = maxAlt;
-
-        //Como el origen del mundo se mueve con el buque, esto mantiene el punto de control en una posicion fija respecto al planeta.
-        coords = body.GetWorldSurfacePosition(pCoords.x, pCoords.y, pCoords.z);
-
-        transform.position = coords;
-        transform.rotation = rot;
-    }
-
-    public void destroy()
-    {
-        Destroy(cube);
-        Destroy(this);
-    }
-
-    /// <summary>
-    /// Rota el obstáculo alrededor de los ejes y en la cantidad de grados especificados, cada vez que se llama.
-    /// </summary>
-    /// <param name="xAngle"></param>
-    /// <param name="yAngle"></param>
-    /// <param name="zAngle"></param>
-    public void rotateOb(float xAngle, float yAngle, float zAngle)
-    {
-        rot *= Quaternion.Euler(xAngle, yAngle, zAngle);
-    }
-
-    public void rotateOb(Vector3 angles)
-    {
-        rotateOb(angles.x, angles.y, angles.z);
-    }
-
-    /// <summary>
-    /// Reinicia la rotación del obstáculo y luego lo rota segun lo que sea angleRot
-    /// </summary>
-    public void rotateOb()
-    {
-        rot = resetRot();
-        rotateOb(angleRot);
-    }
-
-    /// <summary>
-    /// Translada el obstaculo a lo largo del eje y en la distancia especificada, cada vez que se llama
-    /// </summary>
-    /// <param name="lat"></param>
-    /// <param name="lon"></param>
-    /// <param name="alt"></param>
-    public void moveOb(float lat, float lon, float alt)
-    {
-        pCoords.x += lat;
-        pCoords.y += lon;
-        pCoords.z += alt;
-    }
-
-    public void scaleOb(float x, float y, float z)
-    {
-        float sx = cube.transform.localScale.x + x;
-        float sy = cube.transform.localScale.y + y;
-        float sz = cube.transform.localScale.z + z;
-
-        if (sx < minScale) sx = minScale; else if (sx > maxScale) sx = maxScale;
-        if (sy < minScale) sy = minScale; else if (sy > maxScale) sy = maxScale;
-        if (sz < minScale) sz = minScale; else if (sz > maxScale) sz = maxScale;
-
-        cube.transform.localScale = new Vector3((float)Math.Round(sx, 2), (float)Math.Round(sy, 2), (float)Math.Round(sz, 2));
-    }
-
-    [Serializable]
-    public class ObsClon
-    {
-        public string body;
-        public float pCoordsx, pCoordsy, pCoordsz;
-        public float rotx, roty, rotz, rotw; //si quito rotw aparecen problemas
-        public float scalex, scaley, scalez;
-        public bool solid;
-    }
-
-    /// <summary>
-    /// Escupe una clase serializable que contiene los datos del obstáculo
-    /// </summary>
-    /// <returns></returns>
-    public ObsClon toClon()
-    {
-        ObsClon clon = new ObsClon();
-        clon.body = body.name;
-        clon.pCoordsx = pCoords.x;
-        clon.pCoordsy = pCoords.y;
-        clon.pCoordsz = pCoords.z;
-        clon.rotx = angleRot.x;
-        clon.roty = angleRot.y;
-        clon.rotz = angleRot.z;
-        clon.scalex = cube.transform.localScale.x;
-        clon.scaley = cube.transform.localScale.y;
-        clon.scalez = cube.transform.localScale.z;
-        clon.solid = Solid;
-        return clon;
-    }
-
-    /// <summary>
-    /// toma los datos de un ObsClon
-    /// </summary>
-    /// <param name="clon"></param>
-    public void fromClon(ObsClon clon)
-    {
-        pCoords = new Vector3(clon.pCoordsx, clon.pCoordsy, clon.pCoordsz);
-        angleRot = new Vector3(clon.rotx, clon.roty, clon.rotz);
-        cube.transform.localScale = new Vector3(clon.scalex, clon.scaley, clon.scalez);
-        Solid = clon.solid;
-    }
-
-    internal Quaternion resetRot()
-    {
-        //http://answers.unity3d.com/questions/254130/how-do-i-rotate-an-object-towards-a-vector3-point.html
-        Vector3 _direction = (body.position - transform.position).normalized;
-        Quaternion _lookRotation = Quaternion.LookRotation(_direction);
-        return _lookRotation;
     }
 }
