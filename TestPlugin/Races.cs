@@ -268,6 +268,7 @@ public class CheckPoint : RaceComponent
     private int size;
     private Color wpColor;
     public Qub cuUp, cuDown, cuLe, cuRi;
+    private bool colliders;
 
     public static Color colorStart = Color.white;
     public static Color colorCheckP = Color.yellow;
@@ -283,6 +284,8 @@ public class CheckPoint : RaceComponent
             {3, new Vector3(4F, 64f, 36f)},
             {4, new Vector3(5F, 80f, 45f)}
         };
+
+    
 
     /// <summary>
     /// Da color a las lineas del punto de control
@@ -390,6 +393,23 @@ public class CheckPoint : RaceComponent
             cuDown.cubo.GetComponent<timePenalization>().enabled = penalization;
             cuLe.cubo.GetComponent<timePenalization>().enabled = penalization;
             cuRi.cubo.GetComponent<timePenalization>().enabled = penalization;
+        }
+    }
+
+    public bool Colliders
+    {
+        get
+        {
+            return colliders;
+        }
+
+        set
+        {
+            colliders = value;
+            cuUp.GetComponent<Qub>().cubo.GetComponent<BoxCollider>().enabled = colliders;
+            cuDown.GetComponent<Qub>().cubo.GetComponent<BoxCollider>().enabled = colliders;
+            cuLe.GetComponent<Qub>().cubo.GetComponent<BoxCollider>().enabled = colliders;
+            cuRi.GetComponent<Qub>().cubo.GetComponent<BoxCollider>().enabled = colliders;
         }
     }
 
@@ -1695,6 +1715,7 @@ public class RaceManager : MonoBehaviour
                 loadedTrack.cpList[i].cpBoxTrigger.GetComponent<BoxCollider>().enabled = correr;
                 loadedTrack.cpList[i].cpType = CheckPoint.Types.CHECKPOINT;
                 loadedTrack.cpList[i].cpColor = (correr) ? CheckPoint.colorPasado : CheckPoint.colorCheckP;
+                loadedTrack.cpList[i].Colliders = true;
                 loadedTrack.cpList[i].cpBoxTrigger.GetComponent<BoxCollider>().GetComponent<CheckPoint.colision>().count = 0;
             }
 
@@ -1731,16 +1752,19 @@ public class RaceManager : MonoBehaviour
             if (editionCp <= 0)
             {
                 loadedTrack.cpList[0].cpColor = CheckPoint.colorStart;
+                loadedTrack.cpList[0].Colliders = true;
                 editionCp = 0;
             }
             else if (editionCp >= loadedTrack.cpList.Count - 1)
             {
                 editionCp = loadedTrack.cpList.Count - 1;
                 loadedTrack.cpList[editionCp].cpColor = CheckPoint.colorFinish;
+                loadedTrack.cpList[editionCp].Colliders = true;
             }
             else
             {
                 loadedTrack.cpList[editionCp].cpColor = CheckPoint.colorCheckP;
+                loadedTrack.cpList[editionCp].Colliders = true;
             }
 
             if (num <= 0)
@@ -1753,6 +1777,7 @@ public class RaceManager : MonoBehaviour
             }
             editionCp = num;
             loadedTrack.cpList[editionCp].cpColor = CheckPoint.colorEdit;
+            loadedTrack.cpList[editionCp].Colliders = false;
             size = loadedTrack.cpList[editionCp].Size;
         }
         else

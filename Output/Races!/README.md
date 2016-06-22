@@ -1,4 +1,4 @@
-# Races! 1.0.0
+# Races! 1.0.1
 
 Races! Es un mod para Kerbal Space Program que consiste en la construcción e intercambio de circuitos de carreras aéreas, terrestres y acuáticas en las que competir para completarlas en el menor tiempo posible.
 
@@ -62,6 +62,9 @@ Cuando el circuito tiene al menos un punto de control puede guardarse pulsando e
 
 
 ## Historial de cambios
+
+* 1.0.1
+ * Compilado para Kerbal Space Program 1.1.3
 
 * 1.0.0
  * Ahora que todo funciona decentemente (desde mi punto de vista), estoy en condiciones de hacer un lanzamiento completo.
