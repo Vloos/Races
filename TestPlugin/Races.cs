@@ -7,6 +7,7 @@ using System.Reflection;
 using KSP.UI.Screens;
 using System.Text;
 using System.Security.Cryptography;
+using EditorGizmos;
 
 namespace Races
 {
@@ -1249,21 +1250,47 @@ public class RaceManager : MonoBehaviour
             if (GUILayout.Button("+") && size < CheckPoint.sizes.Count - 1) loadedTrack.cpList[editionCp].Size = ++size;
             GUILayout.EndHorizontal();
 
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Rotate"))
-            {
-                if (grot != null) grot.Detach();
-                if (gofs != null) gofs.Detach();
-                grot = EditorGizmos.GizmoRotate.Attach(loadedTrack.cpList[editionCp].transform, loadedTrack.cpList[editionCp].transform.position, rCompRot, rCompRot);
-            }
+            //Esto hacía aparecer los chirimbolos
+            //GUILayout.BeginHorizontal();
+            //if (GUILayout.Button("Rotate"))
+            //{
+            //    if (grot != null) grot.Detach();
+            //    if (gofs != null) gofs.Detach();
+            //    grot = EditorGizmos.GizmoRotate.Attach(loadedTrack.cpList[editionCp].transform, loadedTrack.cpList[editionCp].transform.position, rCompRot, rCompRot);
 
-            if (GUILayout.Button("Reset Rotation"))
-            {
-                if (grot != null) grot.Detach();
-                if (gofs != null) gofs.Detach();
-                loadedTrack.cpList[editionCp].resetRot();
-            }
+            //}
+
+            //if (GUILayout.Button("Reset Rotation"))
+            //{
+            //    if (grot != null) grot.Detach();
+            //    if (gofs != null) gofs.Detach();
+            //    loadedTrack.cpList[editionCp].resetRot();
+            //}
+            //GUILayout.EndHorizontal();
+
+            GUILayout.Label("Rotate");
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Pitch");
+            if (GUILayout.RepeatButton("---")) loadedTrack.cpList[editionCp].rot = loadedTrack.cpList[editionCp].rot * Quaternion.Euler(-1.0f,0,0); loadedTrack.cpList[editionCp].rotate();
+            if (GUILayout.RepeatButton("-")) loadedTrack.cpList[editionCp].rot = loadedTrack.cpList[editionCp].rot * Quaternion.Euler(-0.1f, 0, 0); loadedTrack.cpList[editionCp].rotate();
+            if (GUILayout.RepeatButton("+")) loadedTrack.cpList[editionCp].rot = loadedTrack.cpList[editionCp].rot * Quaternion.Euler(0.1f, 0, 0); loadedTrack.cpList[editionCp].rotate();
+            if (GUILayout.RepeatButton("+++")) loadedTrack.cpList[editionCp].rot = loadedTrack.cpList[editionCp].rot * Quaternion.Euler(1.0f, 0, 0); loadedTrack.cpList[editionCp].rotate();
             GUILayout.EndHorizontal();
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Roll");
+            if (GUILayout.RepeatButton("---")) loadedTrack.cpList[editionCp].rot = loadedTrack.cpList[editionCp].rot * Quaternion.Euler(0, -1.0f, 0); loadedTrack.cpList[editionCp].rotate();
+            if (GUILayout.RepeatButton("-")) loadedTrack.cpList[editionCp].rot = loadedTrack.cpList[editionCp].rot * Quaternion.Euler(0, -0.1f, 0); loadedTrack.cpList[editionCp].rotate();
+            if (GUILayout.RepeatButton("+")) loadedTrack.cpList[editionCp].rot = loadedTrack.cpList[editionCp].rot * Quaternion.Euler(0, 0.1f, 0); loadedTrack.cpList[editionCp].rotate();
+            if (GUILayout.RepeatButton("+++")) loadedTrack.cpList[editionCp].rot = loadedTrack.cpList[editionCp].rot * Quaternion.Euler(0, 1.0f, 0); loadedTrack.cpList[editionCp].rotate();
+            GUILayout.EndHorizontal();
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Yaw");
+            if (GUILayout.RepeatButton("---")) loadedTrack.cpList[editionCp].rot = loadedTrack.cpList[editionCp].rot * Quaternion.Euler(0, 0, -1.0f); loadedTrack.cpList[editionCp].rotate();
+            if (GUILayout.RepeatButton("-")) loadedTrack.cpList[editionCp].rot = loadedTrack.cpList[editionCp].rot * Quaternion.Euler(0, 0, -0.1f); loadedTrack.cpList[editionCp].rotate();
+            if (GUILayout.RepeatButton("+")) loadedTrack.cpList[editionCp].rot = loadedTrack.cpList[editionCp].rot * Quaternion.Euler(0, 0, 0.1f); loadedTrack.cpList[editionCp].rotate();
+            if (GUILayout.RepeatButton("+++")) loadedTrack.cpList[editionCp].rot = loadedTrack.cpList[editionCp].rot * Quaternion.Euler(0, 0, 1.0f); loadedTrack.cpList[editionCp].rotate();
+            GUILayout.EndHorizontal();
+            if (GUILayout.Button("Reset Rotation")) loadedTrack.cpList[editionCp].resetRot();
 
             GUILayout.BeginHorizontal();
             GUILayout.Label("Move");
@@ -1273,8 +1300,8 @@ public class RaceManager : MonoBehaviour
             if (abs || rel)
             {
                 if (grot != null) grot.Detach();
-                if (gofs != null) gofs.Detach();
-                gofs = EditorGizmos.GizmoOffset.Attach(loadedTrack.cpList[editionCp].transform, rCompTran, rCompTran);
+                if (gofs != null) gofs.Detach(); 
+                gofs = GizmoOffset.Attach(loadedTrack.cpList[editionCp].transform, rCompTran, rCompTran);
                 if (abs)
                 {
                     Vector3 _direction = (loadedTrack.cpList[editionCp].body.position - transform.position).normalized;
