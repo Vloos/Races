@@ -65,6 +65,8 @@ Cuando el circuito tiene al menos un punto de control puede guardarse pulsando e
 
 * 1.0.1
  * Compilado para Kerbal Space Program 1.1.3
+ * He desterrado esos malditos "foreach".
+ * Pero quedan comentados, por si acaso...
 
 * 1.0.0
  * Ahora que todo funciona decentemente (desde mi punto de vista), estoy en condiciones de hacer un lanzamiento completo.

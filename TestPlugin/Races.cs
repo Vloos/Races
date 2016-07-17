@@ -194,7 +194,7 @@ public class RaceComponent : MonoBehaviour
 
     public void move()
     {
-        transform.localPosition = Coords;// + body.position;
+        transform.localPosition = Coords;
     }
 
     [Serializable]
@@ -731,6 +731,25 @@ public class LoadedTrack
         author = clon.author;
         trackKey = clon.key;
         laps = clon.laps;
+        int clonlist = clon.cpList.Length;
+        int cpClonList = clon.obList.Length;
+        for (int i = 0; i < clonlist ; i++)
+        {
+            CheckPoint cp = new GameObject().AddComponent<CheckPoint>();
+            cp.fromCpClon(clon.cpList[i]);
+            cp.rotate();
+            cp.cpBoxTrigger.GetComponent<BoxCollider>().name = "[Races!]cp" + cpList.Count;
+            cpList.Add(cp);
+        }
+        for (int i = 0; i < cpClonList; i++)
+        {
+            Obstacle ob = new GameObject().AddComponent<Obstacle>();
+            ob.fromObClon(clon.obList[i]);
+            ob.rotate();
+            obList.Add(ob);
+        }
+
+        /*
         foreach (CheckPoint.CheckPointClon cpClon in clon.cpList)
         {
             CheckPoint cp = new GameObject().AddComponent<CheckPoint>();
@@ -746,6 +765,7 @@ public class LoadedTrack
             ob.rotate();
             obList.Add(ob);
         }
+        */
     }
 }
 
@@ -880,11 +900,20 @@ public class RaceManager : MonoBehaviour
                 loadedTrack.trackTime = (records.ContainsKey(loadedTrack.trackKey)) ? records[loadedTrack.trackKey] : 0;
                 if (loadedTrack.obList.Count > 0)
                 {
+                    int obstaculos = loadedTrack.obList.Count;
+                    for (int i = 0; i < obstaculos; i++)
+                    {
+                        loadedTrack.obList[i].ObColor = Obstacle.colorNormal;
+                        loadedTrack.obList[i].cubeCol.enabled = true;
+                    }
+
+                    /*
                     foreach (Obstacle obs in loadedTrack.obList)
                     {
                         obs.ObColor = Obstacle.colorNormal;
                         obs.cubeCol.enabled = true;
                     }
+                    */
                 }
                 if (grot != null) grot.Detach();
                 if (gofs != null) gofs.Detach();
@@ -902,11 +931,19 @@ public class RaceManager : MonoBehaviour
                 trackLength = loadedTrack.trackLength;
                 if (loadedTrack.obList.Count > 0)
                 {
+                    int obstaculos = loadedTrack.obList.Count;
+                    for (int i = 0; i < obstaculos; i++)
+                    {
+                        loadedTrack.obList[i].ObColor = Obstacle.colorNormal;
+                        loadedTrack.obList[i].cubeCol.enabled = true;
+                    }
+                    /*
                     foreach (Obstacle obs in loadedTrack.obList)
                     {
                         obs.ObColor = Obstacle.colorNormal;
                         obs.cubeCol.enabled = true;
                     }
+                    */
                 }
                 editionOb = 0;
                 break;
@@ -927,11 +964,20 @@ public class RaceManager : MonoBehaviour
                 }
                 if (loadedTrack.obList.Count > 0)
                 {
+                    int length = loadedTrack.obList.Count;
+                    for (int i = 0; i < length; i++)
+                    {
+                        loadedTrack.obList[i].ObColor = Obstacle.colorNormal;
+                        loadedTrack.obList[i].cubeCol.enabled = true;
+                    }
+
+                    /*
                     foreach (Obstacle obs in loadedTrack.obList)
                     {
                         obs.ObColor = Obstacle.colorNormal;
                         obs.cubeCol.enabled = true;
                     }
+                    */
                 }
                 break;
             case estados.EndScreen:
@@ -977,6 +1023,26 @@ public class RaceManager : MonoBehaviour
 
                 scrollRaceList = GUILayout.BeginScrollView(scrollRaceList, GUILayout.Height(250), GUILayout.Width(180));
 
+                int length = raceList.Count;
+                for (int i = 0; i < length; i++)
+                {
+                    LoadedTrack.RaceClon race = raceList[i];
+                    if (race.bodyName == FlightGlobals.ActiveVessel.mainBody.name)
+                    {
+                        string names = ((race.name + " by " + race.author).Length > 20) ? race.name + "\nby " + race.author : race.name + " by " + race.author;
+                        if (GUILayout.Button(names + "\n" + ((race.laps == 0) ? "Sprint, " : (race.laps + " Laps, ")) + race.lenght.ToString("0.00") + " meters", GUILayout.MaxWidth(170)))
+                        {
+                            newRaceTrack();
+                            LoadRaceTrack(race);
+                            prepCp(false);
+                            trackLength = loadedTrack.trackLength;
+                            loadedTrack.trackTime = (records.ContainsKey(loadedTrack.trackKey)) ? records[loadedTrack.trackKey] : 0;
+                        }
+                    }
+                    else GUILayout.Label(race.name + " by " + race.author + "\n" + race.bodyName);
+                }
+
+                /*
                 foreach (LoadedTrack.RaceClon race in raceList)
                 {
                     if (race.bodyName == FlightGlobals.ActiveVessel.mainBody.name)
@@ -993,6 +1059,7 @@ public class RaceManager : MonoBehaviour
                     }
                     else GUILayout.Label(race.name + " by " + race.author + "\n" + race.bodyName);
                 }
+                */
 
                 GUILayout.EndScrollView();
                 if (GUILayout.Button("New Race Track"))
@@ -1250,7 +1317,7 @@ public class RaceManager : MonoBehaviour
             if (GUILayout.Button("+") && size < CheckPoint.sizes.Count - 1) loadedTrack.cpList[editionCp].Size = ++size;
             GUILayout.EndHorizontal();
 
-            //Esto hacía aparecer los chirimbolos
+            //Esto hacía aparecer los chirimbolos de rotación
             //GUILayout.BeginHorizontal();
             //if (GUILayout.Button("Rotate"))
             //{
@@ -1267,11 +1334,10 @@ public class RaceManager : MonoBehaviour
             //    loadedTrack.cpList[editionCp].resetRot();
             //}
             //GUILayout.EndHorizontal();
-
             GUILayout.Label("Rotate");
             GUILayout.BeginHorizontal();
             GUILayout.Label("Pitch");
-            if (GUILayout.RepeatButton("---")) loadedTrack.cpList[editionCp].rot = loadedTrack.cpList[editionCp].rot * Quaternion.Euler(-1.0f,0,0); loadedTrack.cpList[editionCp].rotate();
+            if (GUILayout.RepeatButton("---")) loadedTrack.cpList[editionCp].rot = loadedTrack.cpList[editionCp].rot * Quaternion.Euler(-1.0f, 0, 0); loadedTrack.cpList[editionCp].rotate();
             if (GUILayout.RepeatButton("-")) loadedTrack.cpList[editionCp].rot = loadedTrack.cpList[editionCp].rot * Quaternion.Euler(-0.1f, 0, 0); loadedTrack.cpList[editionCp].rotate();
             if (GUILayout.RepeatButton("+")) loadedTrack.cpList[editionCp].rot = loadedTrack.cpList[editionCp].rot * Quaternion.Euler(0.1f, 0, 0); loadedTrack.cpList[editionCp].rotate();
             if (GUILayout.RepeatButton("+++")) loadedTrack.cpList[editionCp].rot = loadedTrack.cpList[editionCp].rot * Quaternion.Euler(1.0f, 0, 0); loadedTrack.cpList[editionCp].rotate();
@@ -1292,35 +1358,64 @@ public class RaceManager : MonoBehaviour
             GUILayout.EndHorizontal();
             if (GUILayout.Button("Reset Rotation")) loadedTrack.cpList[editionCp].resetRot();
 
-            GUILayout.BeginHorizontal();
             GUILayout.Label("Move");
-            bool abs = GUILayout.Button("Absolute");
-            bool rel = GUILayout.Button("Relative");
-
-            if (abs || rel)
-            {
-                if (grot != null) grot.Detach();
-                if (gofs != null) gofs.Detach(); 
-                gofs = GizmoOffset.Attach(loadedTrack.cpList[editionCp].transform, rCompTran, rCompTran);
-                if (abs)
-                {
-                    Vector3 _direction = (loadedTrack.cpList[editionCp].body.position - transform.position).normalized;
-                    gofs.transform.rotation = Quaternion.LookRotation(_direction);
-                }
-                else gofs.transform.rotation = loadedTrack.cpList[editionCp].transform.rotation;
-            }
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Lat");
+            if (GUILayout.RepeatButton("---")) loadedTrack.cpList[editionCp].Coords = loadedTrack.cpList[editionCp].Coords + ((Quaternion.Inverse(loadedTrack.cpList[editionCp].body.transform.rotation) * loadedTrack.cpList[editionCp].rotZero() ) * Vector3.up.normalized); loadedTrack.cpList[editionCp].move();
+            if (GUILayout.RepeatButton("-")) loadedTrack.cpList[editionCp].Coords = loadedTrack.cpList[editionCp].Coords + ((Quaternion.Inverse(loadedTrack.cpList[editionCp].body.transform.rotation) * loadedTrack.cpList[editionCp].rotZero()) * (Vector3.up.normalized / 50)); loadedTrack.cpList[editionCp].move();
+            if (GUILayout.RepeatButton("+")) loadedTrack.cpList[editionCp].Coords = loadedTrack.cpList[editionCp].Coords + ((Quaternion.Inverse(loadedTrack.cpList[editionCp].body.transform.rotation) * loadedTrack.cpList[editionCp].rotZero()) * (Vector3.down.normalized / 50)); loadedTrack.cpList[editionCp].move();
+            if (GUILayout.RepeatButton("+++")) loadedTrack.cpList[editionCp].Coords = loadedTrack.cpList[editionCp].Coords + ((Quaternion.Inverse(loadedTrack.cpList[editionCp].body.transform.rotation) * loadedTrack.cpList[editionCp].rotZero()) * (Vector3.down.normalized)); loadedTrack.cpList[editionCp].move();
             GUILayout.EndHorizontal();
-            if (GUILayout.Button("Send to floor"))
-            {
-                if (grot != null) grot.Detach();
-                if (gofs != null) gofs.Detach();
-                loadedTrack.cpList[editionCp].toFloor();
-            }
-            if (GUILayout.Button("Hide gizmo"))
-            {
-                if (grot != null) grot.Detach();
-                if (gofs != null) gofs.Detach();
-            }
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Lon");
+            if (GUILayout.RepeatButton("---")) loadedTrack.cpList[editionCp].Coords = loadedTrack.cpList[editionCp].Coords + ((Quaternion.Inverse(loadedTrack.cpList[editionCp].body.transform.rotation) * loadedTrack.cpList[editionCp].rotZero()) * Vector3.left.normalized); loadedTrack.cpList[editionCp].move();
+            if (GUILayout.RepeatButton("-")) loadedTrack.cpList[editionCp].Coords = loadedTrack.cpList[editionCp].Coords + ((Quaternion.Inverse(loadedTrack.cpList[editionCp].body.transform.rotation) * loadedTrack.cpList[editionCp].rotZero()) * (Vector3.left.normalized / 50)); loadedTrack.cpList[editionCp].move();
+            if (GUILayout.RepeatButton("+")) loadedTrack.cpList[editionCp].Coords = loadedTrack.cpList[editionCp].Coords + ((Quaternion.Inverse(loadedTrack.cpList[editionCp].body.transform.rotation) * loadedTrack.cpList[editionCp].rotZero()) * (Vector3.right.normalized / 50)); loadedTrack.cpList[editionCp].move();
+            if (GUILayout.RepeatButton("+++")) loadedTrack.cpList[editionCp].Coords = loadedTrack.cpList[editionCp].Coords + ((Quaternion.Inverse(loadedTrack.cpList[editionCp].body.transform.rotation) * loadedTrack.cpList[editionCp].rotZero()) * (Vector3.right.normalized)); loadedTrack.cpList[editionCp].move();
+            GUILayout.EndHorizontal();
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Alt");
+            if (GUILayout.RepeatButton("---")) loadedTrack.cpList[editionCp].Coords = loadedTrack.cpList[editionCp].Coords + ((Quaternion.Inverse(loadedTrack.cpList[editionCp].body.transform.rotation) * loadedTrack.cpList[editionCp].rotZero()) * Vector3.forward); loadedTrack.cpList[editionCp].move();
+            if (GUILayout.RepeatButton("-")) loadedTrack.cpList[editionCp].Coords = loadedTrack.cpList[editionCp].Coords + ((Quaternion.Inverse(loadedTrack.cpList[editionCp].body.transform.rotation) * loadedTrack.cpList[editionCp].rotZero()) * (Vector3.forward / 10)); loadedTrack.cpList[editionCp].move();
+            if (GUILayout.RepeatButton("+")) loadedTrack.cpList[editionCp].Coords = loadedTrack.cpList[editionCp].Coords + ((Quaternion.Inverse(loadedTrack.cpList[editionCp].body.transform.rotation) * loadedTrack.cpList[editionCp].rotZero()) * (Vector3.back / 10)); loadedTrack.cpList[editionCp].move();
+            if (GUILayout.RepeatButton("+++")) loadedTrack.cpList[editionCp].Coords = loadedTrack.cpList[editionCp].Coords + ((Quaternion.Inverse(loadedTrack.cpList[editionCp].body.transform.rotation) * loadedTrack.cpList[editionCp].rotZero()) * (Vector3.back)); loadedTrack.cpList[editionCp].move();
+            GUILayout.EndHorizontal();
+            if (GUILayout.Button("Send to floor")) loadedTrack.cpList[editionCp].toFloor();
+            
+
+            //Esto hacía aparecer los chirimbolos de translación
+            //GUILayout.BeginHorizontal();
+            //GUILayout.Label("Move");
+            //bool abs = GUILayout.Button("Absolute");
+            //bool rel = GUILayout.Button("Relative");
+
+            //if (abs || rel)
+            //{
+            //    if (grot != null) grot.Detach();
+            //    if (gofs != null) gofs.Detach(); 
+            //    gofs = GizmoOffset.Attach(loadedTrack.cpList[editionCp].transform, rCompTran, rCompTran);
+            //    if (abs)
+            //    {
+            //        Vector3 _direction = (loadedTrack.cpList[editionCp].body.position - transform.position).normalized;
+            //        gofs.transform.rotation = Quaternion.LookRotation(_direction);
+            //    }
+            //    else gofs.transform.rotation = loadedTrack.cpList[editionCp].transform.rotation;
+            //}
+            //GUILayout.EndHorizontal();
+
+            //if (GUILayout.Button("Send to floor"))
+            //{
+            //    if (grot != null) grot.Detach();
+            //    if (gofs != null) gofs.Detach();
+            //    loadedTrack.cpList[editionCp].toFloor();
+            //}
+
+            //Esto hacía desaparecer los chirimbolos
+            //if (GUILayout.Button("Hide gizmo"))
+            //{
+            //    if (grot != null) grot.Detach();
+            //    if (gofs != null) gofs.Detach();
+            //}
 
             if (loadedTrack.cpList.Count > 0 && GUILayout.Button("Remove Checkpoint"))
             {
@@ -1420,19 +1515,33 @@ public class RaceManager : MonoBehaviour
         {
             if (loadedTrack.cpList.Count > 0)
             {
+                int length = loadedTrack.cpList.Count;
+                for (int i = 0; i < length; i++)
+                {
+                    loadedTrack.cpList[i].destroy();
+                }
+                /*
                 foreach (CheckPoint cp in loadedTrack.cpList)
                 {
                     cp.destroy();
                 }
+                */
                 loadedTrack.cpList.Clear();
             }
 
             if (loadedTrack.obList.Count > 0)
             {
+                int length = loadedTrack.obList.Count;
+                for (int i = 0; i < length; i++)
+                {
+                    loadedTrack.obList[i].destroy();
+                }
+                /*
                 foreach (Obstacle obs in loadedTrack.obList)
                 {
                     obs.destroy();
                 }
+                */
                 loadedTrack.obList.Clear();
             }
         }
@@ -1634,6 +1743,23 @@ public class RaceManager : MonoBehaviour
         var fileInfo = info.GetFiles("*" + Races.Races.RaceTrackFileExtension, SearchOption.TopDirectoryOnly);
         Debug.Log("[Races!] " + fileInfo.Length + " Race Tracks found");
 
+        int length = fileInfo.Length;
+        for (int i = 0; i < length; i++)
+        {
+            try
+            {
+                BinaryFormatter bf = new BinaryFormatter();
+                FileStream fileStream = File.Open(fileInfo[i].FullName, FileMode.Open);
+                var stream = bf.Deserialize(fileStream);
+                LoadedTrack.RaceClon race = stream as LoadedTrack.RaceClon;
+                if (race != null) raceList.Add(race);
+            }
+            catch (Exception)
+            {
+                Debug.LogError("[Races!] Something went wrong");
+            }
+        }
+        /*
         foreach (var file in fileInfo)
         {
             try
@@ -1649,6 +1775,7 @@ public class RaceManager : MonoBehaviour
                 Debug.LogError("[Races!] Something went wrong");
             }
         }
+        */
         //y tambien se carga el archivo de tiempos
         loadRecordFile();
     }
@@ -1746,10 +1873,17 @@ public class RaceManager : MonoBehaviour
                 loadedTrack.cpList[i].cpBoxTrigger.GetComponent<BoxCollider>().GetComponent<CheckPoint.colision>().count = 0;
             }
 
+            int length = loadedTrack.obList.Count;
+            for (int i = 0; i < length; i++)
+            {
+                loadedTrack.obList[i].ObColor = Obstacle.colorNormal;
+            }
+            /*
             foreach (Obstacle obs in loadedTrack.obList)
             {
                 obs.ObColor = Obstacle.colorNormal;
             }
+            */
 
             if (loadedTrack.laps == 0)
             {
@@ -1854,6 +1988,17 @@ public class RaceManager : MonoBehaviour
     public string RemoveSpecialCharacters(string str)
     {
         StringBuilder sb = new StringBuilder();
+        int length = str.Length;
+        for (int i = 0; i < length; i++)
+        {
+            char c = str[i];
+            if ((c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '.' || c == '_')
+            {
+                sb.Append(c);
+            }
+        }
+
+        /*
         foreach (char c in str)
         {
             if ((c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '.' || c == '_')
@@ -1861,6 +2006,8 @@ public class RaceManager : MonoBehaviour
                 sb.Append(c);
             }
         }
+        */
+
         return sb.ToString();
     }
 
