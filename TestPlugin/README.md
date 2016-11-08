@@ -62,7 +62,7 @@ Cuando el circuito tiene al menos un punto de control puede guardarse pulsando e
 ## Historial de cambios
 
 * 1.0.1
- * Compilado para Kerbal Space Program 1.1.3
+ * Compilado para Kerbal Space Program 1.2.1
  * He desterrado esos malditos "foreach".
  * Los chirimbolos de translación y rotación no funcionan (por alguna extraña razón), así que he puesto unos botones, que funcionan fatal, para mover y rotar los puntos de control y los obstáculos
 
