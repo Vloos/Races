@@ -1,4 +1,4 @@
-# Races! 1.0.1
+# Races! 1.0.1 (No Totalmente Arreglado)
 
 Races! Es un mod para Kerbal Space Program que consiste en la construcción e intercambio de circuitos de carreras aéreas, terrestres y acuáticas en las que competir para completarlas en el menor tiempo posible.
 
@@ -51,11 +51,9 @@ El punto de control u obstáculo seleccionado puede eliminarse pulsando Remove C
 Cuando el circuito tiene al menos un punto de control puede guardarse pulsando el botón Save Track. Al hacerlo, se genera o sobrescribe un archivo de extensión krt en la carpeta RaceTracks nombrado igual que el nombre del circuito exceptuando los caracteres especiales.
 
 ## Bugs conocidos:
-* A veces las ruedas explotan inexplicablemente al atravesar un punto de control de medio lado. Creo que esto tiene algo que ver con que el comportamiento de las ruedas no esté afinado de todo.
-* Cuando se toca el chirimbolo para mover, los puntos de control y los obstáculos se desplazan un poquitín, aunque no se mueva el ratón.
-* Cuidado con los chirimbolos. Puede haber explosiones si entran en contacto con vehículos
 * Ir muy rápido al atravesar los puntos de control puede causar que en un fotograma la nave esté de un lado del punto de control y en el siguiente fotograma ya haya quedado atrás. Trata de frenar un poco la próxima vez. No hay tanta prisa.
 * Si la nave utilizada para competir es más grande que los puntos de control, puede suceder que, si la parte raíz está demasiado lejos y alguna parte de la nave toca los bordes de un punto de control, se acumule gran cantidad de tiempo de penalización (sin probar, pero por cómo está programado me hace sospechar que ocurrirá…)
+* Los puntos de control se descuajaringan visualmente al moverse o rotarse, pero todo parece indicar que funcionan más o menos como se espera.
 
 ## Bugs desconocidos:
 * Por supuesto.
@@ -66,7 +64,7 @@ Cuando el circuito tiene al menos un punto de control puede guardarse pulsando e
 * 1.0.1
  * Compilado para Kerbal Space Program 1.1.3
  * He desterrado esos malditos "foreach".
- * Pero quedan comentados, por si acaso...
+ * Los chirimbolos de translación y rotación no funcionan (por alguna extraña razón), así que he puesto unos botones, que funcionan fatal, para mover y rotar los puntos de control y los obstáculos
 
 * 1.0.0
  * Ahora que todo funciona decentemente (desde mi punto de vista), estoy en condiciones de hacer un lanzamiento completo.

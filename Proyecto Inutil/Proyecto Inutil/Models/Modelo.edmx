@@ -1,0 +1,432 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<edmx:Edmx Version="3.0" xmlns:edmx="http://schemas.microsoft.com/ado/2009/11/edmx">
+  <!-- EF Runtime content -->
+  <edmx:Runtime>
+    <!-- SSDL content -->
+    <edmx:StorageModels>
+    <Schema Namespace="epiModel.Store" Provider="System.Data.SQLite.EF6" ProviderManifestToken="data source=D:\Escritorio\epi.db" Alias="Self" xmlns:store="http://schemas.microsoft.com/ado/2007/12/edm/EntityStoreSchemaGenerator" xmlns:customannotation="http://schemas.microsoft.com/ado/2013/11/edm/customannotation" xmlns="http://schemas.microsoft.com/ado/2009/11/edm/ssdl">
+        <EntityType Name="comentario">
+          <Key>
+            <PropertyRef Name="id" />
+          </Key>
+          <Property Name="id" Type="integer" StoreGeneratedPattern="Identity" Nullable="false" />
+          <Property Name="usuario_id" Type="integer" />
+          <Property Name="noticia_id" Type="integer" />
+          <Property Name="contenido" Type="nvarchar" MaxLength="2147483647" />
+          <Property Name="fecha" Type="datetime" />
+        </EntityType>
+        <EntityType Name="etiqueta">
+          <Key>
+            <PropertyRef Name="id" />
+          </Key>
+          <Property Name="id" Type="integer" StoreGeneratedPattern="Identity" Nullable="false" />
+          <Property Name="nombre" Type="nvarchar" MaxLength="2147483647" />
+        </EntityType>
+        <EntityType Name="etiquetas_noticias">
+          <Key>
+            <PropertyRef Name="id" />
+          </Key>
+          <Property Name="id" Type="integer" StoreGeneratedPattern="Identity" Nullable="false" />
+          <Property Name="noticia_id" Type="integer" Nullable="false" />
+          <Property Name="etiqueta_id" Type="integer" Nullable="false" />
+        </EntityType>
+        <EntityType Name="noticia">
+          <Key>
+            <PropertyRef Name="id" />
+          </Key>
+          <Property Name="id" Type="integer" StoreGeneratedPattern="Identity" Nullable="false" />
+          <Property Name="usuario_id" Type="integer" Nullable="false" />
+          <Property Name="fecha" Type="datetime" Nullable="false" />
+          <Property Name="titulo" Type="nvarchar" MaxLength="2147483647" Nullable="false" />
+          <Property Name="contenido" Type="nvarchar" MaxLength="2147483647" Nullable="false" />
+        </EntityType>
+        <EntityType Name="sugerencia">
+          <Key>
+            <PropertyRef Name="id" />
+          </Key>
+          <Property Name="id" Type="integer" StoreGeneratedPattern="Identity" Nullable="false" />
+          <Property Name="tipo" Type="integer" />
+          <Property Name="usuario_id" Type="integer" Nullable="false" />
+          <Property Name="fecha" Type="datetime" Nullable="false" />
+          <Property Name="contenido" Type="nvarchar" MaxLength="2147483647" Nullable="false" />
+        </EntityType>
+        <EntityType Name="usuario">
+          <Key>
+            <PropertyRef Name="id" />
+          </Key>
+          <Property Name="id" Type="integer" StoreGeneratedPattern="Identity" Nullable="false" />
+          <Property Name="nombre" Type="nvarchar" MaxLength="2147483647" Nullable="false" />
+          <Property Name="email" Type="nvarchar" MaxLength="2147483647" Nullable="false" />
+          <Property Name="admin" Type="bit" Nullable="false" />
+          <Property Name="clave" Type="varchar" MaxLength="8" />
+        </EntityType>
+        <Association Name="FK_comentario_0_0">
+          <End Role="noticia" Type="Self.noticia" Multiplicity="0..1" />
+          <End Role="comentario" Type="Self.comentario" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="noticia">
+              <PropertyRef Name="id" />
+            </Principal>
+            <Dependent Role="comentario">
+              <PropertyRef Name="noticia_id" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_comentario_1_0">
+          <End Role="usuario" Type="Self.usuario" Multiplicity="0..1" />
+          <End Role="comentario" Type="Self.comentario" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="usuario">
+              <PropertyRef Name="id" />
+            </Principal>
+            <Dependent Role="comentario">
+              <PropertyRef Name="usuario_id" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_etiquetas_noticias_0_0">
+          <End Role="etiqueta" Type="Self.etiqueta" Multiplicity="1" />
+          <End Role="etiquetas_noticias" Type="Self.etiquetas_noticias" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="etiqueta">
+              <PropertyRef Name="id" />
+            </Principal>
+            <Dependent Role="etiquetas_noticias">
+              <PropertyRef Name="etiqueta_id" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_etiquetas_noticias_1_0">
+          <End Role="noticia" Type="Self.noticia" Multiplicity="1" />
+          <End Role="etiquetas_noticias" Type="Self.etiquetas_noticias" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="noticia">
+              <PropertyRef Name="id" />
+            </Principal>
+            <Dependent Role="etiquetas_noticias">
+              <PropertyRef Name="noticia_id" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_noticia_0_0">
+          <End Role="usuario" Type="Self.usuario" Multiplicity="1" />
+          <End Role="noticia" Type="Self.noticia" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="usuario">
+              <PropertyRef Name="id" />
+            </Principal>
+            <Dependent Role="noticia">
+              <PropertyRef Name="usuario_id" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_sugerencia_0_0">
+          <End Role="usuario" Type="Self.usuario" Multiplicity="1" />
+          <End Role="sugerencia" Type="Self.sugerencia" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="usuario">
+              <PropertyRef Name="id" />
+            </Principal>
+            <Dependent Role="sugerencia">
+              <PropertyRef Name="usuario_id" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <EntityContainer Name="epiModelStoreContainer">
+          <EntitySet Name="comentario" EntityType="Self.comentario" store:Type="Tables" />
+          <EntitySet Name="etiqueta" EntityType="Self.etiqueta" store:Type="Tables" />
+          <EntitySet Name="etiquetas_noticias" EntityType="Self.etiquetas_noticias" store:Type="Tables" />
+          <EntitySet Name="noticia" EntityType="Self.noticia" store:Type="Tables" />
+          <EntitySet Name="sugerencia" EntityType="Self.sugerencia" store:Type="Tables" />
+          <EntitySet Name="usuario" EntityType="Self.usuario" store:Type="Tables" />
+          <AssociationSet Name="FK_comentario_0_0" Association="Self.FK_comentario_0_0">
+            <End Role="noticia" EntitySet="noticia" />
+            <End Role="comentario" EntitySet="comentario" />
+          </AssociationSet>
+          <AssociationSet Name="FK_comentario_1_0" Association="Self.FK_comentario_1_0">
+            <End Role="usuario" EntitySet="usuario" />
+            <End Role="comentario" EntitySet="comentario" />
+          </AssociationSet>
+          <AssociationSet Name="FK_etiquetas_noticias_0_0" Association="Self.FK_etiquetas_noticias_0_0">
+            <End Role="etiqueta" EntitySet="etiqueta" />
+            <End Role="etiquetas_noticias" EntitySet="etiquetas_noticias" />
+          </AssociationSet>
+          <AssociationSet Name="FK_etiquetas_noticias_1_0" Association="Self.FK_etiquetas_noticias_1_0">
+            <End Role="noticia" EntitySet="noticia" />
+            <End Role="etiquetas_noticias" EntitySet="etiquetas_noticias" />
+          </AssociationSet>
+          <AssociationSet Name="FK_noticia_0_0" Association="Self.FK_noticia_0_0">
+            <End Role="usuario" EntitySet="usuario" />
+            <End Role="noticia" EntitySet="noticia" />
+          </AssociationSet>
+          <AssociationSet Name="FK_sugerencia_0_0" Association="Self.FK_sugerencia_0_0">
+            <End Role="usuario" EntitySet="usuario" />
+            <End Role="sugerencia" EntitySet="sugerencia" />
+          </AssociationSet>
+        </EntityContainer>
+      </Schema></edmx:StorageModels>
+    <!-- CSDL content -->
+    <edmx:ConceptualModels>
+      <Schema Namespace="epiModel" Alias="Self" annotation:UseStrongSpatialTypes="false" xmlns:annotation="http://schemas.microsoft.com/ado/2009/02/edm/annotation" xmlns:customannotation="http://schemas.microsoft.com/ado/2013/11/edm/customannotation" xmlns="http://schemas.microsoft.com/ado/2009/11/edm">
+        <EntityType Name="comentario">
+          <Key>
+            <PropertyRef Name="id" />
+          </Key>
+          <Property Name="id" Type="Int64" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+          <Property Name="usuario_id" Type="Int64" />
+          <Property Name="noticia_id" Type="Int64" />
+          <Property Name="contenido" Type="String" MaxLength="2147483647" FixedLength="false" Unicode="true" />
+          <Property Name="fecha" Type="DateTime" />
+          <NavigationProperty Name="noticia" Relationship="Self.FK_comentario_0_0" FromRole="comentario" ToRole="noticia" />
+          <NavigationProperty Name="usuario" Relationship="Self.FK_comentario_1_0" FromRole="comentario" ToRole="usuario" />
+        </EntityType>
+        <EntityType Name="etiqueta">
+          <Key>
+            <PropertyRef Name="id" />
+          </Key>
+          <Property Name="id" Type="Int64" Nullable="false" />
+          <Property Name="nombre" Type="String" MaxLength="2147483647" FixedLength="false" Unicode="true" Nullable="true" />
+          <NavigationProperty Name="etiquetas_noticias" Relationship="Self.FK_etiquetas_noticias_0_0" FromRole="etiqueta" ToRole="etiquetas_noticias" />
+        </EntityType>
+        <EntityType Name="etiquetas_noticias">
+          <Key>
+            <PropertyRef Name="id" />
+          </Key>
+          <Property Name="id" Type="Int64" Nullable="false" />
+          <Property Name="noticia_id" Type="Int64" Nullable="false" />
+          <Property Name="etiqueta_id" Type="Int64" Nullable="false" />
+          <NavigationProperty Name="etiqueta" Relationship="Self.FK_etiquetas_noticias_0_0" FromRole="etiquetas_noticias" ToRole="etiqueta" />
+          <NavigationProperty Name="noticia" Relationship="Self.FK_etiquetas_noticias_1_0" FromRole="etiquetas_noticias" ToRole="noticia" />
+        </EntityType>
+        <EntityType Name="noticia">
+          <Key>
+            <PropertyRef Name="id" />
+          </Key>
+          <Property Name="id" Type="Int64" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+          <Property Name="fecha" Type="DateTime" Nullable="false" />
+          <Property Name="titulo" Type="String" MaxLength="2147483647" FixedLength="false" Unicode="true" Nullable="false" />
+          <Property Name="contenido" Type="String" MaxLength="2147483647" FixedLength="false" Unicode="true" Nullable="false" />
+          <NavigationProperty Name="comentarios" Relationship="Self.FK_comentario_0_0" FromRole="noticia" ToRole="comentario" />
+          <NavigationProperty Name="etiquetas_noticias" Relationship="Self.FK_etiquetas_noticias_1_0" FromRole="noticia" ToRole="etiquetas_noticias" />
+          <Property Name="usuario_id" Type="Int64" Nullable="false" />
+          <NavigationProperty Name="usuario" Relationship="epiModel.FK_noticia_0_01" FromRole="noticia" ToRole="usuario" />
+        </EntityType>
+        <EntityType Name="sugerencia">
+          <Key>
+            <PropertyRef Name="id" />
+          </Key>
+          <Property Name="id" Type="Int64" Nullable="false" />
+          <Property Name="tipo" Type="Int64" />
+          <Property Name="usuario_id" Type="Int64" Nullable="false" />
+          <Property Name="fecha" Type="DateTime" Nullable="false" />
+          <Property Name="contenido" Type="String" MaxLength="2147483647" FixedLength="false" Unicode="true" Nullable="false" />
+          <NavigationProperty Name="usuario" Relationship="Self.FK_sugerencia_0_0" FromRole="sugerencia" ToRole="usuario" />
+        </EntityType>
+        <EntityType Name="usuario">
+          <Key>
+            <PropertyRef Name="id" />
+          </Key>
+          <Property Name="id" Type="Int64" Nullable="false" annotation:StoreGeneratedPattern="Identity" />
+          <Property Name="nombre" Type="String" MaxLength="2147483647" FixedLength="false" Unicode="true" Nullable="false" />
+          <Property Name="email" Type="String" MaxLength="2147483647" FixedLength="false" Unicode="true" Nullable="false" />
+          <NavigationProperty Name="comentarios" Relationship="Self.FK_comentario_1_0" FromRole="usuario" ToRole="comentario" />
+          <NavigationProperty Name="sugerencias" Relationship="Self.FK_sugerencia_0_0" FromRole="usuario" ToRole="sugerencia" />
+          <Property Name="admin" Type="Boolean" Nullable="false" />
+          <Property Name="clave" Type="String" MaxLength="8" FixedLength="false" Unicode="false" />
+          <NavigationProperty Name="noticias" Relationship="epiModel.FK_noticia_0_01" FromRole="usuario" ToRole="noticia" />
+        </EntityType>
+        <Association Name="FK_comentario_0_0">
+          <End Role="noticia" Type="Self.noticia" Multiplicity="0..1" />
+          <End Role="comentario" Type="Self.comentario" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="noticia">
+              <PropertyRef Name="id" />
+            </Principal>
+            <Dependent Role="comentario">
+              <PropertyRef Name="noticia_id" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_comentario_1_0">
+          <End Role="usuario" Type="Self.usuario" Multiplicity="0..1" />
+          <End Role="comentario" Type="Self.comentario" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="usuario">
+              <PropertyRef Name="id" />
+            </Principal>
+            <Dependent Role="comentario">
+              <PropertyRef Name="usuario_id" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_etiquetas_noticias_0_0">
+          <End Role="etiqueta" Type="Self.etiqueta" Multiplicity="1" />
+          <End Role="etiquetas_noticias" Type="Self.etiquetas_noticias" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="etiqueta">
+              <PropertyRef Name="id" />
+            </Principal>
+            <Dependent Role="etiquetas_noticias">
+              <PropertyRef Name="etiqueta_id" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_etiquetas_noticias_1_0">
+          <End Role="noticia" Type="Self.noticia" Multiplicity="1" />
+          <End Role="etiquetas_noticias" Type="Self.etiquetas_noticias" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="noticia">
+              <PropertyRef Name="id" />
+            </Principal>
+            <Dependent Role="etiquetas_noticias">
+              <PropertyRef Name="noticia_id" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <Association Name="FK_sugerencia_0_0">
+          <End Role="usuario" Type="Self.usuario" Multiplicity="1" />
+          <End Role="sugerencia" Type="Self.sugerencia" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="usuario">
+              <PropertyRef Name="id" />
+            </Principal>
+            <Dependent Role="sugerencia">
+              <PropertyRef Name="usuario_id" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+        <EntityContainer Name="epiEntities1" annotation:LazyLoadingEnabled="true">
+          <EntitySet Name="comentarios" EntityType="Self.comentario" />
+          <EntitySet Name="etiquetas" EntityType="Self.etiqueta" />
+          <EntitySet Name="etiquetas_noticias" EntityType="Self.etiquetas_noticias" />
+          <EntitySet Name="noticias" EntityType="Self.noticia" />
+          <EntitySet Name="sugerencias" EntityType="Self.sugerencia" />
+          <EntitySet Name="usuarios" EntityType="Self.usuario" />
+          <AssociationSet Name="FK_comentario_0_0" Association="Self.FK_comentario_0_0">
+            <End Role="noticia" EntitySet="noticias" />
+            <End Role="comentario" EntitySet="comentarios" />
+          </AssociationSet>
+          <AssociationSet Name="FK_comentario_1_0" Association="Self.FK_comentario_1_0">
+            <End Role="usuario" EntitySet="usuarios" />
+            <End Role="comentario" EntitySet="comentarios" />
+          </AssociationSet>
+          <AssociationSet Name="FK_etiquetas_noticias_0_0" Association="Self.FK_etiquetas_noticias_0_0">
+            <End Role="etiqueta" EntitySet="etiquetas" />
+            <End Role="etiquetas_noticias" EntitySet="etiquetas_noticias" />
+          </AssociationSet>
+          <AssociationSet Name="FK_etiquetas_noticias_1_0" Association="Self.FK_etiquetas_noticias_1_0">
+            <End Role="noticia" EntitySet="noticias" />
+            <End Role="etiquetas_noticias" EntitySet="etiquetas_noticias" />
+          </AssociationSet>
+          <AssociationSet Name="FK_sugerencia_0_0" Association="Self.FK_sugerencia_0_0">
+            <End Role="usuario" EntitySet="usuarios" />
+            <End Role="sugerencia" EntitySet="sugerencias" />
+          </AssociationSet>
+          <AssociationSet Name="FK_noticia_0_01" Association="epiModel.FK_noticia_0_01">
+            <End Role="usuario" EntitySet="usuarios" />
+            <End Role="noticia" EntitySet="noticias" />
+          </AssociationSet>
+        </EntityContainer>
+        <Association Name="FK_noticia_0_01">
+          <End Type="epiModel.usuario" Role="usuario" Multiplicity="1" />
+          <End Type="epiModel.noticia" Role="noticia" Multiplicity="*" />
+          <ReferentialConstraint>
+            <Principal Role="usuario">
+              <PropertyRef Name="id" />
+            </Principal>
+            <Dependent Role="noticia">
+              <PropertyRef Name="usuario_id" />
+            </Dependent>
+          </ReferentialConstraint>
+        </Association>
+      </Schema>
+    </edmx:ConceptualModels>
+    <!-- C-S mapping content -->
+    <edmx:Mappings>
+      <Mapping Space="C-S" xmlns="http://schemas.microsoft.com/ado/2009/11/mapping/cs">
+        <EntityContainerMapping StorageEntityContainer="epiModelStoreContainer" CdmEntityContainer="epiEntities1">
+          <EntitySetMapping Name="comentarios">
+            <EntityTypeMapping TypeName="epiModel.comentario">
+              <MappingFragment StoreEntitySet="comentario">
+                <ScalarProperty Name="id" ColumnName="id" />
+                <ScalarProperty Name="usuario_id" ColumnName="usuario_id" />
+                <ScalarProperty Name="noticia_id" ColumnName="noticia_id" />
+                <ScalarProperty Name="contenido" ColumnName="contenido" />
+                <ScalarProperty Name="fecha" ColumnName="fecha" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+          <EntitySetMapping Name="etiquetas">
+            <EntityTypeMapping TypeName="epiModel.etiqueta">
+              <MappingFragment StoreEntitySet="etiqueta">
+                <ScalarProperty Name="id" ColumnName="id" />
+                <ScalarProperty Name="nombre" ColumnName="nombre" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+          <EntitySetMapping Name="etiquetas_noticias">
+            <EntityTypeMapping TypeName="epiModel.etiquetas_noticias">
+              <MappingFragment StoreEntitySet="etiquetas_noticias">
+                <ScalarProperty Name="id" ColumnName="id" />
+                <ScalarProperty Name="noticia_id" ColumnName="noticia_id" />
+                <ScalarProperty Name="etiqueta_id" ColumnName="etiqueta_id" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+          <EntitySetMapping Name="noticias">
+            <EntityTypeMapping TypeName="epiModel.noticia">
+              <MappingFragment StoreEntitySet="noticia">
+                <ScalarProperty Name="usuario_id" ColumnName="usuario_id" />
+                <ScalarProperty Name="id" ColumnName="id" />
+                <ScalarProperty Name="fecha" ColumnName="fecha" />
+                <ScalarProperty Name="titulo" ColumnName="titulo" />
+                <ScalarProperty Name="contenido" ColumnName="contenido" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+          <EntitySetMapping Name="sugerencias">
+            <EntityTypeMapping TypeName="epiModel.sugerencia">
+              <MappingFragment StoreEntitySet="sugerencia">
+                <ScalarProperty Name="id" ColumnName="id" />
+                <ScalarProperty Name="tipo" ColumnName="tipo" />
+                <ScalarProperty Name="usuario_id" ColumnName="usuario_id" />
+                <ScalarProperty Name="fecha" ColumnName="fecha" />
+                <ScalarProperty Name="contenido" ColumnName="contenido" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+          <EntitySetMapping Name="usuarios">
+            <EntityTypeMapping TypeName="epiModel.usuario">
+              <MappingFragment StoreEntitySet="usuario">
+                <ScalarProperty Name="clave" ColumnName="clave" />
+                <ScalarProperty Name="admin" ColumnName="admin" />
+                <ScalarProperty Name="id" ColumnName="id" />
+                <ScalarProperty Name="nombre" ColumnName="nombre" />
+                <ScalarProperty Name="email" ColumnName="email" />
+              </MappingFragment>
+            </EntityTypeMapping>
+          </EntitySetMapping>
+        </EntityContainerMapping>
+      </Mapping>
+    </edmx:Mappings>
+  </edmx:Runtime>
+  <!-- EF Designer content (DO NOT EDIT MANUALLY BELOW HERE) -->
+  <Designer xmlns="http://schemas.microsoft.com/ado/2009/11/edmx">
+    <Connection>
+      <DesignerInfoPropertySet>
+        <DesignerProperty Name="MetadataArtifactProcessing" Value="EmbedInOutputAssembly" />
+      </DesignerInfoPropertySet>
+    </Connection>
+    <Options>
+      <DesignerInfoPropertySet>
+        <DesignerProperty Name="ValidateOnBuild" Value="true" />
+        <DesignerProperty Name="EnablePluralization" Value="true" />
+        <DesignerProperty Name="IncludeForeignKeysInModel" Value="true" />
+        <DesignerProperty Name="UseLegacyProvider" Value="false" />
+        <DesignerProperty Name="CodeGenerationStrategy" Value="None" />
+      </DesignerInfoPropertySet>
+    </Options>
+    <!-- Diagram content (shape and connector positions) -->
+    <Diagrams></Diagrams>
+  </Designer>
+</edmx:Edmx>

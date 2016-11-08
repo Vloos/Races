@@ -147,7 +147,7 @@ namespace Races
 public class RaceComponent : MonoBehaviour
 {
     public CelestialBody body;
-    private Vector3d coords; //coordenadas relativas al planeta
+    private Vector3 coords; //coordenadas relativas al planeta
     public Quaternion rot;  //rotación relativa a la superficie
     public static int maxAlt = 50000;
 
@@ -840,6 +840,7 @@ public class RaceManager : MonoBehaviour
         GetRacetrackList();
     }
 
+
     void Update()
     {
         if (enCarrera)
@@ -1197,13 +1198,16 @@ public class RaceManager : MonoBehaviour
 
             loadedTrack.obList[editionOb].Solid = GUILayout.Toggle(loadedTrack.obList[editionOb].Solid, "Solid thing");
 
+            /*
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("Rotate"))
             {
                 if (grot != null) grot.Detach();
                 if (gofs != null) gofs.Detach();
-                grot = EditorGizmos.GizmoRotate.Attach(loadedTrack.obList[editionOb].transform, loadedTrack.obList[editionOb].transform.position, rCompRot, rCompRot);
+                //grot = GizmoRotate.Attach(loadedTrack.obList[editionOb].transform, loadedTrack.obList[editionOb].transform.position, rCompRot, rCompRot);
+                grot = GizmoRotate.Attach(loadedTrack.obList[editionOb].transform, loadedTrack.obList[editionOb].transform.position, loadedTrack.obList[editionOb].transform.rotation, rCompRot, rCompRot);
             }
+            */
 
             if (GUILayout.Button("Reset Rotation"))
             {
@@ -1211,8 +1215,11 @@ public class RaceManager : MonoBehaviour
                 if (gofs != null) gofs.Detach();
                 loadedTrack.obList[editionOb].resetRot();
             }
+            /*
             GUILayout.EndHorizontal();
+            */
 
+            /*
             GUILayout.BeginHorizontal();
             GUILayout.Label("Move");
             bool abs = GUILayout.Button("Absolute");
@@ -1223,7 +1230,8 @@ public class RaceManager : MonoBehaviour
             {
                 if (grot != null) grot.Detach();
                 if (gofs != null) gofs.Detach();
-                gofs = EditorGizmos.GizmoOffset.Attach(loadedTrack.obList[editionOb].transform, rCompTran, rCompTran);
+                gofs = GizmoOffset.Attach(loadedTrack.obList[editionOb].transform, loadedTrack.obList[editionOb].transform.rotation, rCompTran, rCompTran);
+                
                 if (abs)
                 {
                     Vector3 _direction = (loadedTrack.obList[editionOb].body.position - transform.position).normalized;
@@ -1231,19 +1239,74 @@ public class RaceManager : MonoBehaviour
                 }
                 else gofs.transform.rotation = loadedTrack.obList[editionOb].transform.rotation;
             }
+            */
 
+            // Botones orribles:
+            GUILayout.Label("Rotate");
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Pitch");
+            if (GUILayout.RepeatButton("---")) loadedTrack.obList[editionOb].rot = loadedTrack.obList[editionOb].rot * Quaternion.Euler(-1.0f, 0, 0); loadedTrack.obList[editionOb].rotate();
+            if (GUILayout.RepeatButton("-")) loadedTrack.obList[editionOb].rot = loadedTrack.obList[editionOb].rot * Quaternion.Euler(-0.1f, 0, 0); loadedTrack.obList[editionOb].rotate();
+            if (GUILayout.RepeatButton("+")) loadedTrack.obList[editionOb].rot = loadedTrack.obList[editionOb].rot * Quaternion.Euler(0.1f, 0, 0); loadedTrack.obList[editionOb].rotate();
+            if (GUILayout.RepeatButton("+++")) loadedTrack.obList[editionOb].rot = loadedTrack.obList[editionOb].rot * Quaternion.Euler(1.0f, 0, 0); loadedTrack.obList[editionOb].rotate();
+            GUILayout.EndHorizontal();
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Roll");
+            if (GUILayout.RepeatButton("---")) loadedTrack.obList[editionOb].rot = loadedTrack.obList[editionOb].rot * Quaternion.Euler(0, -1.0f, 0); loadedTrack.obList[editionOb].rotate();
+            if (GUILayout.RepeatButton("-")) loadedTrack.obList[editionOb].rot = loadedTrack.obList[editionOb].rot * Quaternion.Euler(0, -0.1f, 0); loadedTrack.obList[editionOb].rotate();
+            if (GUILayout.RepeatButton("+")) loadedTrack.obList[editionOb].rot = loadedTrack.obList[editionOb].rot * Quaternion.Euler(0, 0.1f, 0); loadedTrack.obList[editionOb].rotate();
+            if (GUILayout.RepeatButton("+++")) loadedTrack.obList[editionOb].rot = loadedTrack.obList[editionOb].rot * Quaternion.Euler(0, 1.0f, 0); loadedTrack.obList[editionOb].rotate();
+            GUILayout.EndHorizontal();
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Yaw");
+            if (GUILayout.RepeatButton("---")) loadedTrack.obList[editionOb].rot = loadedTrack.obList[editionOb].rot * Quaternion.Euler(0, 0, -1.0f); loadedTrack.obList[editionOb].rotate();
+            if (GUILayout.RepeatButton("-")) loadedTrack.obList[editionOb].rot = loadedTrack.obList[editionOb].rot * Quaternion.Euler(0, 0, -0.1f); loadedTrack.obList[editionOb].rotate();
+            if (GUILayout.RepeatButton("+")) loadedTrack.obList[editionOb].rot = loadedTrack.obList[editionOb].rot * Quaternion.Euler(0, 0, 0.1f); loadedTrack.obList[editionOb].rotate();
+            if (GUILayout.RepeatButton("+++")) loadedTrack.obList[editionOb].rot = loadedTrack.obList[editionOb].rot * Quaternion.Euler(0, 0, 1.0f); loadedTrack.obList[editionOb].rotate();
+            GUILayout.EndHorizontal();
+            if (GUILayout.Button("Reset Rotation")) loadedTrack.obList[editionOb].resetRot();
+
+            GUILayout.Label("Move");
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Lat");
+            if (GUILayout.RepeatButton("---")) loadedTrack.obList[editionOb].Coords = loadedTrack.obList[editionOb].Coords + ((Quaternion.Inverse(loadedTrack.obList[editionOb].body.transform.rotation) * loadedTrack.obList[editionOb].rotZero()) * Vector3.up.normalized); loadedTrack.obList[editionOb].move();
+            if (GUILayout.RepeatButton("-")) loadedTrack.obList[editionOb].Coords = loadedTrack.obList[editionOb].Coords + ((Quaternion.Inverse(loadedTrack.obList[editionOb].body.transform.rotation) * loadedTrack.obList[editionOb].rotZero()) * (Vector3.up.normalized / 50)); loadedTrack.obList[editionOb].move();
+            if (GUILayout.RepeatButton("+")) loadedTrack.obList[editionOb].Coords = loadedTrack.obList[editionOb].Coords + ((Quaternion.Inverse(loadedTrack.obList[editionOb].body.transform.rotation) * loadedTrack.obList[editionOb].rotZero()) * (Vector3.down.normalized / 50)); loadedTrack.obList[editionOb].move();
+            if (GUILayout.RepeatButton("+++")) loadedTrack.obList[editionOb].Coords = loadedTrack.obList[editionOb].Coords + ((Quaternion.Inverse(loadedTrack.obList[editionOb].body.transform.rotation) * loadedTrack.obList[editionOb].rotZero()) * (Vector3.down.normalized)); loadedTrack.obList[editionOb].move();
+            GUILayout.EndHorizontal();
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Lon");
+            if (GUILayout.RepeatButton("---")) loadedTrack.obList[editionOb].Coords = loadedTrack.obList[editionOb].Coords + ((Quaternion.Inverse(loadedTrack.obList[editionOb].body.transform.rotation) * loadedTrack.obList[editionOb].rotZero()) * Vector3.left.normalized); loadedTrack.obList[editionOb].move();
+            if (GUILayout.RepeatButton("-")) loadedTrack.obList[editionOb].Coords = loadedTrack.obList[editionOb].Coords + ((Quaternion.Inverse(loadedTrack.obList[editionOb].body.transform.rotation) * loadedTrack.obList[editionOb].rotZero()) * (Vector3.left.normalized / 50)); loadedTrack.obList[editionOb].move();
+            if (GUILayout.RepeatButton("+")) loadedTrack.obList[editionOb].Coords = loadedTrack.obList[editionOb].Coords + ((Quaternion.Inverse(loadedTrack.obList[editionOb].body.transform.rotation) * loadedTrack.obList[editionOb].rotZero()) * (Vector3.right.normalized / 50)); loadedTrack.obList[editionOb].move();
+            if (GUILayout.RepeatButton("+++")) loadedTrack.obList[editionOb].Coords = loadedTrack.obList[editionOb].Coords + ((Quaternion.Inverse(loadedTrack.obList[editionOb].body.transform.rotation) * loadedTrack.obList[editionOb].rotZero()) * (Vector3.right.normalized)); loadedTrack.obList[editionOb].move();
+            GUILayout.EndHorizontal();
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Alt");
+            if (GUILayout.RepeatButton("---")) loadedTrack.obList[editionOb].Coords = loadedTrack.obList[editionOb].Coords + ((Quaternion.Inverse(loadedTrack.obList[editionOb].body.transform.rotation) * loadedTrack.obList[editionOb].rotZero()) * Vector3.forward); loadedTrack.obList[editionOb].move();
+            if (GUILayout.RepeatButton("-")) loadedTrack.obList[editionOb].Coords = loadedTrack.obList[editionOb].Coords + ((Quaternion.Inverse(loadedTrack.obList[editionOb].body.transform.rotation) * loadedTrack.obList[editionOb].rotZero()) * (Vector3.forward / 20)); loadedTrack.obList[editionOb].move();
+            if (GUILayout.RepeatButton("+")) loadedTrack.obList[editionOb].Coords = loadedTrack.obList[editionOb].Coords + ((Quaternion.Inverse(loadedTrack.obList[editionOb].body.transform.rotation) * loadedTrack.obList[editionOb].rotZero()) * (Vector3.back / 20)); loadedTrack.obList[editionOb].move();
+            if (GUILayout.RepeatButton("+++")) loadedTrack.obList[editionOb].Coords = loadedTrack.obList[editionOb].Coords + ((Quaternion.Inverse(loadedTrack.obList[editionOb].body.transform.rotation) * loadedTrack.obList[editionOb].rotZero()) * (Vector3.back)); loadedTrack.obList[editionOb].move();
+            GUILayout.EndHorizontal();
+            if (GUILayout.Button("Send to floor")) loadedTrack.obList[editionOb].toFloor();
+            // Fin de los botones orribles
+
+            /*
             if (GUILayout.Button("Send to floor"))
             {
                 if (grot != null) grot.Detach();
                 if (gofs != null) gofs.Detach();
                 loadedTrack.obList[editionOb].toFloor();
             }
-
+            */
+            
+            /*
             if (GUILayout.Button("Hide gizmo"))
             {
                 if (grot != null) grot.Detach();
                 if (gofs != null) gofs.Detach();
             }
+            */
 
             GUILayout.Label("Scale");
 
@@ -1318,22 +1381,25 @@ public class RaceManager : MonoBehaviour
             GUILayout.EndHorizontal();
 
             //Esto hacía aparecer los chirimbolos de rotación
-            //GUILayout.BeginHorizontal();
-            //if (GUILayout.Button("Rotate"))
-            //{
-            //    if (grot != null) grot.Detach();
-            //    if (gofs != null) gofs.Detach();
-            //    grot = EditorGizmos.GizmoRotate.Attach(loadedTrack.cpList[editionCp].transform, loadedTrack.cpList[editionCp].transform.position, rCompRot, rCompRot);
+            /*
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Rotate"))
+            {
+                if (grot != null) grot.Detach();
+                if (gofs != null) gofs.Detach();
+                grot = GizmoRotate.Attach(loadedTrack.cpList[editionCp].transform, loadedTrack.cpList[editionCp].transform.position, loadedTrack.cpList[editionCp].transform.rotation ,rCompRot, rCompRot);
+            }
 
-            //}
+            if (GUILayout.Button("Reset Rotation"))
+            {
+                if (grot != null) grot.Detach();
+                if (gofs != null) gofs.Detach();
+                loadedTrack.cpList[editionCp].resetRot();
+            }
+            GUILayout.EndHorizontal();
+            */
 
-            //if (GUILayout.Button("Reset Rotation"))
-            //{
-            //    if (grot != null) grot.Detach();
-            //    if (gofs != null) gofs.Detach();
-            //    loadedTrack.cpList[editionCp].resetRot();
-            //}
-            //GUILayout.EndHorizontal();
+            // Botones orribles:
             GUILayout.Label("Rotate");
             GUILayout.BeginHorizontal();
             GUILayout.Label("Pitch");
@@ -1381,41 +1447,46 @@ public class RaceManager : MonoBehaviour
             if (GUILayout.RepeatButton("+++")) loadedTrack.cpList[editionCp].Coords = loadedTrack.cpList[editionCp].Coords + ((Quaternion.Inverse(loadedTrack.cpList[editionCp].body.transform.rotation) * loadedTrack.cpList[editionCp].rotZero()) * (Vector3.back)); loadedTrack.cpList[editionCp].move();
             GUILayout.EndHorizontal();
             if (GUILayout.Button("Send to floor")) loadedTrack.cpList[editionCp].toFloor();
-            
+            // Fin de los botones orribles
 
             //Esto hacía aparecer los chirimbolos de translación
-            //GUILayout.BeginHorizontal();
-            //GUILayout.Label("Move");
-            //bool abs = GUILayout.Button("Absolute");
-            //bool rel = GUILayout.Button("Relative");
+            /*
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Move");
+            bool abs = GUILayout.Button("Absolute");
+            bool rel = GUILayout.Button("Relative");
+            if (abs || rel)
+            {
+                if (grot != null) grot.Detach();
+                if (gofs != null) gofs.Detach();
+                gofs = GizmoOffset.Attach(loadedTrack.cpList[editionCp].transform, loadedTrack.cpList[editionCp].transform.rotation, rCompTran, rCompTran);
+                if (abs)
+                {
+                    Vector3 _direction = (loadedTrack.cpList[editionCp].body.position - transform.position).normalized;
+                    gofs.transform.rotation = Quaternion.LookRotation(_direction);
+                }
+                else gofs.transform.rotation = loadedTrack.cpList[editionCp].transform.rotation;
+            }
+            GUILayout.EndHorizontal();
+            */
 
-            //if (abs || rel)
-            //{
-            //    if (grot != null) grot.Detach();
-            //    if (gofs != null) gofs.Detach(); 
-            //    gofs = GizmoOffset.Attach(loadedTrack.cpList[editionCp].transform, rCompTran, rCompTran);
-            //    if (abs)
-            //    {
-            //        Vector3 _direction = (loadedTrack.cpList[editionCp].body.position - transform.position).normalized;
-            //        gofs.transform.rotation = Quaternion.LookRotation(_direction);
-            //    }
-            //    else gofs.transform.rotation = loadedTrack.cpList[editionCp].transform.rotation;
-            //}
-            //GUILayout.EndHorizontal();
-
-            //if (GUILayout.Button("Send to floor"))
-            //{
-            //    if (grot != null) grot.Detach();
-            //    if (gofs != null) gofs.Detach();
-            //    loadedTrack.cpList[editionCp].toFloor();
-            //}
+            /*
+            if (GUILayout.Button("Send to floor"))
+            {
+                if (grot != null) grot.Detach();
+                if (gofs != null) gofs.Detach();
+                loadedTrack.cpList[editionCp].toFloor();
+            }
+            */
 
             //Esto hacía desaparecer los chirimbolos
-            //if (GUILayout.Button("Hide gizmo"))
-            //{
-            //    if (grot != null) grot.Detach();
-            //    if (gofs != null) gofs.Detach();
-            //}
+            /*
+            if (GUILayout.Button("Hide gizmo"))
+            {
+                if (grot != null) grot.Detach();
+                if (gofs != null) gofs.Detach();
+            }
+            */
 
             if (loadedTrack.cpList.Count > 0 && GUILayout.Button("Remove Checkpoint"))
             {
@@ -1635,7 +1706,6 @@ public class RaceManager : MonoBehaviour
     protected virtual bool IsFileLocked(FileInfo file)
     {
         FileStream stream = null;
-
         try
         {
             stream = file.Open(FileMode.Open, FileAccess.ReadWrite, FileShare.None);

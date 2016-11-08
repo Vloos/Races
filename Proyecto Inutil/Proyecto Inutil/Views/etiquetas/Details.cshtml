@@ -1,0 +1,31 @@
+﻿@model Proyecto_Inutil.Models.NotEt
+
+@{
+    ViewBag.Title = "Details";
+}
+
+<h2>Details</h2>
+
+<div>
+    <h4>etiqueta</h4>
+    <hr />
+    <dl class="dl-horizontal">
+        <dt>
+            @Html.DisplayNameFor(model => model.et.nombre)
+        </dt>
+
+        <dd>
+            @Html.DisplayFor(model => model.et.nombre)
+        </dd>
+
+    </dl>
+    <h3>Noticias con esta etiqueta</h3>
+    @foreach (var item in Model.not)
+    {
+    <p>@Html.ActionLink(item.titulo, "Details", "noticias", new { id = item.id }, null)</p>
+    }
+</div>
+<p>
+    @Html.ActionLink("Edit", "Edit", new { id = Model.et.id }) |
+    @Html.ActionLink("Back to List", "Index")
+</p>
