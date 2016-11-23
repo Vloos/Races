@@ -60,6 +60,10 @@ Cuando el circuito tiene al menos un punto de control puede guardarse pulsando e
 
 
 ## Historial de cambios
+* 1.0.2
+ * Sumado 1 a la versión del parche.
+ * Cambiados (de nuevo) los botones. Ahora son deslizadores, otra vez, para precisión suprema. O algo.
+ * Los obstáculos pueden ser más grandes.
 
 * 1.0.1
  * Compilado para Kerbal Space Program 1.2.1

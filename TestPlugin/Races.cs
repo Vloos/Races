@@ -286,7 +286,7 @@ public class CheckPoint : RaceComponent
             {4, new Vector3(5F, 80f, 45f)}
         };
 
-    
+
 
     /// <summary>
     /// Da color a las lineas del punto de control
@@ -363,7 +363,6 @@ public class CheckPoint : RaceComponent
         {
             return size;
         }
-
         set
         {
             size = value;
@@ -372,7 +371,6 @@ public class CheckPoint : RaceComponent
             cuDown.transform.localPosition = new Vector3(0, 0, -sizes[Size].z / 2);
             cuLe.transform.localPosition = new Vector3(-sizes[Size].y / 2, 0, 0);
             cuRi.transform.localPosition = new Vector3(sizes[Size].y / 2, 0, 0);
-
             cuUp.transform.localScale = new Vector3(sizes[Size].y + sizes[Size].x, sizes[Size].x, sizes[Size].x);
             cuDown.transform.localScale = new Vector3(sizes[Size].y + sizes[Size].x, sizes[Size].x, sizes[Size].x);
             cuRi.transform.localScale = new Vector3(sizes[Size].x, sizes[Size].x, sizes[Size].z - sizes[Size].x);
@@ -386,7 +384,6 @@ public class CheckPoint : RaceComponent
         {
             return penalization;
         }
-
         set
         {
             penalization = value;
@@ -403,7 +400,6 @@ public class CheckPoint : RaceComponent
         {
             return colliders;
         }
-
         set
         {
             colliders = value;
@@ -417,7 +413,6 @@ public class CheckPoint : RaceComponent
     public class Qub : MonoBehaviour
     {
         public GameObject cubo = GameObject.CreatePrimitive(PrimitiveType.Cube);
-
         void Awake()
         {
             cubo.AddComponent<timePenalization>();
@@ -427,7 +422,6 @@ public class CheckPoint : RaceComponent
             cubo.GetComponent<BoxCollider>().enabled = true;
             cubo.GetComponent<BoxCollider>().name = "[Races!]CP-" + (Races.Races.raceMan.loadedTrack.cpList.Count).ToString();
         }
-
         void OnDestroy()
         {
             Destroy(cubo);
@@ -451,7 +445,6 @@ public class CheckPoint : RaceComponent
     public class colision : MonoBehaviour
     {
         public int count = 0;
-
         void OnTriggerEnter(Collider thing)
         {
             //Cuando el numero de partes +1 que han pasado por el punto de control son más de la mitad de las partes del buque, el punto de control se considera "pasado"
@@ -536,7 +529,7 @@ public class CheckPoint : RaceComponent
 
 public class Obstacle : RaceComponent
 {
-    public static int maxScale = 100;
+    public static int maxScale = 1000;
     public static int minScale = 1;
     public GameObject cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
     public BoxCollider cubeCol;
@@ -733,7 +726,7 @@ public class LoadedTrack
         laps = clon.laps;
         int clonlist = clon.cpList.Length;
         int cpClonList = clon.obList.Length;
-        for (int i = 0; i < clonlist ; i++)
+        for (int i = 0; i < clonlist; i++)
         {
             CheckPoint cp = new GameObject().AddComponent<CheckPoint>();
             cp.fromCpClon(clon.cpList[i]);
@@ -814,6 +807,9 @@ public class RaceManager : MonoBehaviour
     public int size = 0;
     public float obScaleMinRatio = 0.1f;
     public float obScaleMaxRatio = 0.2f;
+
+    public float slidLat, slidLon, slidAlt = 0f;
+    public float slidPitch, slidYaw, slidRoll = 0f;
     ////Styles
     public float rotLabelWidth = 38f;
     public float editSliderWidth = 100f;
@@ -1105,7 +1101,7 @@ public class RaceManager : MonoBehaviour
                     cambiaEstado(estados.EditScreen);
                     newCheckpoint(false);
                 }
-                    
+
                 GUILayout.Label("RCtrl + LMB on cursor");
                 GUILayout.EndVertical();
 
@@ -1114,7 +1110,7 @@ public class RaceManager : MonoBehaviour
                 {
                     cambiaEstado(estados.ObsScreen);
                     newObstacle(false);
-                } 
+                }
                 GUILayout.Label("RShift + LMB on cursor");
                 GUILayout.EndVertical();
 
@@ -1136,7 +1132,7 @@ public class RaceManager : MonoBehaviour
                 if (estadoAct == estados.EditScreen) cpEditionGui();
                 if (estadoAct == estados.ObsScreen) obEditionGui();
                 GUILayout.EndVertical();
-               
+
                 GUILayout.EndHorizontal();
                 break;
             case estados.RaceScreen:
@@ -1176,6 +1172,29 @@ public class RaceManager : MonoBehaviour
                 break;
         }
         GUI.DragWindow();
+
+        //Llama método que mueve y gira los componentes
+        if (Input.GetMouseButton(0))
+        {
+            if (estadoAct == estados.ObsScreen && loadedTrack.obList.Count > 0)
+            {
+                MyG(loadedTrack.obList[editionOb]);
+            }else if(estadoAct == estados.EditScreen && loadedTrack.cpList.Count > 0)
+            {
+                MyG(loadedTrack.cpList[editionCp]);
+            }
+        }
+
+        //Reinicia los deslizadores al soltar el botón izquierdo del ratón
+        if (Input.GetMouseButtonUp(0))
+        {
+            slidLon = 0f;
+            slidAlt = 0f;
+            slidLat = 0f;
+            slidPitch = 0f;
+            slidRoll = 0f;
+            slidYaw = 0f;
+        }
     }
 
     /// <summary>
@@ -1245,50 +1264,33 @@ public class RaceManager : MonoBehaviour
             GUILayout.Label("Rotate");
             GUILayout.BeginHorizontal();
             GUILayout.Label("Pitch");
-            if (GUILayout.RepeatButton("---")) loadedTrack.obList[editionOb].rot = loadedTrack.obList[editionOb].rot * Quaternion.Euler(-1.0f, 0, 0); loadedTrack.obList[editionOb].rotate();
-            if (GUILayout.RepeatButton("-")) loadedTrack.obList[editionOb].rot = loadedTrack.obList[editionOb].rot * Quaternion.Euler(-0.1f, 0, 0); loadedTrack.obList[editionOb].rotate();
-            if (GUILayout.RepeatButton("+")) loadedTrack.obList[editionOb].rot = loadedTrack.obList[editionOb].rot * Quaternion.Euler(0.1f, 0, 0); loadedTrack.obList[editionOb].rotate();
-            if (GUILayout.RepeatButton("+++")) loadedTrack.obList[editionOb].rot = loadedTrack.obList[editionOb].rot * Quaternion.Euler(1.0f, 0, 0); loadedTrack.obList[editionOb].rotate();
+            slidPitch = GUILayout.HorizontalSlider(slidPitch, -1f, 1f, GUILayout.Width(200));
             GUILayout.EndHorizontal();
             GUILayout.BeginHorizontal();
             GUILayout.Label("Roll");
-            if (GUILayout.RepeatButton("---")) loadedTrack.obList[editionOb].rot = loadedTrack.obList[editionOb].rot * Quaternion.Euler(0, -1.0f, 0); loadedTrack.obList[editionOb].rotate();
-            if (GUILayout.RepeatButton("-")) loadedTrack.obList[editionOb].rot = loadedTrack.obList[editionOb].rot * Quaternion.Euler(0, -0.1f, 0); loadedTrack.obList[editionOb].rotate();
-            if (GUILayout.RepeatButton("+")) loadedTrack.obList[editionOb].rot = loadedTrack.obList[editionOb].rot * Quaternion.Euler(0, 0.1f, 0); loadedTrack.obList[editionOb].rotate();
-            if (GUILayout.RepeatButton("+++")) loadedTrack.obList[editionOb].rot = loadedTrack.obList[editionOb].rot * Quaternion.Euler(0, 1.0f, 0); loadedTrack.obList[editionOb].rotate();
+            slidRoll = GUILayout.HorizontalSlider(slidRoll, -1f, 1f, GUILayout.Width(200));
             GUILayout.EndHorizontal();
             GUILayout.BeginHorizontal();
             GUILayout.Label("Yaw");
-            if (GUILayout.RepeatButton("---")) loadedTrack.obList[editionOb].rot = loadedTrack.obList[editionOb].rot * Quaternion.Euler(0, 0, -1.0f); loadedTrack.obList[editionOb].rotate();
-            if (GUILayout.RepeatButton("-")) loadedTrack.obList[editionOb].rot = loadedTrack.obList[editionOb].rot * Quaternion.Euler(0, 0, -0.1f); loadedTrack.obList[editionOb].rotate();
-            if (GUILayout.RepeatButton("+")) loadedTrack.obList[editionOb].rot = loadedTrack.obList[editionOb].rot * Quaternion.Euler(0, 0, 0.1f); loadedTrack.obList[editionOb].rotate();
-            if (GUILayout.RepeatButton("+++")) loadedTrack.obList[editionOb].rot = loadedTrack.obList[editionOb].rot * Quaternion.Euler(0, 0, 1.0f); loadedTrack.obList[editionOb].rotate();
+            slidYaw = GUILayout.HorizontalSlider(slidYaw, -1f, 1f, GUILayout.Width(200));
             GUILayout.EndHorizontal();
             if (GUILayout.Button("Reset Rotation")) loadedTrack.obList[editionOb].resetRot();
 
             GUILayout.Label("Move");
             GUILayout.BeginHorizontal();
             GUILayout.Label("Lat");
-            if (GUILayout.RepeatButton("---")) loadedTrack.obList[editionOb].Coords = loadedTrack.obList[editionOb].Coords + ((Quaternion.Inverse(loadedTrack.obList[editionOb].body.transform.rotation) * loadedTrack.obList[editionOb].rotZero()) * Vector3.up.normalized); loadedTrack.obList[editionOb].move();
-            if (GUILayout.RepeatButton("-")) loadedTrack.obList[editionOb].Coords = loadedTrack.obList[editionOb].Coords + ((Quaternion.Inverse(loadedTrack.obList[editionOb].body.transform.rotation) * loadedTrack.obList[editionOb].rotZero()) * (Vector3.up.normalized / 50)); loadedTrack.obList[editionOb].move();
-            if (GUILayout.RepeatButton("+")) loadedTrack.obList[editionOb].Coords = loadedTrack.obList[editionOb].Coords + ((Quaternion.Inverse(loadedTrack.obList[editionOb].body.transform.rotation) * loadedTrack.obList[editionOb].rotZero()) * (Vector3.down.normalized / 50)); loadedTrack.obList[editionOb].move();
-            if (GUILayout.RepeatButton("+++")) loadedTrack.obList[editionOb].Coords = loadedTrack.obList[editionOb].Coords + ((Quaternion.Inverse(loadedTrack.obList[editionOb].body.transform.rotation) * loadedTrack.obList[editionOb].rotZero()) * (Vector3.down.normalized)); loadedTrack.obList[editionOb].move();
+            slidLat = GUILayout.HorizontalSlider(slidLat, -50f, 50f, GUILayout.Width(200));
             GUILayout.EndHorizontal();
             GUILayout.BeginHorizontal();
             GUILayout.Label("Lon");
-            if (GUILayout.RepeatButton("---")) loadedTrack.obList[editionOb].Coords = loadedTrack.obList[editionOb].Coords + ((Quaternion.Inverse(loadedTrack.obList[editionOb].body.transform.rotation) * loadedTrack.obList[editionOb].rotZero()) * Vector3.left.normalized); loadedTrack.obList[editionOb].move();
-            if (GUILayout.RepeatButton("-")) loadedTrack.obList[editionOb].Coords = loadedTrack.obList[editionOb].Coords + ((Quaternion.Inverse(loadedTrack.obList[editionOb].body.transform.rotation) * loadedTrack.obList[editionOb].rotZero()) * (Vector3.left.normalized / 50)); loadedTrack.obList[editionOb].move();
-            if (GUILayout.RepeatButton("+")) loadedTrack.obList[editionOb].Coords = loadedTrack.obList[editionOb].Coords + ((Quaternion.Inverse(loadedTrack.obList[editionOb].body.transform.rotation) * loadedTrack.obList[editionOb].rotZero()) * (Vector3.right.normalized / 50)); loadedTrack.obList[editionOb].move();
-            if (GUILayout.RepeatButton("+++")) loadedTrack.obList[editionOb].Coords = loadedTrack.obList[editionOb].Coords + ((Quaternion.Inverse(loadedTrack.obList[editionOb].body.transform.rotation) * loadedTrack.obList[editionOb].rotZero()) * (Vector3.right.normalized)); loadedTrack.obList[editionOb].move();
+            slidLon = GUILayout.HorizontalSlider(slidLon, -50f, 50f, GUILayout.Width(200));
             GUILayout.EndHorizontal();
             GUILayout.BeginHorizontal();
             GUILayout.Label("Alt");
-            if (GUILayout.RepeatButton("---")) loadedTrack.obList[editionOb].Coords = loadedTrack.obList[editionOb].Coords + ((Quaternion.Inverse(loadedTrack.obList[editionOb].body.transform.rotation) * loadedTrack.obList[editionOb].rotZero()) * Vector3.forward); loadedTrack.obList[editionOb].move();
-            if (GUILayout.RepeatButton("-")) loadedTrack.obList[editionOb].Coords = loadedTrack.obList[editionOb].Coords + ((Quaternion.Inverse(loadedTrack.obList[editionOb].body.transform.rotation) * loadedTrack.obList[editionOb].rotZero()) * (Vector3.forward / 20)); loadedTrack.obList[editionOb].move();
-            if (GUILayout.RepeatButton("+")) loadedTrack.obList[editionOb].Coords = loadedTrack.obList[editionOb].Coords + ((Quaternion.Inverse(loadedTrack.obList[editionOb].body.transform.rotation) * loadedTrack.obList[editionOb].rotZero()) * (Vector3.back / 20)); loadedTrack.obList[editionOb].move();
-            if (GUILayout.RepeatButton("+++")) loadedTrack.obList[editionOb].Coords = loadedTrack.obList[editionOb].Coords + ((Quaternion.Inverse(loadedTrack.obList[editionOb].body.transform.rotation) * loadedTrack.obList[editionOb].rotZero()) * (Vector3.back)); loadedTrack.obList[editionOb].move();
+            slidAlt = GUILayout.HorizontalSlider(slidAlt, -20f, 20f, GUILayout.Width(200));
             GUILayout.EndHorizontal();
             if (GUILayout.Button("Send to floor")) loadedTrack.obList[editionOb].toFloor();
+
             // Fin de los botones orribles
 
             /*
@@ -1299,7 +1301,7 @@ public class RaceManager : MonoBehaviour
                 loadedTrack.obList[editionOb].toFloor();
             }
             */
-            
+
             /*
             if (GUILayout.Button("Hide gizmo"))
             {
@@ -1313,11 +1315,13 @@ public class RaceManager : MonoBehaviour
             GUILayout.BeginHorizontal();
             GUILayout.Label("X", GUILayout.Width(15));
             if (GUILayout.Button("|-")) loadedTrack.obList[editionOb].scaleOb(-Obstacle.maxScale, 0, 0);
+            //if (GUILayout.Button("-100")) 
             if (GUILayout.RepeatButton("--")) loadedTrack.obList[editionOb].scaleOb(-obScaleMaxRatio, 0, 0);
             if (GUILayout.Button("-")) loadedTrack.obList[editionOb].scaleOb(-obScaleMinRatio, 0, 0);
             GUILayout.Label(loadedTrack.obList[editionOb].cube.transform.localScale.x.ToString(), GUILayout.Width(obScaleInfoLabelWidth));
             if (GUILayout.Button("+")) loadedTrack.obList[editionOb].scaleOb(obScaleMinRatio, 0, 0);
             if (GUILayout.RepeatButton("++")) loadedTrack.obList[editionOb].scaleOb(obScaleMaxRatio, 0, 0);
+            //if (GUILayout.Button("+100"))
             if (GUILayout.Button("+|")) loadedTrack.obList[editionOb].scaleOb(Obstacle.maxScale, 0, 0);
             GUILayout.EndHorizontal();
 
@@ -1403,48 +1407,30 @@ public class RaceManager : MonoBehaviour
             GUILayout.Label("Rotate");
             GUILayout.BeginHorizontal();
             GUILayout.Label("Pitch");
-            if (GUILayout.RepeatButton("---")) loadedTrack.cpList[editionCp].rot = loadedTrack.cpList[editionCp].rot * Quaternion.Euler(-1.0f, 0, 0); loadedTrack.cpList[editionCp].rotate();
-            if (GUILayout.RepeatButton("-")) loadedTrack.cpList[editionCp].rot = loadedTrack.cpList[editionCp].rot * Quaternion.Euler(-0.1f, 0, 0); loadedTrack.cpList[editionCp].rotate();
-            if (GUILayout.RepeatButton("+")) loadedTrack.cpList[editionCp].rot = loadedTrack.cpList[editionCp].rot * Quaternion.Euler(0.1f, 0, 0); loadedTrack.cpList[editionCp].rotate();
-            if (GUILayout.RepeatButton("+++")) loadedTrack.cpList[editionCp].rot = loadedTrack.cpList[editionCp].rot * Quaternion.Euler(1.0f, 0, 0); loadedTrack.cpList[editionCp].rotate();
+            slidPitch = GUILayout.HorizontalSlider(slidPitch, -1f, 1f, GUILayout.Width(200));
             GUILayout.EndHorizontal();
             GUILayout.BeginHorizontal();
             GUILayout.Label("Roll");
-            if (GUILayout.RepeatButton("---")) loadedTrack.cpList[editionCp].rot = loadedTrack.cpList[editionCp].rot * Quaternion.Euler(0, -1.0f, 0); loadedTrack.cpList[editionCp].rotate();
-            if (GUILayout.RepeatButton("-")) loadedTrack.cpList[editionCp].rot = loadedTrack.cpList[editionCp].rot * Quaternion.Euler(0, -0.1f, 0); loadedTrack.cpList[editionCp].rotate();
-            if (GUILayout.RepeatButton("+")) loadedTrack.cpList[editionCp].rot = loadedTrack.cpList[editionCp].rot * Quaternion.Euler(0, 0.1f, 0); loadedTrack.cpList[editionCp].rotate();
-            if (GUILayout.RepeatButton("+++")) loadedTrack.cpList[editionCp].rot = loadedTrack.cpList[editionCp].rot * Quaternion.Euler(0, 1.0f, 0); loadedTrack.cpList[editionCp].rotate();
+            slidRoll = GUILayout.HorizontalSlider(slidRoll, -1f, 1f, GUILayout.Width(200));
             GUILayout.EndHorizontal();
             GUILayout.BeginHorizontal();
             GUILayout.Label("Yaw");
-            if (GUILayout.RepeatButton("---")) loadedTrack.cpList[editionCp].rot = loadedTrack.cpList[editionCp].rot * Quaternion.Euler(0, 0, -1.0f); loadedTrack.cpList[editionCp].rotate();
-            if (GUILayout.RepeatButton("-")) loadedTrack.cpList[editionCp].rot = loadedTrack.cpList[editionCp].rot * Quaternion.Euler(0, 0, -0.1f); loadedTrack.cpList[editionCp].rotate();
-            if (GUILayout.RepeatButton("+")) loadedTrack.cpList[editionCp].rot = loadedTrack.cpList[editionCp].rot * Quaternion.Euler(0, 0, 0.1f); loadedTrack.cpList[editionCp].rotate();
-            if (GUILayout.RepeatButton("+++")) loadedTrack.cpList[editionCp].rot = loadedTrack.cpList[editionCp].rot * Quaternion.Euler(0, 0, 1.0f); loadedTrack.cpList[editionCp].rotate();
+            slidYaw = GUILayout.HorizontalSlider(slidYaw, -1f, 1f, GUILayout.Width(200));
             GUILayout.EndHorizontal();
-            if (GUILayout.Button("Reset Rotation")) loadedTrack.cpList[editionCp].resetRot();
+            if (GUILayout.Button("Reset Rotation")) loadedTrack.obList[editionOb].resetRot();
 
             GUILayout.Label("Move");
             GUILayout.BeginHorizontal();
             GUILayout.Label("Lat");
-            if (GUILayout.RepeatButton("---")) loadedTrack.cpList[editionCp].Coords = loadedTrack.cpList[editionCp].Coords + ((Quaternion.Inverse(loadedTrack.cpList[editionCp].body.transform.rotation) * loadedTrack.cpList[editionCp].rotZero() ) * Vector3.up.normalized); loadedTrack.cpList[editionCp].move();
-            if (GUILayout.RepeatButton("-")) loadedTrack.cpList[editionCp].Coords = loadedTrack.cpList[editionCp].Coords + ((Quaternion.Inverse(loadedTrack.cpList[editionCp].body.transform.rotation) * loadedTrack.cpList[editionCp].rotZero()) * (Vector3.up.normalized / 50)); loadedTrack.cpList[editionCp].move();
-            if (GUILayout.RepeatButton("+")) loadedTrack.cpList[editionCp].Coords = loadedTrack.cpList[editionCp].Coords + ((Quaternion.Inverse(loadedTrack.cpList[editionCp].body.transform.rotation) * loadedTrack.cpList[editionCp].rotZero()) * (Vector3.down.normalized / 50)); loadedTrack.cpList[editionCp].move();
-            if (GUILayout.RepeatButton("+++")) loadedTrack.cpList[editionCp].Coords = loadedTrack.cpList[editionCp].Coords + ((Quaternion.Inverse(loadedTrack.cpList[editionCp].body.transform.rotation) * loadedTrack.cpList[editionCp].rotZero()) * (Vector3.down.normalized)); loadedTrack.cpList[editionCp].move();
+            slidLat = GUILayout.HorizontalSlider(slidLat, -50f, 50f, GUILayout.Width(200));
             GUILayout.EndHorizontal();
             GUILayout.BeginHorizontal();
             GUILayout.Label("Lon");
-            if (GUILayout.RepeatButton("---")) loadedTrack.cpList[editionCp].Coords = loadedTrack.cpList[editionCp].Coords + ((Quaternion.Inverse(loadedTrack.cpList[editionCp].body.transform.rotation) * loadedTrack.cpList[editionCp].rotZero()) * Vector3.left.normalized); loadedTrack.cpList[editionCp].move();
-            if (GUILayout.RepeatButton("-")) loadedTrack.cpList[editionCp].Coords = loadedTrack.cpList[editionCp].Coords + ((Quaternion.Inverse(loadedTrack.cpList[editionCp].body.transform.rotation) * loadedTrack.cpList[editionCp].rotZero()) * (Vector3.left.normalized / 50)); loadedTrack.cpList[editionCp].move();
-            if (GUILayout.RepeatButton("+")) loadedTrack.cpList[editionCp].Coords = loadedTrack.cpList[editionCp].Coords + ((Quaternion.Inverse(loadedTrack.cpList[editionCp].body.transform.rotation) * loadedTrack.cpList[editionCp].rotZero()) * (Vector3.right.normalized / 50)); loadedTrack.cpList[editionCp].move();
-            if (GUILayout.RepeatButton("+++")) loadedTrack.cpList[editionCp].Coords = loadedTrack.cpList[editionCp].Coords + ((Quaternion.Inverse(loadedTrack.cpList[editionCp].body.transform.rotation) * loadedTrack.cpList[editionCp].rotZero()) * (Vector3.right.normalized)); loadedTrack.cpList[editionCp].move();
+            slidLon = GUILayout.HorizontalSlider(slidLon, -50f, 50f, GUILayout.Width(200));
             GUILayout.EndHorizontal();
             GUILayout.BeginHorizontal();
             GUILayout.Label("Alt");
-            if (GUILayout.RepeatButton("---")) loadedTrack.cpList[editionCp].Coords = loadedTrack.cpList[editionCp].Coords + ((Quaternion.Inverse(loadedTrack.cpList[editionCp].body.transform.rotation) * loadedTrack.cpList[editionCp].rotZero()) * Vector3.forward); loadedTrack.cpList[editionCp].move();
-            if (GUILayout.RepeatButton("-")) loadedTrack.cpList[editionCp].Coords = loadedTrack.cpList[editionCp].Coords + ((Quaternion.Inverse(loadedTrack.cpList[editionCp].body.transform.rotation) * loadedTrack.cpList[editionCp].rotZero()) * (Vector3.forward / 10)); loadedTrack.cpList[editionCp].move();
-            if (GUILayout.RepeatButton("+")) loadedTrack.cpList[editionCp].Coords = loadedTrack.cpList[editionCp].Coords + ((Quaternion.Inverse(loadedTrack.cpList[editionCp].body.transform.rotation) * loadedTrack.cpList[editionCp].rotZero()) * (Vector3.back / 10)); loadedTrack.cpList[editionCp].move();
-            if (GUILayout.RepeatButton("+++")) loadedTrack.cpList[editionCp].Coords = loadedTrack.cpList[editionCp].Coords + ((Quaternion.Inverse(loadedTrack.cpList[editionCp].body.transform.rotation) * loadedTrack.cpList[editionCp].rotZero()) * (Vector3.back)); loadedTrack.cpList[editionCp].move();
+            slidAlt = GUILayout.HorizontalSlider(slidAlt, -20f, 20f, GUILayout.Width(200));
             GUILayout.EndHorizontal();
             if (GUILayout.Button("Send to floor")) loadedTrack.cpList[editionCp].toFloor();
             // Fin de los botones orribles
@@ -1498,6 +1484,65 @@ public class RaceManager : MonoBehaviour
             }
 
             GUILayout.EndVertical();
+        }
+    }
+
+    /// <summary>
+    /// Mueve y Gira. Esto hace que los componentes (Puntos de Control y Obstáculos) se muevan y giren al deslizar los deslizadores.
+    /// </summary>
+    /// <param name="rc">El componente</param>
+    public void MyG(RaceComponent rc)
+    {
+        if (slidLon > 0)
+        {
+            rc.Coords = rc.Coords + ((Quaternion.Inverse(rc.body.transform.rotation)
+                * rc.rotZero()) * Vector3.left.normalized) / (51 - Math.Abs(slidLon));
+            rc.move();
+        }
+        if (slidLon < 0)
+        {
+            rc.Coords = rc.Coords + ((Quaternion.Inverse(rc.body.transform.rotation)
+                * rc.rotZero()) * Vector3.right.normalized) / (51 - Math.Abs(slidLon));
+            rc.move();
+        }
+        if (slidLat > 0)
+        {
+            rc.Coords = rc.Coords + ((Quaternion.Inverse(rc.body.transform.rotation)
+                * rc.rotZero()) * Vector3.up.normalized) / (51 - Math.Abs(slidLat));
+            rc.move();
+        }
+        if (slidLat < 0)
+        {
+            rc.Coords = rc.Coords + ((Quaternion.Inverse(rc.body.transform.rotation)
+                * rc.rotZero()) * Vector3.down.normalized) / (51 - Math.Abs(slidLat));
+            rc.move();
+        }
+        if (slidAlt > 0)
+        {
+            rc.Coords = rc.Coords + ((Quaternion.Inverse(rc.body.transform.rotation)
+                * rc.rotZero()) * Vector3.forward.normalized) / (21 - Math.Abs(slidAlt));
+            rc.move();
+        }
+        if (slidAlt < 0)
+        {
+            rc.Coords = rc.Coords + ((Quaternion.Inverse(rc.body.transform.rotation)
+                * rc.rotZero()) * Vector3.back.normalized) / (21 - Math.Abs(slidAlt));
+            rc.move();
+        }
+        if (slidPitch != 0)
+        {
+            rc.rot = rc.rot * Quaternion.Euler(slidPitch, 0, 0);
+            rc.rotate();
+        }
+        if (slidYaw != 0)
+        {
+            rc.rot = rc.rot * Quaternion.Euler(0, 0, slidYaw);
+            rc.rotate();
+        }
+        if (slidRoll != 0)
+        {
+            rc.rot = rc.rot * Quaternion.Euler(0, slidRoll, 0);
+            rc.rotate();
         }
     }
 
